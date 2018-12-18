@@ -6,6 +6,6 @@
 
 void relays_init(void);
 void publish_relay_data(MQTTClient* pClient);
-int handle_relay_cmd(MQTTClient* pEvent);
+int handle_relay_cmd(MQTTMessage *data);
 
 #endif /* APP_RELAY_H */

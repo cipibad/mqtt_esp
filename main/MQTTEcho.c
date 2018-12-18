@@ -43,10 +43,10 @@
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t wifi_event_group;
-EventGroupHandle_t mqtt_event_group;
 const int CONNECTED_BIT = BIT0;
-const int SUBSCRIBED_BIT = BIT1;
-const int READY_FOR_REQUEST = BIT2;
+
+EventGroupHandle_t mqtt_publish_event_group;
+const int MQTT_PUBLISH_RELAYS_BIT = BIT0;
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
@@ -70,7 +70,6 @@ ssl_ca_crt_key_t ssl_cck;
                                      ((ssl_ca_crt_key_t *)s)->cert_len = 0;\
                                      ((ssl_ca_crt_key_t *)s)->key = NULL;\
                                      ((ssl_ca_crt_key_t *)s)->key_len = 0;
-
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
@@ -119,8 +118,17 @@ static void messageArrived(MessageData* data)
   printf("Message arrived: %s\n", (char*)data->message->payload);
 }
 
+static void relayCmdArrived(MessageData* data)
+{
+  printf("relayCmd arrived: %s\n", data->topicName->cstring);
+  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
+  handle_relay_cmd(data->message);
+}
+
+
 static void mqtt_client_thread(void* pvParameters)
 {
+
     MQTTClient client;
     Network network;
     unsigned char sendbuf[80], readbuf[80] = {0};
@@ -156,16 +164,12 @@ static void mqtt_client_thread(void* pvParameters)
 #endif
 
     connectData.MQTTVersion = 3;
-
-    MQTTPacket_willOptions will = MQTTPacket_willOptions_initializer;
-    will.topicName.cstring = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/disconnected";
-      
     connectData.clientID.cstring = CONFIG_MQTT_CLIENT_ID;
     connectData.username.cstring = CONFIG_MQTT_USERNAME;
     connectData.password.cstring = CONFIG_MQTT_PASSWORD;
-    connectData.will = will;
+    connectData.willFlag = 1;
+    connectData.will.topicName.cstring = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/disconnected";
     connectData.keepAliveInterval = 60;
-
 
     while ((rc = MQTTConnect(&client, &connectData))) {
         printf("Return code from MQTT connect is %d\n", rc);
@@ -175,7 +179,7 @@ static void mqtt_client_thread(void* pvParameters)
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
 
-    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC, 2, messageArrived)) != 0) {
+    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC, 2, relayCmdArrived)) != 0) {
         printf("Return code from MQTT subscribe is %d\n", rc);
     } else {
         printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC);
@@ -186,27 +190,11 @@ static void mqtt_client_thread(void* pvParameters)
     } else {
         printf("MQTT subscribe to topic \"%s\"\n", OTA_TOPIC);
     }
-    xEventGroupSetBits(mqtt_event_group, READY_FOR_REQUEST);
-
     publish_relay_data(&client);
     
     while (++count) {
-        MQTTMessage message;
-        char payload[30];
-
-        message.qos = QOS2;
-        message.retained = 0;
-        message.payload = payload;
-        sprintf(payload, "message number %d", count);
-        message.payloadlen = strlen(payload);
-
-        if ((rc = MQTTPublish(&client, "ESP8266/sample/pub", &message)) != 0) {
-            printf("Return code from MQTT publish is %d\n", rc);
-        } else {
-            printf("MQTT publish topic \"ESP8266/sample/pub\", message number is %d\n", count);
-        }
-
-        vTaskDelay(1000 / portTICK_RATE_MS);  //send every 1 seconds
+      xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT, true, true, portMAX_DELAY);
+      publish_relay_data(&client);
     }
 
     printf("mqtt_client_thread going to be deleted\n");
@@ -216,9 +204,10 @@ static void mqtt_client_thread(void* pvParameters)
 
 void app_main(void)
 {
+    mqtt_publish_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( nvs_flash_init() );
     initialise_wifi();
-    mqtt_event_group = xEventGroupCreate();
+    relays_init();
 
     xTaskCreate(&mqtt_client_thread,
                 MQTT_CLIENT_THREAD_NAME,
