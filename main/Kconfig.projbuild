@@ -1,0 +1,58 @@
+menu "MQTT SSL CONF"
+
+config WIFI_SSID
+    string "WiFi SSID"
+    default "myssid"
+    help
+        SSID (network name) for the example to connect to.
+
+config WIFI_PASSWORD
+    string "WiFi Password"
+    default "mypassword"
+    help
+        WiFi password (WPA or WPA2) for the example to use.
+
+config MQTT_USERNAME
+    string "Mqtt Username"
+    default "myusername"
+    help
+        Mqtt Username used to connect, use "use-token-auth" to enable tocken auth on IBM watson IOT platform
+
+config MQTT_PASSWORD
+    string "Mqtt Password"
+    default "mypassword"
+    help
+        Mqtt password or tocked used to connect 
+
+config MQTT_SERVER
+    string "Mqtt server"
+    default "mqttserver"
+    help
+        Mqtt server
+
+config MQTT_CLIENT_ID
+    string "Mqtt client id"
+    default "mqtt_client_id"
+    help
+        Mqtt client id
+
+config MQTT_DEVICE_TYPE
+    string "Mqtt device type"
+    default "mqtt_device_type"
+    help
+        Mqtt device type(esp32/esp8266/rtc.)
+
+config RELAYS_NB
+    int "Number of relays"
+    default 2
+    help
+        Number of relays
+
+config RELAYS_BASE
+    int "Base IO pin of relays"
+    default 16
+    help
+        Base IO pin of relays
+
+
+endmenu
