@@ -32,6 +32,13 @@
 
 
 #include "app_relay.h"
+#include "app_sensors.h"
+
+
+float wtemperature;
+int16_t temperature;
+int16_t humidity;
+
 /* The examples use simple WiFi configuration that you can set via
    'make menuconfig'.
 
@@ -204,6 +211,7 @@ static void mqtt_client_thread(void* pvParameters)
 
 void app_main(void)
 {
+    esp_log_level_set("*", ESP_LOG_DEBUG);
     mqtt_publish_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( nvs_flash_init() );
     initialise_wifi();
@@ -215,4 +223,6 @@ void app_main(void)
                 NULL,
                 MQTT_CLIENT_THREAD_PRIO,
                 NULL);
+    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, NULL, 10, NULL);
+
 }
