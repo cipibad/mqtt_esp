@@ -35,7 +35,7 @@
 #include "app_sensors.h"
 
 
-float wtemperature;
+int16_t wtemperature;
 int16_t temperature;
 int16_t humidity;
 
