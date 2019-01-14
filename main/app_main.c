@@ -34,10 +34,10 @@
 #include "app_relay.h"
 #include "app_sensors.h"
 
-
-int16_t wtemperature;
-int16_t temperature;
-int16_t humidity;
+int32_t wtemperature;
+int32_t temperature;
+int32_t pressure;
+int32_t humidity;
 
 /* The examples use simple WiFi configuration that you can set via
    'make menuconfig'.
@@ -223,6 +223,6 @@ void app_main(void)
                 NULL,
                 MQTT_CLIENT_THREAD_PRIO,
                 NULL);
-    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, NULL, 10, NULL);
+    xTaskCreate(sensors_read, "sensors_read", 2048, NULL, 10, NULL);
 
 }
