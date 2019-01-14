@@ -33,11 +33,10 @@
 
 #include "app_relay.h"
 #include "app_sensors.h"
+#include "app_sensors_publish.h"
 
 int32_t wtemperature;
-int32_t temperature;
-int32_t pressure;
-int32_t humidity;
+int16_t pressure;
 
 /* The examples use simple WiFi configuration that you can set via
    'make menuconfig'.
@@ -54,6 +53,7 @@ const int CONNECTED_BIT = BIT0;
 
 EventGroupHandle_t mqtt_publish_event_group;
 const int MQTT_PUBLISH_RELAYS_BIT = BIT0;
+const int MQTT_PUBLISH_DHT22_BIT = BIT1;
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
@@ -200,8 +200,15 @@ static void mqtt_client_thread(void* pvParameters)
     publish_relay_data(&client);
     
     while (++count) {
-      xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT, true, true, portMAX_DELAY);
-      publish_relay_data(&client);
+      xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT, false, false, portMAX_DELAY);
+      if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
+        publish_relay_data(&client);
+        xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
+      }
+      if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_DHT22_BIT) {
+        publish_sensors_data(&client);
+        xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
+      }
     }
 
     printf("mqtt_client_thread going to be deleted\n");

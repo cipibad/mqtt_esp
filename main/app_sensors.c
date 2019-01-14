@@ -3,7 +3,6 @@
 #include "driver/gpio.h"
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "freertos/event_groups.h"
 
 #include "dht.h"
@@ -14,26 +13,26 @@
 #include "app_sensors.h"
 
 
-/* extern EventGroupHandle_t sensors_event_group; */
-/* extern const int DHT22; */
-/* extern const int DS; */
+extern EventGroupHandle_t mqtt_publish_event_group;
+extern const int MQTT_PUBLISH_DHT22_BIT;
 
 extern int32_t wtemperature;
-extern int32_t temperature;
-extern int32_t pressure;
-extern int32_t humidity;
+extern int16_t pressure;
 
-static const char *TAG = "MQTTS_DHT22";
+int16_t temperature;
+int16_t humidity;
+
+static const char *TAG = "app_sensors";
 
 void sensors_read(void* pvParameters)
 {
-  /* const dht_sensor_type_t sensor_type = DHT_TYPE_DHT22; */
-  /* const int dht_gpio = 5; */
+  const dht_sensor_type_t sensor_type = DHT_TYPE_DHT22;
+  const int dht_gpio = 5; //D1
   /* const int DS_PIN = 4; */
   /* const int sda_pin = 5; //D1 */
   /* const int scl_pin = 4; //D2 */
-  const int sda_pin = 4; //D3
-  const int scl_pin = 5; //D4
+  /* const int sda_pin = 4; //D3 */
+  /* const int scl_pin = 5; //D4 */
 
   /* ds18b20_init(DS_PIN); */
 
@@ -56,26 +55,26 @@ void sensors_read(void* pvParameters)
   /* i2c_master_init(SDA_PIN, SCL_PIN); */
   /* bme280_normal_mode_init(); */
 
-	struct bme280_t bme280 = {
-		.bus_write = BME280_I2C_bus_write,
-		.bus_read = BME280_I2C_bus_read,
-		.dev_addr = BME280_I2C_ADDRESS2,
-		.delay_msec = BME280_delay_msek
-	};
-	ESP_ERROR_CHECK(BME280_I2C_init(&bme280, sda_pin, scl_pin));
+	/* struct bme280_t bme280 = { */
+	/* 	.bus_write = BME280_I2C_bus_write, */
+	/* 	.bus_read = BME280_I2C_bus_read, */
+	/* 	.dev_addr = BME280_I2C_ADDRESS2, */
+	/* 	.delay_msec = BME280_delay_msek */
+	/* }; */
+	/* ESP_ERROR_CHECK(BME280_I2C_init(&bme280, sda_pin, scl_pin)); */
   while (1)
     {
       //FIXME bug when no sensor
-      /* if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK) */
-      /*   { */
-      /*     /\* xEventGroupSetBits(sensors_event_group, DHT22); *\/ */
-      /*     ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10); */
-      /*   } */
-      /* else */
-      /*   { */
-      /*     ESP_LOGE(TAG, "Could not read data from DHT sensor\n"); */
-      /*   } */
-      //END FIXME
+      if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK)
+        {
+          xEventGroupSetBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
+          ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
+        }
+      else
+        {
+          ESP_LOGE(TAG, "Could not read data from DHT sensor\n");
+        }
+      /* END FIXME */
 
       /* porting */
       /* if (-55. < wtemperature && wtemperature < 125. ) { */
@@ -92,16 +91,18 @@ void sensors_read(void* pvParameters)
       /*     ESP_LOGE(TAG, "Could not read data from ds18b20 sensor\n"); */
       /*   } */
 
-      if (bme_read_data(&temperature, &pressure, &humidity) == ESP_OK)
-        {
-          /* xEventGroupSetBits(sensors_event_group, DHT22); */
-          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  temperature/100,temperature%100, pressure, humidity/1000, humidity%1000);
-        }
-      else
-        {
-          ESP_LOGE(TAG, "Could not read data from DHT sensor\n");
-        }
+      /* if (bme_read_data(&temperature, &pressure, &humidity) == ESP_OK) */
+      /*   { */
+      /*     /\* xEventGroupSetBits(sensors_event_group, DHT22); *\/ */
+      /*     ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  temperature/100,temperature%100, pressure, humidity/1000, humidity%1000); */
+      /*   } */
+      /* else */
+      /*   { */
+      /*     ESP_LOGE(TAG, "Could not read data from DHT sensor\n"); */
+      /*   } */
 
-      vTaskDelay(10000 / portTICK_PERIOD_MS);
+      vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }
+
+
