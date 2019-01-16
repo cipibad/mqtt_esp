@@ -8,7 +8,7 @@ static const char *TAG = "app_sensors_publish";
 extern int16_t temperature;
 extern int16_t humidity;
 
-void publish_sensors_data(MQTTClient* pClient)
+int publish_sensors_data(MQTTClient* pClient)
 {
 
   const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/sensors";
@@ -18,7 +18,7 @@ void publish_sensors_data(MQTTClient* pClient)
 
   //ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
 
-  sprintf(data, "{\"humidity\":%d.%02d, \"temperature\":%d.%02d}",humidity/10, humidity%10 , temperature/10,temperature%10);
+  sprintf(data, "{\"humidity\":%d.%d, \"temperature\":%d.%d}",humidity/10, humidity%10 , temperature/10,temperature%10);
 
   MQTTMessage message;
   message.qos = QOS2;
@@ -32,5 +32,6 @@ void publish_sensors_data(MQTTClient* pClient)
   } else {
     ESP_LOGI(TAG, "MQTT publish topic \"%s\"\n", relays_topic);
   }
+  return rc;
 }
 

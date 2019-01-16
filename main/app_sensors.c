@@ -68,7 +68,7 @@ void sensors_read(void* pvParameters)
       if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK)
         {
           xEventGroupSetBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
-          ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
+          ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC", humidity/10, humidity%10 , temperature/10,temperature%10);
         }
       else
         {

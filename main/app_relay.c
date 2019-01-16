@@ -64,13 +64,16 @@ void publish_relay_data(MQTTClient* pClient)
   memset(data,0,256);
   strcat(data, "{");
   for(int i = 0; i < relaysNb; i++) {
-    sprintf(relayData, "\"relay%dState\":%d", i, relayStatus[i] == ON);
+    memset(relayData,0,32);
+    sprintf(relayData, "\"r%dS\":%d", i, relayStatus[i] == ON);
     if (i != (relaysNb-1)) {
       strcat(relayData, ",");
     }
     strcat(data, relayData);
   }
   strcat(data, "}");
+  ESP_LOGI(TAG, "mqtt_data: %s", data);
+  ESP_LOGI(TAG, "mqtt_strlen: %d", strlen(data));
   MQTTMessage message;
   message.qos = QOS2;
   message.retained = 1;

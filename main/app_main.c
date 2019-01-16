@@ -180,7 +180,7 @@ static void mqtt_client_thread(void* pvParameters)
 
     while ((rc = MQTTConnect(&client, &connectData))) {
         printf("Return code from MQTT connect is %d\n", rc);
-        vTaskDelay(5000 / portTICK_RATE_MS);  //send every 1 seconds
+        vTaskDelay(5000 / portTICK_RATE_MS);  //send every 5 seconds
     }
     printf("MQTT Connected\n");
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
@@ -206,7 +206,11 @@ static void mqtt_client_thread(void* pvParameters)
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
       }
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_DHT22_BIT) {
-        publish_sensors_data(&client);
+        if (publish_sensors_data(&client) != 0) {
+          ESP_LOGI(TAG, "failed su publish data, will reboot");
+          vTaskDelay(5000 / portTICK_RATE_MS);
+          exit(-1);
+        };
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
       }
     }
