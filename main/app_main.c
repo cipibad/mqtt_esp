@@ -34,6 +34,7 @@
 #include "app_relay.h"
 #include "app_sensors.h"
 #include "app_sensors_publish.h"
+#include "app_ota.h"
 
 int32_t wtemperature;
 int16_t pressure;
@@ -54,6 +55,10 @@ const int CONNECTED_BIT = BIT0;
 EventGroupHandle_t mqtt_publish_event_group;
 const int MQTT_PUBLISH_RELAYS_BIT = BIT0;
 const int MQTT_PUBLISH_DHT22_BIT = BIT1;
+
+EventGroupHandle_t ota_event_group;
+const int OTA_BIT = BIT0;
+
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
@@ -119,10 +124,10 @@ static void initialise_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_start() );
 }
 
-static void messageArrived(MessageData* data)
+static void otaCmdArrived(MessageData* data)
 {
-  printf("Message arrived: %s\n", data->topicName->cstring);
   printf("Message arrived: %s\n", (char*)data->message->payload);
+  xEventGroupSetBits(ota_event_group, OTA_BIT);
 }
 
 static void relay0CmdArrived(MessageData* data)
@@ -231,7 +236,7 @@ static void mqtt_client_thread(void* pvParameters)
     }
     vTaskDelay(100 / portTICK_RATE_MS);
 
-    if ((rc = MQTTSubscribe(&client, OTA_TOPIC, 2, messageArrived)) != 0) {
+    if ((rc = MQTTSubscribe(&client, OTA_TOPIC, 2, otaCmdArrived)) != 0) {
         printf("Return code from MQTT subscribe is %d\n", rc);
     } else {
         printf("MQTT subscribe to topic \"%s\"\n", OTA_TOPIC);
@@ -265,6 +270,7 @@ void app_main(void)
 {
     esp_log_level_set("*", ESP_LOG_DEBUG);
     mqtt_publish_event_group = xEventGroupCreate();
+    ota_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( nvs_flash_init() );
     initialise_wifi();
     relays_init();
