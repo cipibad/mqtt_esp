@@ -125,11 +125,28 @@ static void messageArrived(MessageData* data)
   printf("Message arrived: %s\n", (char*)data->message->payload);
 }
 
-static void relayCmdArrived(MessageData* data)
+static void relay0CmdArrived(MessageData* data)
 {
-  printf("relayCmd arrived: %s\n", data->topicName->cstring);
   printf("relayCmd arrived: %s\n", (char*)data->message->payload);
-  handle_relay_cmd(data->message);
+  handle_specific_relay_cmd(0, data->message);
+}
+
+static void relay1CmdArrived(MessageData* data)
+{
+  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
+  handle_specific_relay_cmd(1, data->message);
+}
+
+static void relay2CmdArrived(MessageData* data)
+{
+  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
+  handle_specific_relay_cmd(2, data->message);
+}
+
+static void relay3CmdArrived(MessageData* data)
+{
+  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
+  handle_specific_relay_cmd(3, data->message);
 }
 
 
@@ -186,21 +203,45 @@ static void mqtt_client_thread(void* pvParameters)
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
 
-    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC, 2, relayCmdArrived)) != 0) {
+    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/0", 2, relay0CmdArrived)) != 0) {
         printf("Return code from MQTT subscribe is %d\n", rc);
     } else {
-        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC);
+        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/0");
     }
+    vTaskDelay(100 / portTICK_RATE_MS);
+
+    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/1", 2, relay1CmdArrived)) != 0) {
+        printf("Return code from MQTT subscribe is %d\n", rc);
+    } else {
+        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/1");
+    }
+    vTaskDelay(100 / portTICK_RATE_MS);
+
+    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/2", 2, relay2CmdArrived)) != 0) {
+        printf("Return code from MQTT subscribe is %d\n", rc);
+    } else {
+        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/2");
+    }
+    vTaskDelay(100 / portTICK_RATE_MS);
+
+    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/3", 2, relay3CmdArrived)) != 0) {
+        printf("Return code from MQTT subscribe is %d\n", rc);
+    } else {
+        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/3");
+    }
+    vTaskDelay(100 / portTICK_RATE_MS);
 
     if ((rc = MQTTSubscribe(&client, OTA_TOPIC, 2, messageArrived)) != 0) {
         printf("Return code from MQTT subscribe is %d\n", rc);
     } else {
         printf("MQTT subscribe to topic \"%s\"\n", OTA_TOPIC);
     }
+    vTaskDelay(100 / portTICK_RATE_MS);
     publish_relay_data(&client);
-    
+
     while (++count) {
       xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT, false, false, portMAX_DELAY);
+      vTaskDelay(100 / portTICK_RATE_MS);
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
         publish_relay_data(&client);
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);

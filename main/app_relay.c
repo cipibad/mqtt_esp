@@ -48,7 +48,7 @@ void relays_init()
     gpio_config(&io_conf);
 
 
-  
+
   for(int i = 0; i < relaysNb; i++) {
     gpio_set_level(relayToGpioMap[i], OFF);
     relayStatus[i] = OFF;
@@ -90,19 +90,16 @@ void publish_relay_data(MQTTClient* pClient)
 }
 
 
-int handle_relay_cmd(MQTTMessage *data)
+
+int handle_specific_relay_cmd(int id, MQTTMessage *data)
 {
+  ESP_LOGI(TAG, "handle_specific_relay_cmd");
   if (data->payloadlen >= 32 )
     {
       ESP_LOGI(TAG, "unextected relay cmd payload");
       return -1;
     }
-  char tmpBuf[32];
-  memcpy(tmpBuf, data->payload, data->payloadlen);
-  tmpBuf[data->payloadlen] = 0;
-  cJSON * root   = cJSON_Parse(tmpBuf);
-  int id = cJSON_GetObjectItem(root,"id")->valueint;
-  int value = cJSON_GetObjectItem(root,"value")->valueint;
+  int value = ((char*)(data->payload))[0] - '0';
   printf("id: %d\r\n", id);
   printf("value: %d\r\n", value);
   if (value == relayStatus[id]) {
