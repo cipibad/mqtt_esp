@@ -18,7 +18,7 @@ int publish_sensors_data(MQTTClient* pClient)
 
   //ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
 
-  sprintf(data, "{\"humidity\":%d.%d, \"temperature\":%d.%d}",humidity/10, humidity%10 , temperature/10,temperature%10);
+  sprintf(data, "{\"h\":%d.%d, \"t\":%d.%d}",humidity/10, humidity%10 , temperature/10,temperature%10);
 
   MQTTMessage message;
   message.qos = QOS2;
