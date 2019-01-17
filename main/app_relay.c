@@ -17,10 +17,11 @@
 extern EventGroupHandle_t mqtt_publish_event_group;
 extern const int MQTT_PUBLISH_RELAYS_BIT;
 
-const int relayBase = CONFIG_RELAYS_BASE;
+const int relayBase = 0;
 const int relaysNb = CONFIG_RELAYS_NB;
 static int relayStatus[MAX_RELAYS];
 
+const int relayToGpioMap[4] = {4, 14, 12, 13};
 static const char *TAG = "MQTTS_RELAY";
 
 #include <string.h>
@@ -41,7 +42,7 @@ void relays_init()
     //bit mask of the pins that you want to set,e.g.GPIO15/16
     io_conf.pin_bit_mask = 0;
     for(int i = 0; i < relaysNb; i++) {
-      io_conf.pin_bit_mask |= (1ULL << (relayBase + i)) ;
+      io_conf.pin_bit_mask |= (1ULL << relayToGpioMap[i]) ;
     }
     //configure GPIO with the given settings
     gpio_config(&io_conf);
@@ -49,7 +50,7 @@ void relays_init()
 
   
   for(int i = 0; i < relaysNb; i++) {
-    gpio_set_level(relayBase + i, OFF);
+    gpio_set_level(relayToGpioMap[i], OFF);
     relayStatus[i] = OFF;
   }
 }
@@ -104,7 +105,6 @@ int handle_relay_cmd(MQTTMessage *data)
   int value = cJSON_GetObjectItem(root,"value")->valueint;
   printf("id: %d\r\n", id);
   printf("value: %d\r\n", value);
-
   if (value == relayStatus[id]) {
     //reversed logic
     if (value == OFF) {
@@ -113,7 +113,7 @@ int handle_relay_cmd(MQTTMessage *data)
     if (value == ON) {
       relayStatus[id] = OFF;
     }
-    gpio_set_level(relayBase + id, relayStatus[id]);
+    gpio_set_level(relayToGpioMap[id], relayStatus[id]);
     xEventGroupSetBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
   }
   return 0;

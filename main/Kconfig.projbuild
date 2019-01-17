@@ -48,11 +48,4 @@ config RELAYS_NB
     help
         Number of relays
 
-config RELAYS_BASE
-    int "Base IO pin of relays"
-    default 16
-    help
-        Base IO pin of relays
-
-
 endmenu
