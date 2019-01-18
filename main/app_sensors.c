@@ -15,6 +15,7 @@
 
 extern EventGroupHandle_t mqtt_publish_event_group;
 extern const int MQTT_PUBLISH_DHT22_BIT;
+extern const int NO_OTA_ONGOING_BIT;
 
 extern int32_t wtemperature;
 extern int16_t pressure;
@@ -64,6 +65,7 @@ void sensors_read(void* pvParameters)
 	/* ESP_ERROR_CHECK(BME280_I2C_init(&bme280, sda_pin, scl_pin)); */
   while (1)
     {
+      xEventGroupWaitBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT , false, false, portMAX_DELAY);
       //FIXME bug when no sensor
       if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK)
         {

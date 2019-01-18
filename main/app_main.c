@@ -55,9 +55,11 @@ const int CONNECTED_BIT = BIT0;
 EventGroupHandle_t mqtt_publish_event_group;
 const int MQTT_PUBLISH_RELAYS_BIT = BIT0;
 const int MQTT_PUBLISH_DHT22_BIT = BIT1;
+const int NO_OTA_ONGOING_BIT = BIT2;
 
 EventGroupHandle_t ota_event_group;
 const int OTA_BIT = BIT0;
+
 
 
 /* The event group allows multiple bits for each event,
@@ -126,7 +128,8 @@ static void initialise_wifi(void)
 
 static void otaCmdArrived(MessageData* data)
 {
-  printf("Message arrived: %s\n", (char*)data->message->payload);
+  printf("otaCmd arrived: %s\n", (char*)data->message->payload);
+  xEventGroupClearBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT);
   xEventGroupSetBits(ota_event_group, OTA_BIT);
 }
 
@@ -152,6 +155,33 @@ static void relay3CmdArrived(MessageData* data)
 {
   printf("relayCmd arrived: %s\n", (char*)data->message->payload);
   handle_specific_relay_cmd(3, data->message);
+}
+
+int publish_connected_data(MQTTClient* pClient)
+{
+
+  const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/connected";
+  ESP_LOGI(TAG, "starting publish_connected_data");
+  char data[256];
+  memset(data,0,256);
+
+  //ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
+
+  sprintf(data, "{\"v\":\"0.5\"}");
+
+  MQTTMessage message;
+  message.qos = QOS2;
+  message.retained = 1;
+  message.payload = data;
+  message.payloadlen = strlen(data);
+  int rc;
+  ESP_LOGI(TAG, "before MQTTPublish");
+  if ((rc = MQTTPublish(pClient, connect_topic, &message)) != 0) {
+    ESP_LOGI(TAG, "Return code from MQTT publish is %d\n", rc);
+  } else {
+    ESP_LOGI(TAG, "MQTT publish topic \"%s\"\n", connect_topic);
+  }
+  return rc;
 }
 
 
@@ -208,6 +238,10 @@ static void mqtt_client_thread(void* pvParameters)
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
 
+    vTaskDelay(100 / portTICK_RATE_MS);
+    publish_connected_data(&client);
+    vTaskDelay(100 / portTICK_RATE_MS);
+
     if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/0", 2, relay0CmdArrived)) != 0) {
         printf("Return code from MQTT subscribe is %d\n", rc);
     } else {
@@ -245,8 +279,8 @@ static void mqtt_client_thread(void* pvParameters)
     publish_relay_data(&client);
 
     while (++count) {
-      xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT, false, false, portMAX_DELAY);
-      vTaskDelay(100 / portTICK_RATE_MS);
+      xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT , false, false, portMAX_DELAY);
+      xEventGroupWaitBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT , false, false, portMAX_DELAY);
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
         publish_relay_data(&client);
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
@@ -270,6 +304,7 @@ void app_main(void)
 {
     esp_log_level_set("*", ESP_LOG_DEBUG);
     mqtt_publish_event_group = xEventGroupCreate();
+    xEventGroupSetBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT);
     ota_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( nvs_flash_init() );
     initialise_wifi();
@@ -281,6 +316,7 @@ void app_main(void)
                 NULL,
                 MQTT_CLIENT_THREAD_PRIO,
                 NULL);
-    xTaskCreate(sensors_read, "sensors_read", 2048, NULL, 10, NULL);
+    xTaskCreate(sensors_read, "sensors_read", 2048, NULL, 7, NULL);
+    xTaskCreate(handle_ota_task, "handle_ota_task", 2048, NULL, 10, NULL);
 
 }

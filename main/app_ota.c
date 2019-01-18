@@ -29,8 +29,8 @@
 #define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
 #define EXAMPLE_SERVER_IP "192.168.201.2"
-#define EXAMPLE_SERVER_PORT "443"
-#define EXAMPLE_FILENAME "aaa"
+#define EXAMPLE_SERVER_PORT "80"
+#define EXAMPLE_FILENAME "/ground3.bin"
 #define BUFFSIZE 1500
 #define TEXT_BUFFSIZE 1024
 
@@ -190,7 +190,7 @@ void handle_ota_task(void *pvParameters)
         ESP_LOGE(TAG, "Send GET request to server failed");
         task_fatal_error();
     } else {
-        ESP_LOGI(TAG, "Send GET request to server succeeded");
+      ESP_LOGI(TAG, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
     }
 
     update_partition = esp_ota_get_next_update_partition(NULL);
