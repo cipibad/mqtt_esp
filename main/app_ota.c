@@ -26,11 +26,9 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
-#define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
-#define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
-#define EXAMPLE_SERVER_IP "192.168.201.2"
-#define EXAMPLE_SERVER_PORT "80"
-#define EXAMPLE_FILENAME "/ground3.bin"
+#define EXAMPLE_SERVER_IP "sw.iot.cipex.ro"
+#define EXAMPLE_SERVER_PORT "8910"
+#define EXAMPLE_FILENAME "/"CONFIG_MQTT_CLIENT_ID".bin"
 #define BUFFSIZE 1500
 #define TEXT_BUFFSIZE 1024
 
@@ -92,6 +90,31 @@ static bool read_past_http_header(char text[], int total_len, esp_ota_handle_t u
     return false;
 }
 
+int hostname_to_ip(char * hostname , char* ip)
+{
+	struct hostent *he;
+	struct in_addr **addr_list;
+	int i;
+		
+	if ( (he = gethostbyname( hostname ) ) == NULL)
+	{
+		// get the host info
+		ESP_LOGI(TAG, "gethostbyname");
+		return 1;
+	}
+
+	addr_list = (struct in_addr **) he->h_addr_list;
+	
+	for(i = 0; addr_list[i] != NULL; i++)
+	{
+		//Return the first one;
+		strcpy(ip , inet_ntoa(*addr_list[i]) );
+		return 0;
+	}
+	
+	return 1;
+}
+
 static bool connect_to_http_server()
 {
     ESP_LOGI(TAG, "Server IP: %s Server Port:%s", EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
@@ -105,10 +128,12 @@ static bool connect_to_http_server()
         return false;
     }
 
+    char ip[16];
+    hostname_to_ip(EXAMPLE_SERVER_IP, ip);
     // set connect info
     memset(&sock_info, 0, sizeof(struct sockaddr_in));
     sock_info.sin_family = AF_INET;
-    sock_info.sin_addr.s_addr = inet_addr(EXAMPLE_SERVER_IP);
+    sock_info.sin_addr.s_addr = inet_addr(ip);
     sock_info.sin_port = htons(atoi(EXAMPLE_SERVER_PORT));
 
     // connect to http server
@@ -159,6 +184,9 @@ void handle_ota_task(void *pvParameters)
     /* Wait for the callback to set the CONNECTED_BIT in the
        event group.
     */
+
+    while(1) {
+
     xEventGroupWaitBits(ota_event_group, OTA_BIT,
                         false, true, portMAX_DELAY);
     ESP_LOGI(TAG, "OTA cmd received....");
@@ -248,5 +276,7 @@ void handle_ota_task(void *pvParameters)
     }
     ESP_LOGI(TAG, "Prepare to restart system!");
     esp_restart();
+
+    }
 }
 
