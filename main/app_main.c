@@ -47,6 +47,7 @@ int16_t pressure;
 */
 #define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
+#define FW_VERSION "0.01"
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t wifi_event_group;
@@ -167,7 +168,7 @@ int publish_connected_data(MQTTClient* pClient)
 
   //ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
 
-  sprintf(data, "{\"v\":\"0.5\"}");
+  sprintf(data, "{\"v\":\""FW_VERSION"\"}");
 
   MQTTMessage message;
   message.qos = QOS2;
@@ -282,16 +283,16 @@ static void mqtt_client_thread(void* pvParameters)
       xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT , false, false, portMAX_DELAY);
       xEventGroupWaitBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT , false, false, portMAX_DELAY);
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
-        publish_relay_data(&client);
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
+        publish_relay_data(&client);
       }
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_DHT22_BIT) {
+        xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
         if (publish_sensors_data(&client) != 0) {
           ESP_LOGI(TAG, "failed su publish data, will reboot");
           vTaskDelay(5000 / portTICK_RATE_MS);
           exit(-1);
         };
-        xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
       }
     }
 
