@@ -47,7 +47,7 @@ int16_t pressure;
 */
 #define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
-#define FW_VERSION "0.01"
+#define FW_VERSION "0.02"
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t wifi_event_group;
@@ -166,8 +166,6 @@ int publish_connected_data(MQTTClient* pClient)
   char data[256];
   memset(data,0,256);
 
-  //ESP_LOGI(TAG, "Humidity: %d.%02d%% Temp: %d.%02dC", humidity/10, humidity%10 , temperature/10,temperature%10);
-
   sprintf(data, "{\"v\":\""FW_VERSION"\"}");
 
   MQTTMessage message;
@@ -191,7 +189,6 @@ static void mqtt_client_thread(void* pvParameters)
 
     MQTTClient client;
     Network network;
-    unsigned char sendbuf[80], readbuf[80] = {0};
     int rc = 0, count = 0;
     MQTTPacket_connectData connectData = MQTTPacket_connectData_initializer;
 
@@ -205,23 +202,13 @@ static void mqtt_client_thread(void* pvParameters)
     ESP_LOGI(TAG, "Connected to AP");
 
     NetworkInitSSL(&network);
-    MQTTClientInit(&client, &network, 30000, sendbuf, sizeof(sendbuf), readbuf, sizeof(readbuf));
+    MQTTClientInit(&client, &network, 0, NULL, 0, NULL, 0);
 
     SSL_CA_CERT_KEY_INIT(&ssl_cck, mqtt_iot_cipex_ro_pem, mqtt_iot_cipex_ro_pem_len);
 
-    if ((rc = NetworkConnectSSL(&network, CONFIG_MQTT_SERVER, MQTT_PORT, &ssl_cck, TLSv1_1_client_method(), SSL_VERIFY_NONE, 8192)) != 0) {
-       printf("Return code from network connect ssl is %d\n", rc);
+    if ((rc = NetworkConnectSSL(&network, CONFIG_MQTT_SERVER, MQTT_PORT, &ssl_cck, TLSv1_1_client_method(), SSL_VERIFY_PEER, 8192)) != 0) {
+       printf("Return code from network connect is %d\n", rc);
     }
-
-#if defined(MQTT_TASK)
-
-    if ((rc = MQTTStartTask(&client)) != pdPASS) {
-        printf("Return code from start tasks is %d\n", rc);
-    } else {
-        printf("Use MQTTStartTask\n");
-    }
-
-#endif
 
     connectData.MQTTVersion = 3;
     connectData.clientID.cstring = CONFIG_MQTT_CLIENT_ID;
@@ -239,8 +226,17 @@ static void mqtt_client_thread(void* pvParameters)
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
 
-    vTaskDelay(100 / portTICK_RATE_MS);
-    publish_connected_data(&client);
+#if defined(MQTT_TASK)
+
+    if ((rc = MQTTStartTask(&client)) != pdPASS) {
+        printf("Return code from start tasks is %d\n", rc);
+    } else {
+        printf("Use MQTTStartTask\n");
+    }
+
+#endif
+
+
     vTaskDelay(100 / portTICK_RATE_MS);
 
     if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/0", 2, relay0CmdArrived)) != 0) {
@@ -276,6 +272,9 @@ static void mqtt_client_thread(void* pvParameters)
     } else {
         printf("MQTT subscribe to topic \"%s\"\n", OTA_TOPIC);
     }
+
+    vTaskDelay(100 / portTICK_RATE_MS);
+    publish_connected_data(&client);
     vTaskDelay(100 / portTICK_RATE_MS);
     publish_relay_data(&client);
 
@@ -283,10 +282,12 @@ static void mqtt_client_thread(void* pvParameters)
       xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT , false, false, portMAX_DELAY);
       xEventGroupWaitBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT , false, false, portMAX_DELAY);
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
+        ESP_LOGI(TAG, "relay data to publish");
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
         publish_relay_data(&client);
       }
       if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_DHT22_BIT) {
+        ESP_LOGI(TAG, "sensors data to publish");
         xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
         if (publish_sensors_data(&client) != 0) {
           ESP_LOGI(TAG, "failed su publish data, will reboot");
@@ -317,7 +318,7 @@ void app_main(void)
                 NULL,
                 MQTT_CLIENT_THREAD_PRIO,
                 NULL);
-    xTaskCreate(sensors_read, "sensors_read", 2048, NULL, 7, NULL);
+    xTaskCreate(sensors_read, "sensors_read", 2048, NULL, 9, NULL);
     xTaskCreate(handle_ota_task, "handle_ota_task", 2048, NULL, 10, NULL);
 
 }
