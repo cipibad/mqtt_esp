@@ -67,11 +67,13 @@ const int OTA_BIT = BIT0;
    but we only care about one event - are we connected
    to the AP with an IP? */
 
-#define MQTT_PORT    8883             /* MQTT Port*/
 
 #define MQTT_CLIENT_THREAD_NAME         "mqtt_client_thread"
 #define MQTT_CLIENT_THREAD_STACK_WORDS  8192
 #define MQTT_CLIENT_THREAD_PRIO         8
+
+#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
+#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
 
 static const char *TAG = "example";
 
@@ -129,32 +131,28 @@ static void initialise_wifi(void)
 
 static void otaCmdArrived(MessageData* data)
 {
-  printf("otaCmd arrived: %s\n", (char*)data->message->payload);
+  printf("otaCmd arrived: %s", (char*)data->message->payload);
   xEventGroupClearBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT);
   xEventGroupSetBits(ota_event_group, OTA_BIT);
 }
 
 static void relay0CmdArrived(MessageData* data)
 {
-  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
   handle_specific_relay_cmd(0, data->message);
 }
 
 static void relay1CmdArrived(MessageData* data)
 {
-  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
   handle_specific_relay_cmd(1, data->message);
 }
 
 static void relay2CmdArrived(MessageData* data)
 {
-  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
   handle_specific_relay_cmd(2, data->message);
 }
 
 static void relay3CmdArrived(MessageData* data)
 {
-  printf("relayCmd arrived: %s\n", (char*)data->message->payload);
   handle_specific_relay_cmd(3, data->message);
 }
 
@@ -162,52 +160,66 @@ int publish_connected_data(MQTTClient* pClient)
 {
 
   const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/connected";
-  ESP_LOGI(TAG, "starting publish_connected_data");
   char data[256];
   memset(data,0,256);
 
   sprintf(data, "{\"v\":\""FW_VERSION"\"}");
 
   MQTTMessage message;
-  message.qos = QOS2;
+  message.qos = QOS0;
   message.retained = 1;
   message.payload = data;
   message.payloadlen = strlen(data);
   int rc;
-  ESP_LOGI(TAG, "before MQTTPublish");
   if ((rc = MQTTPublish(pClient, connect_topic, &message)) != 0) {
-    ESP_LOGI(TAG, "Return code from MQTT publish is %d\n", rc);
+    ESP_LOGI(TAG, "Return code from MQTT publish is %d", rc);
   } else {
-    ESP_LOGI(TAG, "MQTT publish topic \"%s\"\n", connect_topic);
+    ESP_LOGI(TAG, "MQTT published topic \"%s\"", connect_topic);
   }
   return rc;
 }
 
 
-static void mqtt_client_thread(void* pvParameters)
+static void mqtt_client_thread(void *pvParameters)
 {
-
+    char *payload = NULL;
     MQTTClient client;
     Network network;
-    int rc = 0, count = 0;
+    int rc = 0;
     MQTTPacket_connectData connectData = MQTTPacket_connectData_initializer;
 
-    printf("mqtt client thread starts\n");
+    //#define MQTT_SSL 0
 
-    /* Wait for the callback to set the CONNECTED_BIT in the
-       event group.
-    */
-    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
-                        false, true, portMAX_DELAY);
-    ESP_LOGI(TAG, "Connected to AP");
-
-    NetworkInitSSL(&network);
-    MQTTClientInit(&client, &network, 0, NULL, 0, NULL, 0);
-
+#ifdef MQTT_SSL
     SSL_CA_CERT_KEY_INIT(&ssl_cck, mqtt_iot_cipex_ro_pem, mqtt_iot_cipex_ro_pem_len);
+    NetworkInitSSL(&network);
+#else
+    NetworkInit(&network);
+#endif //MQTT_SSL
 
-    if ((rc = NetworkConnectSSL(&network, CONFIG_MQTT_SERVER, MQTT_PORT, &ssl_cck, TLSv1_1_client_method(), SSL_VERIFY_PEER, 8192)) != 0) {
-       printf("Return code from network connect is %d\n", rc);
+    if (MQTTClientInit(&client, &network, 0, NULL, 0, NULL, 0) == false) {
+        ESP_LOGE(TAG, "mqtt init err");
+        vTaskDelete(NULL);
+    }
+    payload = malloc(CONFIG_MQTT_PAYLOAD_BUFFER);
+
+    if (!payload) {
+        ESP_LOGE(TAG, "mqtt malloc err");
+    } else {
+        memset(payload, 0x0, CONFIG_MQTT_PAYLOAD_BUFFER);
+    }
+
+    for (;;) {
+        ESP_LOGI(TAG, "wait wifi connect...");
+        xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
+
+#ifdef MQTT_SSL
+    if ((rc = NetworkConnectSSL(&network, CONFIG_MQTT_SERVER, CONFIG_MQTT_PORT, &ssl_cck, TLSv1_1_client_method(), SSL_VERIFY_PEER, 8192)) != 0) {
+#else
+    if ((rc = NetworkConnect(&network, CONFIG_MQTT_SERVER, CONFIG_MQTT_PORT)) != 0) {
+#endif //MQTT_SSL
+        ESP_LOGE(TAG, "Return code from network connect is %d", rc);
+        continue;
     }
 
     connectData.MQTTVersion = 3;
@@ -217,87 +229,85 @@ static void mqtt_client_thread(void* pvParameters)
     connectData.willFlag = 1;
     connectData.will.topicName.cstring = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/disconnected";
     connectData.keepAliveInterval = 60;
+        ESP_LOGI(TAG, "MQTT Connecting");
 
-    while ((rc = MQTTConnect(&client, &connectData))) {
-        printf("Return code from MQTT connect is %d\n", rc);
-        vTaskDelay(5000 / portTICK_RATE_MS);  //send every 5 seconds
-    }
-    printf("MQTT Connected\n");
-#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
-#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
+        if ((rc = MQTTConnect(&client, &connectData)) != 0) {
+            ESP_LOGE(TAG, "Return code from MQTT connect is %d", rc);
+            network.disconnect(&network);
+            continue;
+        }
+
+        ESP_LOGI(TAG, "MQTT Connected");
 
 #if defined(MQTT_TASK)
 
-    if ((rc = MQTTStartTask(&client)) != pdPASS) {
-        printf("Return code from start tasks is %d\n", rc);
-    } else {
-        printf("Use MQTTStartTask\n");
-    }
+        if ((rc = MQTTStartTask(&client)) != pdPASS) {
+            ESP_LOGE(TAG, "Return code from start tasks is %d", rc);
+        } else {
+            ESP_LOGI(TAG, "Use MQTTStartTask");
+        }
 
 #endif
 
+        if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/0", 1, relay0CmdArrived)) != 0) {
+            ESP_LOGE(TAG, "Return code from MQTT subscribe is %d", rc);
+            network.disconnect(&network);
+            continue;
+        }
+        ESP_LOGI(TAG, "MQTT subscribe to topic %s OK", RELAY_TOPIC"/0");
 
-    vTaskDelay(100 / portTICK_RATE_MS);
+        if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/1", 1, relay1CmdArrived)) != 0) {
+            ESP_LOGE(TAG, "Return code from MQTT subscribe is %d", rc);
+            network.disconnect(&network);
+            continue;
+        }
+        ESP_LOGI(TAG, "MQTT subscribe to topic %s OK", RELAY_TOPIC"/1");
 
-    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/0", 2, relay0CmdArrived)) != 0) {
-        printf("Return code from MQTT subscribe is %d\n", rc);
-    } else {
-        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/0");
-    }
-    vTaskDelay(100 / portTICK_RATE_MS);
+        if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/2", 1, relay2CmdArrived)) != 0) {
+            ESP_LOGE(TAG, "Return code from MQTT subscribe is %d", rc);
+            network.disconnect(&network);
+            continue;
+        }
+        ESP_LOGI(TAG, "MQTT subscribe to topic %s OK", RELAY_TOPIC"/2");
 
-    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/1", 2, relay1CmdArrived)) != 0) {
-        printf("Return code from MQTT subscribe is %d\n", rc);
-    } else {
-        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/1");
-    }
-    vTaskDelay(100 / portTICK_RATE_MS);
+        if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/3", 1, relay3CmdArrived)) != 0) {
+            ESP_LOGE(TAG, "Return code from MQTT subscribe is %d", rc);
+            network.disconnect(&network);
+            continue;
+        }
+        ESP_LOGI(TAG, "MQTT subscribe to topic %s OK", RELAY_TOPIC"/3");
 
-    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/2", 2, relay2CmdArrived)) != 0) {
-        printf("Return code from MQTT subscribe is %d\n", rc);
-    } else {
-        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/2");
-    }
-    vTaskDelay(100 / portTICK_RATE_MS);
+        if ((rc = MQTTSubscribe(&client, OTA_TOPIC, 1, otaCmdArrived)) != 0) {
+            ESP_LOGE(TAG, "Return code from MQTT subscribe is %d", rc);
+            network.disconnect(&network);
+            continue;
+        }
 
-    if ((rc = MQTTSubscribe(&client, RELAY_TOPIC"/3", 2, relay3CmdArrived)) != 0) {
-        printf("Return code from MQTT subscribe is %d\n", rc);
-    } else {
-        printf("MQTT subscribe to topic \"%s\"\n", RELAY_TOPIC"/3");
-    }
-    vTaskDelay(100 / portTICK_RATE_MS);
+        ESP_LOGI(TAG, "MQTT subscribe to topic %s OK", OTA_TOPIC);
 
-    if ((rc = MQTTSubscribe(&client, OTA_TOPIC, 2, otaCmdArrived)) != 0) {
-        printf("Return code from MQTT subscribe is %d\n", rc);
-    } else {
-        printf("MQTT subscribe to topic \"%s\"\n", OTA_TOPIC);
-    }
-
-    vTaskDelay(100 / portTICK_RATE_MS);
-    publish_connected_data(&client);
-    vTaskDelay(100 / portTICK_RATE_MS);
-    publish_relay_data(&client);
-
-    while (++count) {
-      xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT , false, false, portMAX_DELAY);
-      xEventGroupWaitBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT , false, false, portMAX_DELAY);
-      if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
-        ESP_LOGI(TAG, "relay data to publish");
-        xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
+        publish_connected_data(&client);
         publish_relay_data(&client);
-      }
-      if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_DHT22_BIT) {
-        ESP_LOGI(TAG, "sensors data to publish");
-        xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
-        if (publish_sensors_data(&client) != 0) {
-          ESP_LOGI(TAG, "failed su publish data, will reboot");
-          vTaskDelay(5000 / portTICK_RATE_MS);
-          exit(-1);
-        };
-      }
+
+
+        for (;;) {
+          xEventGroupWaitBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT|MQTT_PUBLISH_DHT22_BIT , false, false, portMAX_DELAY);
+          xEventGroupWaitBits(mqtt_publish_event_group, NO_OTA_ONGOING_BIT , false, false, portMAX_DELAY);
+          if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_RELAYS_BIT) {
+            xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
+            publish_relay_data(&client);
+          }
+          if (xEventGroupGetBits(mqtt_publish_event_group) & MQTT_PUBLISH_DHT22_BIT) {
+            xEventGroupClearBits(mqtt_publish_event_group, MQTT_PUBLISH_DHT22_BIT);
+            if (publish_sensors_data(&client) != 0) {
+              ESP_LOGI(TAG, "failed to publish data, will reconnect");
+              break;
+            }
+          }
+        }
+        network.disconnect(&network);
     }
 
-    printf("mqtt_client_thread going to be deleted\n");
+    ESP_LOGW(TAG, "mqtt_client_thread going to be deleted");
     vTaskDelete(NULL);
     return;
 }

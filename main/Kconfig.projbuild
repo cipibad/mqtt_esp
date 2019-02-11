@@ -30,6 +30,12 @@ config MQTT_SERVER
     help
         Mqtt server
 
+config MQTT_PORT
+    int "Mqtt port"
+    default 1883
+    help
+        Mqtt port
+
 config MQTT_CLIENT_ID
     string "Mqtt client id"
     default "mqtt_client_id"
@@ -47,5 +53,12 @@ config RELAYS_NB
     default 2
     help
         Number of relays
+
+config MQTT_PAYLOAD_BUFFER
+    int "MQTT payload size(Bytes)"
+    default 1460
+    help
+        1460~2048 is recommended.
+        MQTT payload size.
 
 endmenu

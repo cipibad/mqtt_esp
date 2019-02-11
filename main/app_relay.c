@@ -30,14 +30,14 @@ void relays_init()
 {
 
     gpio_config_t io_conf;
-    //disable interrupt
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    //set as output mode
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    //disable pull-down mode
-    io_conf.pull_down_en = 0;
-    //disable pull-up mode
-    io_conf.pull_up_en = 0;
+    /* //disable interrupt */
+    /* io_conf.intr_type = GPIO_INTR_DISABLE; */
+    /* //set as output mode */
+    /* io_conf.mode = GPIO_MODE_OUTPUT; */
+    /* //disable pull-down mode */
+    /* io_conf.pull_down_en = 0; */
+    /* //disable pull-up mode */
+    /* io_conf.pull_up_en = 0; */
 
     //bit mask of the pins that you want to set,e.g.GPIO15/16
     io_conf.pin_bit_mask = 0;
@@ -50,8 +50,9 @@ void relays_init()
 
 
   for(int i = 0; i < relaysNb; i++) {
-    gpio_set_level(relayToGpioMap[i], OFF);
     relayStatus[i] = OFF;
+    gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
+    gpio_set_level(relayToGpioMap[i], OFF);
   }
 }
 
@@ -59,33 +60,29 @@ void publish_relay_data(MQTTClient* pClient)
 {
 
   const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relays";
-  ESP_LOGI(TAG, "starting publish_relay_data");
   char data[256];
   char relayData[32];
   memset(data,0,256);
   strcat(data, "{");
   for(int i = 0; i < relaysNb; i++) {
     memset(relayData,0,32);
-    sprintf(relayData, "\"r%dS\":%d", i, relayStatus[i] == ON);
+    sprintf(relayData, "\"r%dS\":%d", i, relayStatus[i] == OFF ? 0 : 1);
     if (i != (relaysNb-1)) {
       strcat(relayData, ",");
     }
     strcat(data, relayData);
   }
   strcat(data, "}");
-  ESP_LOGI(TAG, "mqtt_data: %s", data);
-  ESP_LOGI(TAG, "mqtt_strlen: %d", strlen(data));
   MQTTMessage message;
-  message.qos = QOS2;
+  message.qos = QOS0;
   message.retained = 1;
   message.payload = data;
   message.payloadlen = strlen(data);
   int rc;
-  ESP_LOGI(TAG, "before MQTTPublish");
   if ((rc = MQTTPublish(pClient, relays_topic, &message)) != 0) {
-    ESP_LOGI(TAG, "Return code from MQTT publish is %d\n", rc);
+    ESP_LOGI(TAG, "Return code from MQTT publish is %d", rc);
   } else {
-    ESP_LOGI(TAG, "MQTT publish topic \"%s\"\n", relays_topic);
+    ESP_LOGI(TAG, "MQTT published topic \"%s\"", relays_topic);
   }
 }
 
@@ -100,16 +97,11 @@ int handle_specific_relay_cmd(int id, MQTTMessage *data)
       return -1;
     }
   int value = ((char*)(data->payload))[0] - '0';
-  printf("id: %d\r\n", id);
-  printf("value: %d\r\n", value);
-  if (value == relayStatus[id]) {
-    //reversed logic
-    if (value == OFF) {
-      relayStatus[id] = ON;
-    }
-    if (value == ON) {
-      relayStatus[id] = OFF;
-    }
+  value =value == OFF ? 0 : 1;
+  ESP_LOGI(TAG,"id: %d, new value: %d,current value: %d", id, value, relayStatus[id]);
+
+  if (value != relayStatus[id]) {
+    relayStatus[id] = value;
     gpio_set_level(relayToGpioMap[id], relayStatus[id]);
     xEventGroupSetBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT);
   }
