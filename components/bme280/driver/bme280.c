@@ -1774,7 +1774,7 @@ if (p_bme280 == BME280_NULL) {
 		com_rslt = p_bme280->BME280_BUS_READ_FUNC(
 			p_bme280->dev_addr,	BME280_CTRL_MEAS_REG,
 			&v_data_u8, BME280_GEN_READ_WRITE_DATA_LENGTH);
-		if (com_rslt == SUCCESS) {
+		if (com_rslt == BME_SUCCESS) {
 			switch (v_work_mode_u8) {
 			case BME280_ULTRALOWPOWER_MODE:
 				p_bme280->oversamp_temperature =
@@ -2214,7 +2214,7 @@ BME280_RETURN_FUNCTION_TYPE bme280_compute_wait_time(u8
 *v_delaytime_u8)
 {
 	/* used to return the communication result*/
-	BME280_RETURN_FUNCTION_TYPE com_rslt = SUCCESS;
+	BME280_RETURN_FUNCTION_TYPE com_rslt = BME280_SUCCESS;
 
 	*v_delaytime_u8 = (T_INIT_MAX +
 	T_MEASURE_PER_OSRS_MAX *

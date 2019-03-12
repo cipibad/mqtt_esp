@@ -169,7 +169,7 @@ esp_err_t bme_read_data(int32_t *temperature, int32_t *pressure, int32_t *humidi
   com_rslt = bme280_read_uncomp_pressure_temperature_humidity(
 	  &v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32);
   
-  if (com_rslt == SUCCESS) {
+  if (com_rslt == BME280_SUCCESS) {
     ESP_LOGI(TAG_BME280, "%d.%02d degC / %d hPa / %d.%03d %%",
              bme280_compensate_temperature_int32(v_uncomp_temperature_s32)/100,
              bme280_compensate_temperature_int32(v_uncomp_temperature_s32)%100,

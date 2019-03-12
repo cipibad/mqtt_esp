@@ -54,6 +54,12 @@ config RELAYS_NB
     help
         Number of relays
 
+config RELAYS_BASE
+    int "Base IO pin of relays"
+    default 16
+    help
+        Base IO pin of relays
+
 config MQTT_PAYLOAD_BUFFER
     int "MQTT payload size(Bytes)"
     default 1460

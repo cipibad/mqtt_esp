@@ -16,6 +16,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
+
+extern QueueHandle_t otaQueue;
 
 #include "esp_system.h"
 #include "esp_wifi.h"
@@ -160,7 +163,7 @@ static void __attribute__((noreturn)) task_fatal_error()
   }
 }
 
-void handle_ota_task(void *pvParameters)
+void handle_ota_update_task(void *pvParameters)
 {
 
   esp_err_t err;
@@ -184,11 +187,11 @@ void handle_ota_task(void *pvParameters)
   /* Wait for the callback to set the CONNECTED_BIT in the
      event group.
   */
-
+  struct OtaMessage o;
   while(1) {
 
-    xEventGroupWaitBits(ota_event_group, OTA_BIT,
-                        false, true, portMAX_DELAY);
+    if( xQueueReceive( otaQueue, &o , portMAX_DELAY) )
+      {
     ESP_LOGI(TAG, "OTA cmd received....");
 
     /*connect to http server*/
@@ -276,7 +279,13 @@ void handle_ota_task(void *pvParameters)
     }
     ESP_LOGI(TAG, "Prepare to restart system!");
     esp_restart();
-
+      }
   }
 }
 
+
+
+void publish_ota_data(MQTTClient* pclient, int status)
+{
+  //FIXME
+}

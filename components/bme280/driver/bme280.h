@@ -476,7 +476,7 @@ BME280_BUS_RD_PARAM_TYPE to function calls used inside the API
 /****************************************************/
 /**\name	ERROR CODE DEFINITIONS  */
 /***************************************************/
-#define	SUCCESS					((u8)0)
+#define	BME280_SUCCESS					((u8)0)
 #define E_BME280_NULL_PTR       ((s8)-127)
 #define E_BME280_COMM_RES       ((s8)-1)
 #define E_BME280_OUT_OF_RANGE   ((s8)-2)
