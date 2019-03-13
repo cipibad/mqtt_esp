@@ -82,12 +82,13 @@ esp_err_t read_thermostat_nvs(const char * tag, int * value)
   printf("Opening Non-Volatile Storage (NVS) handle... ");
   nvs_handle my_handle;
   esp_err_t err = nvs_open("storage", NVS_READONLY, &my_handle);
-  if (err != ESP_OK) {
-    printf("Error (%d) opening NVS handle!\n", err);
-  } else {
+  switch (err) {
+  case ESP_ERR_NVS_NOT_FOUND:
+      printf("The storage is not initialized yet!\n");
+      err = ESP_OK;
+      break;
+  case ESP_OK:
     printf("Done\n");
-
-    // Read
     printf("Reading %s from NVS ... ", tag);
     err = nvs_get_i32(my_handle, tag, value);
     switch (err) {
@@ -102,10 +103,13 @@ esp_err_t read_thermostat_nvs(const char * tag, int * value)
     default :
       printf("Error (%d) reading!\n", err);
     }
+    break;
+  default:
+    printf("Error (%d) opening NVS handle!\n", err);
+    break;
   }
-  // Close
-  nvs_close(my_handle);
 
+  nvs_close(my_handle);
   return err;
 }
 

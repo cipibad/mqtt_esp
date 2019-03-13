@@ -300,7 +300,11 @@ void app_main(void)
   }
   ESP_ERROR_CHECK( err );
 
+  ESP_LOGI(TAG, "nvs_flash_init done");
+
   err=read_thermostat_nvs(targetTemperatureTAG, &targetTemperature);
+  ESP_ERROR_CHECK( err );
+
   err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility);
   ESP_ERROR_CHECK( err );
 
