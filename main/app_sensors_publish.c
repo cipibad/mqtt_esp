@@ -17,7 +17,7 @@ int publish_sensors_data(MQTTClient* pClient)
   sprintf(data, "{\"h\":%d.%d, \"t\":%d.%d}",humidity/10, humidity%10 , temperature/10,temperature%10);
 
   MQTTMessage message;
-  message.qos = QOS0;
+  message.qos = QOS1;
   message.retained = 1;
   message.payload = data;
   message.payloadlen = strlen(data);

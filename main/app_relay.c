@@ -63,7 +63,7 @@ void publish_relay_data(MQTTClient* pClient) //FIXME
 
       
       MQTTMessage message;
-      message.qos = QOS0;
+      message.qos = QOS1;
       message.retained = 1;
       message.payload = data;
       message.payloadlen = strlen(data);

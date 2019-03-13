@@ -1,3 +1,4 @@
+#include <string.h>
 #include "esp_log.h"
 
 #include "driver/gpio.h"
@@ -13,12 +14,14 @@
 #include "bme280.h"
 #include "app_bme280.h"
 #include "app_sensors.h"
+#include "app_thermostat.h"
 
 
 extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_PUBLISH_DHT22_BIT;
+extern const int INIT_FINISHED_BIT;
 
 extern int32_t wtemperature;
+extern int32_t ctemperature;
 extern int16_t pressure;
 
 int16_t temperature;
@@ -28,6 +31,8 @@ static const char *TAG = "app_sensors";
 
 void sensors_read(void* pvParameters)
 {
+  MQTTClient* pclient = (MQTTClient*) pvParameters;
+
   const dht_sensor_type_t sensor_type = DHT_TYPE_DHT22;
   const int dht_gpio = 5; //D1
   /* const int DS_PIN = 4; */
@@ -69,7 +74,6 @@ void sensors_read(void* pvParameters)
       //FIXME bug when no sensor
       if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK)
         {
-          xEventGroupSetBits(mqtt_event_group, MQTT_PUBLISH_DHT22_BIT);
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC", humidity/10, humidity%10 , temperature/10,temperature%10);
         }
       else
@@ -103,11 +107,42 @@ void sensors_read(void* pvParameters)
       /*     ESP_LOGE(TAG, "Could not read data from DHT sensor\n"); */
       /*   } */
 
-      vTaskDelay(60000 / portTICK_PERIOD_MS);
+      update_thermostat(pclient);
+      publish_sensor_data(pclient);
+      vTaskDelay(10000 / portTICK_PERIOD_MS);
+      //vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }
 
-void mqtt_publish_sensor_data(MQTTClient* pClient)
+void publish_sensor_data(MQTTClient* pclient)
 {
-  //FIXME
+    if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
+    {
+      const char * sensors_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/sensors";
+      ESP_LOGI(TAG, "starting mqtt_publish_sensor_data");
+
+      char data[256];
+      memset(data,0,256);
+      sprintf(data, "{\"counter\":%d, \"humidity\":%d.%d, \"temperature\":%d.%d, \"wtemperature\":%d.%d, \"ctemperature\":%d.%d}",0,
+
+              humidity / 10, humidity % 10,
+              temperature / 10, temperature % 10,
+              wtemperature / 10, wtemperature % 10,
+              ctemperature / 10, ctemperature % 10);
+
+      MQTTMessage message;
+      message.qos = QOS1;
+      message.retained = 1;
+      message.payload = data;
+      message.payloadlen = strlen(data);
+
+
+      int rc = MQTTPublish(pclient, sensors_topic, &message);
+      if (rc == 0) {
+        ESP_LOGI(TAG, "sent publish relay successful, rc=%d", rc);
+      } else {
+        ESP_LOGI(TAG, "failed to publish relay, rc=%d", rc);
+      }
+
+    }
 }

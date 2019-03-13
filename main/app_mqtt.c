@@ -4,6 +4,8 @@
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
 
+#include "string.h"
+
 #include "app_esp8266.h"
 
 #include "app_mqtt.h"
@@ -58,7 +60,7 @@ ssl_ca_crt_key_t ssl_cck;
 #endif //MQTT_SSL
 
 
-#define MAX_SUB 4
+#define MAX_SUB 6
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
 #define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/thermostat"
@@ -67,6 +69,8 @@ const char *SUBSCRIPTIONS[MAX_SUB] =
   {
     RELAY_TOPIC "/0",
     RELAY_TOPIC "/1",
+    RELAY_TOPIC "/2",
+    RELAY_TOPIC "/3",
     OTA_TOPIC,
     THERMOSTAT_TOPIC
   };
@@ -159,73 +163,29 @@ void dispatch_mqtt_event(MessageData* data)
 
 void publish_connected_data(MQTTClient* pclient)
 {
-/*   if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT) */
-/*     { */
-/*       const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connected"; */
-/*       char data[256]; */
-/*       memset(data,0,256); */
+  if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
+    {
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connected";
+      char data[256];
+      memset(data,0,256);
 
-/*       sprintf(data, "{\"v\":\"" FW_VERSION "\", \"r\":%d}", connect_reason); */
-/*       xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT); */
-/*       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0); */
-/*       if (msg_id > 0) { */
-/*         ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id); */
-/*         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT); */
-/*         if (bits & PUBLISHED_BIT) { */
-/*           ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id); */
-/*         } else { */
-/*           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id); */
-/*         } */
-/*       } else { */
-/*         ESP_LOGW(TAG, "failed to publish connected data, msg_id=%d", msg_id); */
-/*       } */
-/*     } */
+      sprintf(data, "{\"v\":\"" FW_VERSION "\", \"r\":%d}", connect_reason);
+
+      MQTTMessage message;
+      message.qos = QOS1;
+      message.retained = 1;
+      message.payload = data;
+      message.payloadlen = strlen(data);
+      int rc = MQTTPublish(pclient, connect_topic, &message);
+      if (rc == 0) {
+        ESP_LOGI(TAG, "sent publish connected data successful, rc=%d", rc);
+      } else {
+        ESP_LOGI(TAG, "failed to publish connected data, rc=%d", rc);
+      }
+    }
 }
 
 
-/* static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event) */
-/* { */
-/*   switch (event->event_id) { */
-/*   case MQTT_EVENT_CONNECTED: */
-/*     xEventGroupSetBits(mqtt_event_group, CONNECTED_BIT); */
-/*     void * unused; */
-/*     if (xQueueSend( mqttQueue */
-/*                     ,( void * )&unused */
-/*                     ,portMAX_DELAY) != pdPASS) { */
-/*       ESP_LOGE(TAG, "Cannot send to relayQueue"); */
-/*     } */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED"); */
-/*     break; */
-/*   case MQTT_EVENT_DISCONNECTED: */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED"); */
-/*     connect_reason=mqtt_disconnect; */
-
-/*     xEventGroupClearBits(mqtt_event_group, CONNECTED_BIT | SUBSCRIBED_BIT | PUBLISHED_BIT | INIT_FINISHED_BIT); */
-/*     break; */
-
-/*   case MQTT_EVENT_SUBSCRIBED: */
-/*     xEventGroupSetBits(mqtt_event_group, SUBSCRIBED_BIT); */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id); */
-/*     break; */
-/*   case MQTT_EVENT_UNSUBSCRIBED: */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id); */
-/*     break; */
-/*   case MQTT_EVENT_PUBLISHED: */
-/*     xEventGroupSetBits(mqtt_event_group, PUBLISHED_BIT); */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id); */
-/*     break; */
-/*   case MQTT_EVENT_DATA: */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_DATA"); */
-/*     ESP_LOGI(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic); */
-/*     ESP_LOGI(TAG, "DATA=%.*s\r\n", event->data_len, event->data); */
-/*     dispatch_mqtt_event(event); */
-/*     break; */
-/*   case MQTT_EVENT_ERROR: */
-/*     ESP_LOGI(TAG, "MQTT_EVENT_ERROR"); */
-/*     break; */
-/*   } */
-/*   return ESP_OK; */
-/* } */
 
 static void mqtt_subscribe(MQTTClient* pclient)
 {
@@ -233,7 +193,7 @@ static void mqtt_subscribe(MQTTClient* pclient)
 
   for (int i = 0; i < MAX_SUB; i++) {
     xEventGroupClearBits(mqtt_event_group, SUBSCRIBED_BIT);
-    if ((rc = MQTTSubscribe(pclient, OTA_TOPIC, 1, dispatch_mqtt_event)) == 0) {
+    if ((rc = MQTTSubscribe(pclient, SUBSCRIPTIONS[i], QOS0, dispatch_mqtt_event)) == 0) {
       ESP_LOGI(TAG, "subscribed %s successful", SUBSCRIPTIONS[i]);
     } else {
       ESP_LOGI(TAG, "failed to subscribe %s, rc=%d", SUBSCRIPTIONS[i], rc);
@@ -303,7 +263,7 @@ void mqtt_connect(void *pvParameter){
       publish_relay_data(pclient);
       publish_thermostat_data(pclient);
       publish_ota_data(pclient, OTA_READY);
-      mqtt_publish_sensor_data(pclient);
+      publish_sensor_data(pclient);
       
       while (pclient->isconnected) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -315,7 +275,7 @@ void mqtt_connect(void *pvParameter){
 void mqtt_start (MQTTClient* pclient)
 {
   ESP_LOGI(TAG, "init mqtt (re)connect thread");
-  xTaskCreate(mqtt_connect, "mqtt_connect", configMINIMAL_STACK_SIZE, pclient, 3, NULL);
+  xTaskCreate(mqtt_connect, "mqtt_connect", configMINIMAL_STACK_SIZE * 3, pclient, 3, NULL);
   xEventGroupWaitBits(mqtt_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 }
 

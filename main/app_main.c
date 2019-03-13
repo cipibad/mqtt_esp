@@ -24,6 +24,7 @@
 #include "app_ota.h"
 
 int32_t wtemperature;
+int32_t ctemperature;
 int16_t pressure;
 
 #define FW_VERSION "0.02"

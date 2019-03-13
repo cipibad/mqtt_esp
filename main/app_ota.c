@@ -45,9 +45,9 @@ static int binary_file_length = 0;
 /*socket id*/
 static int socket_id = -1;
 
-
-extern EventGroupHandle_t ota_event_group;
-extern const int OTA_BIT;
+extern EventGroupHandle_t mqtt_event_group;
+extern const int CONNECTED_BIT;
+extern const int INIT_FINISHED_BIT;
 
 
 /*read buffer by byte still delim ,return read bytes counts*/
@@ -287,5 +287,25 @@ void handle_ota_update_task(void *pvParameters)
 
 void publish_ota_data(MQTTClient* pclient, int status)
 {
-  //FIXME
+  if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
+    {
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
+      char data[256];
+      memset(data,0,256);
+
+      sprintf(data, "{\"status\":%d}", status);
+
+      MQTTMessage message;
+      message.qos = QOS1;
+      message.retained = 1;
+      message.payload = data;
+      message.payloadlen = strlen(data);
+
+      int rc = MQTTPublish(pclient, connect_topic, &message);
+      if (rc == 0) {
+        ESP_LOGI(TAG, "sent publish ota successful, rc=%d", rc);
+      } else {
+        ESP_LOGI(TAG, "failed to publish ota, rc=%d", rc);
+      }
+    }
 }
