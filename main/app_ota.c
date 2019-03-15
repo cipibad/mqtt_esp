@@ -152,19 +152,10 @@ static bool connect_to_http_server()
   return false;
 }
 
-static void __attribute__((noreturn)) task_fatal_error()
-{
-  ESP_LOGE(TAG, "Exiting task due to fatal error...");
-  close(socket_id);
-  (void)vTaskDelete(NULL);
-
-  while (1) {
-    ;
-  }
-}
-
 void handle_ota_update_task(void *pvParameters)
 {
+
+  MQTTClient* client = (MQTTClient*) pvParameters;
 
   esp_err_t err;
   /* update handle : set by esp_ota_begin(), must be freed via esp_ota_end() */
@@ -192,93 +183,113 @@ void handle_ota_update_task(void *pvParameters)
 
     if( xQueueReceive( otaQueue, &o , portMAX_DELAY) )
       {
-    ESP_LOGI(TAG, "OTA cmd received....");
+        ESP_LOGI(TAG, "OTA cmd received....");
+        publish_ota_data(client, OTA_ONGOING);
 
-    /*connect to http server*/
-    if (connect_to_http_server()) {
-      ESP_LOGI(TAG, "Connected to http server");
-    } else {
-      ESP_LOGE(TAG, "Connect to http server failed!");
-      task_fatal_error();
-    }
-
-    /*send GET request to http server*/
-    const char *GET_FORMAT =
-      "GET %s HTTP/1.0\r\n"
-      "Host: %s:%s\r\n"
-      "User-Agent: esp-idf/1.0 esp32\r\n\r\n";
-
-    char *http_request = NULL;
-    int get_len = asprintf(&http_request, GET_FORMAT, EXAMPLE_FILENAME, EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
-    if (get_len < 0) {
-      ESP_LOGE(TAG, "Failed to allocate memory for GET request buffer");
-      task_fatal_error();
-    }
-    int res = send(socket_id, http_request, get_len, 0);
-    free(http_request);
-
-    if (res < 0) {
-      ESP_LOGE(TAG, "Send GET request to server failed");
-      task_fatal_error();
-    } else {
-      ESP_LOGI(TAG, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
-    }
-
-    update_partition = esp_ota_get_next_update_partition(NULL);
-    ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
-             update_partition->subtype, update_partition->address);
-    assert(update_partition != NULL);
-
-    err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
-    if (err != ESP_OK) {
-      ESP_LOGE(TAG, "esp_ota_begin failed, error=%d", err);
-      task_fatal_error();
-    }
-    ESP_LOGI(TAG, "esp_ota_begin succeeded");
-
-    bool resp_body_start = false, flag = true;
-    /*deal with all receive packet*/
-    while (flag) {
-      memset(text, 0, TEXT_BUFFSIZE);
-      memset(ota_write_data, 0, BUFFSIZE);
-      int buff_len = recv(socket_id, text, TEXT_BUFFSIZE, 0);
-      if (buff_len < 0) { /*receive error*/
-        ESP_LOGE(TAG, "Error: receive data error! errno=%d", errno);
-        task_fatal_error();
-      } else if (buff_len > 0 && !resp_body_start) { /*deal with response header*/
-        memcpy(ota_write_data, text, buff_len);
-        resp_body_start = read_past_http_header(text, buff_len, update_handle);
-      } else if (buff_len > 0 && resp_body_start) { /*deal with response body*/
-        memcpy(ota_write_data, text, buff_len);
-        err = esp_ota_write( update_handle, (const void *)ota_write_data, buff_len);
-        if (err != ESP_OK) {
-          ESP_LOGE(TAG, "Error: esp_ota_write failed! err=0x%x", err);
-          task_fatal_error();
+        /*connect to http server*/
+        if (connect_to_http_server()) {
+          ESP_LOGI(TAG, "Connected to http server");
+        } else {
+          ESP_LOGE(TAG, "Connect to http server failed!");
+          publish_ota_data(client, OTA_FAILED);
+          continue;
         }
-        binary_file_length += buff_len;
-        ESP_LOGI(TAG, "Have written image length %d", binary_file_length);
-      } else if (buff_len == 0) {  /*packet over*/
-        flag = false;
-        ESP_LOGI(TAG, "Connection closed, all packets received");
-        close(socket_id);
-      } else {
-        ESP_LOGE(TAG, "Unexpected recv result");
-      }
-    }
 
-    ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
+        /*send GET request to http server*/
+        const char *GET_FORMAT =
+          "GET %s HTTP/1.0\r\n"
+          "Host: %s:%s\r\n"
+          "User-Agent: esp-idf/1.0 esp32\r\n\r\n";
 
-    if (esp_ota_end(update_handle) != ESP_OK) {
-      ESP_LOGE(TAG, "esp_ota_end failed!");
-      task_fatal_error();
-    }
-    err = esp_ota_set_boot_partition(update_partition);
-    if (err != ESP_OK) {
-      ESP_LOGE(TAG, "esp_ota_set_boot_partition failed! err=0x%x", err);
-      task_fatal_error();
-    }
-    ESP_LOGI(TAG, "Prepare to restart system!");
-    esp_restart();
+        char *http_request = NULL;
+        int get_len = asprintf(&http_request, GET_FORMAT, EXAMPLE_FILENAME, EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
+        if (get_len < 0) {
+          ESP_LOGE(TAG, "Failed to allocate memory for GET request buffer");
+          close(socket_id);
+          publish_ota_data(client, OTA_FAILED);
+          continue;
+        }
+        int res = send(socket_id, http_request, get_len, 0);
+        free(http_request);
+
+        if (res < 0) {
+          ESP_LOGE(TAG, "Send GET request to server failed");
+          close(socket_id);
+          publish_ota_data(client, OTA_FAILED);
+          continue;
+        } else {
+          ESP_LOGI(TAG, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
+        }
+
+        update_partition = esp_ota_get_next_update_partition(NULL);
+        ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
+                 update_partition->subtype, update_partition->address);
+        assert(update_partition != NULL);
+
+        err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
+        if (err != ESP_OK) {
+          ESP_LOGE(TAG, "esp_ota_begin failed, error=%d", err);
+          close(socket_id);
+          publish_ota_data(client, OTA_FAILED);
+          continue;
+        }
+        ESP_LOGI(TAG, "esp_ota_begin succeeded");
+
+        bool resp_body_start = false, flag = true;
+        /*deal with all receive packet*/
+        while (flag) {
+          memset(text, 0, TEXT_BUFFSIZE);
+          memset(ota_write_data, 0, BUFFSIZE);
+          int buff_len = recv(socket_id, text, TEXT_BUFFSIZE, 0);
+          if (buff_len < 0) { /*receive error*/
+            ESP_LOGE(TAG, "Error: receive data error! errno=%d", errno);
+            close(socket_id);
+            publish_ota_data(client, OTA_FAILED);
+            continue;
+          } else if (buff_len > 0 && !resp_body_start) { /*deal with response header*/
+            memcpy(ota_write_data, text, buff_len);
+            resp_body_start = read_past_http_header(text, buff_len, update_handle);
+          } else if (buff_len > 0 && resp_body_start) { /*deal with response body*/
+            memcpy(ota_write_data, text, buff_len);
+            err = esp_ota_write( update_handle, (const void *)ota_write_data, buff_len);
+            if (err != ESP_OK) {
+              ESP_LOGE(TAG, "Error: esp_ota_write failed! err=0x%x", err);
+              close(socket_id);
+              publish_ota_data(client, OTA_FAILED);
+              continue;
+            }
+            binary_file_length += buff_len;
+            ESP_LOGI(TAG, "Have written image length %d", binary_file_length);
+          } else if (buff_len == 0) {  /*packet over*/
+            flag = false;
+            ESP_LOGI(TAG, "Connection closed, all packets received");
+            close(socket_id);
+            publish_ota_data(client, OTA_FAILED);
+            continue;
+          } else {
+            ESP_LOGE(TAG, "Unexpected recv result");
+          }
+        }
+
+        ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
+
+        if (esp_ota_end(update_handle) != ESP_OK) {
+          ESP_LOGE(TAG, "esp_ota_end failed!");
+          close(socket_id);
+          publish_ota_data(client, OTA_FAILED);
+          continue;
+        }
+        err = esp_ota_set_boot_partition(update_partition);
+        if (err != ESP_OK) {
+          ESP_LOGE(TAG, "esp_ota_set_boot_partition failed! err=0x%x", err);
+          close(socket_id);
+          publish_ota_data(client, OTA_FAILED);
+          continue;
+        }
+        ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+        publish_ota_data(client, OTA_SUCCESFULL);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        esp_restart();
       }
   }
 }

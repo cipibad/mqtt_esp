@@ -1,10 +1,11 @@
+#include "string.h"
+#include "assert.h"
+
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
-
-#include "string.h"
 
 #include "app_esp8266.h"
 
@@ -60,71 +61,86 @@ ssl_ca_crt_key_t ssl_cck;
 #endif //MQTT_SSL
 
 
-#define MAX_SUB 6
-#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
-#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/ota"
-#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/thermostat"
+#define MAX_SUB 5 // must be lower that MAX_MESSAGE_HANDLERS
+#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/relay"
+#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
+#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat"
 
 const char *SUBSCRIPTIONS[MAX_SUB] =
   {
     RELAY_TOPIC "/0",
     RELAY_TOPIC "/1",
     RELAY_TOPIC "/2",
-    RELAY_TOPIC "/3",
+    /* RELAY_TOPIC "/3", */
     OTA_TOPIC,
     THERMOSTAT_TOPIC
   };
 
+#define MIN(a,b) ((a<b)?a:b)
 
 void dispatch_mqtt_event(MessageData* data)
 {
 
   ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-  ESP_LOGI(TAG, "TOPIC=%s\r\n", data->topicName->cstring);
-  ESP_LOGI(TAG, "DATA=%s\r\n", (char*) data->message->payload);
+  ESP_LOGI(TAG, "TOPIC=%.*s", data->topicName->lenstring.len, data->topicName->lenstring.data);
+  ESP_LOGI(TAG, "DATA=%.*s", data->message->payloadlen, (char*) data->message->payload);
 
+  const char * topic = data->topicName->lenstring.data;
+  int topicLen = data->topicName->lenstring.len;
+  if (strncmp(topic, RELAY_TOPIC, MIN(topicLen, strlen(RELAY_TOPIC))) == 0) {
+    char id=255;
+    if (strncmp(topic, RELAY_TOPIC "/0", MIN(topicLen, strlen(RELAY_TOPIC "/0"))) == 0) {
+      id=0;
+    }
+    if (strncmp(topic, RELAY_TOPIC "/1", MIN(topicLen, strlen(RELAY_TOPIC "/1"))) == 0) {
+      id=1;
+    }
+    if (strncmp(topic, RELAY_TOPIC "/2", MIN(topicLen, strlen(RELAY_TOPIC "/2"))) == 0) {
+      id=2;
+    }
+    if (strncmp(topic, RELAY_TOPIC "/3", MIN(topicLen, strlen(RELAY_TOPIC "/3"))) == 0) {
+      id=3;
+    }
+    if(id == 255)
+      {
+        ESP_LOGI(TAG, "unexpected relay id");
+        return;
+      }
+    if (data->message->payloadlen >= 32 )
+      {
+        ESP_LOGI(TAG, "unexpected relay cmd payload");
+        return;
+      }
+    char tmpBuf[32];
+    memcpy(tmpBuf, data->message->payload, data->message->payloadlen);
+    tmpBuf[data->message->payloadlen] = 0;
+    cJSON * root   = cJSON_Parse(tmpBuf);
+    if (root) {
+      cJSON * state = cJSON_GetObjectItem(root,"state");
+      if (state) {
+        char value = state->valueint;
+        ESP_LOGI(TAG, "id: %d, value: %d", id, value);
+        struct RelayMessage r={id, value};
+        if (xQueueSend( relayQueue
+                        ,( void * )&r
+                        ,portMAX_DELAY) != pdPASS) {
+          ESP_LOGE(TAG, "Cannot send to relayQueue");
+        }
+        return;
+      }
+    }
+    ESP_LOGE(TAG, "bad json payload");
+    return;
+  }
+  if (strncmp(topic, OTA_TOPIC, MIN(topicLen, strlen(OTA_TOPIC))) == 0) {
+    struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
+    if (xQueueSend( otaQueue
+                    ,( void * )&o
+                    ,portMAX_DELAY) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send to relayQueue");
 
-  /* if (strncmp(event->topic, RELAY_TOPIC, strlen(RELAY_TOPIC)) == 0) { */
-  /*   char id=255; */
-  /*   if (strncmp(event->topic, RELAY_TOPIC "/0", strlen(RELAY_TOPIC "/0")) == 0) { */
-  /*     id=0; */
-  /*   } */
-  /*   if (strncmp(event->topic, RELAY_TOPIC "/1", strlen(RELAY_TOPIC "/1")) == 0) { */
-  /*     id=1; */
-  /*   } */
-  /*   if(id == 255) */
-  /*     { */
-  /*       ESP_LOGI(TAG, "unexpected relay id"); */
-  /*       return; */
-  /*     } */
-  /*   if (event->data_len >= 32 ) */
-  /*     { */
-  /*       ESP_LOGI(TAG, "unexpected relay cmd payload"); */
-  /*       return; */
-  /*     } */
-  /*   char tmpBuf[32]; */
-  /*   memcpy(tmpBuf, event->data, event->data_len); */
-  /*   tmpBuf[event->data_len] = 0; */
-  /*   cJSON * root   = cJSON_Parse(tmpBuf); */
-  /*   char value = cJSON_GetObjectItem(root,"state")->valueint; */
-  /*   printf("id: %d\r\n", id); */
-  /*   printf("value: %d\r\n", value); */
-  /*   struct RelayMessage r={id, value}; */
-  /*   if (xQueueSend( relayQueue */
-  /*                   ,( void * )&r */
-  /*                   ,portMAX_DELAY) != pdPASS) { */
-  /*     ESP_LOGE(TAG, "Cannot send to relayQueue"); */
-  /*   } */
-  /* } */
-  /* if (strncmp(event->topic, OTA_TOPIC, strlen(OTA_TOPIC)) == 0) { */
-  /*   struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"}; */
-  /*   if (xQueueSend( otaQueue */
-  /*                   ,( void * )&o */
-  /*                   ,portMAX_DELAY) != pdPASS) { */
-  /*     ESP_LOGE(TAG, "Cannot send to relayQueue"); */
-
-  /*   } */
-  /* } */
+    }
+  }
 
   /* if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) { */
   /*   if (event->data_len >= 64 ) */
@@ -193,12 +209,16 @@ static void mqtt_subscribe(MQTTClient* pclient)
 
   for (int i = 0; i < MAX_SUB; i++) {
     xEventGroupClearBits(mqtt_event_group, SUBSCRIBED_BIT);
-    if ((rc = MQTTSubscribe(pclient, SUBSCRIPTIONS[i], QOS0, dispatch_mqtt_event)) == 0) {
+    if ((rc = MQTTSubscribe(pclient, SUBSCRIPTIONS[i], QOS1, dispatch_mqtt_event)) == 0) {
       ESP_LOGI(TAG, "subscribed %s successful", SUBSCRIPTIONS[i]);
     } else {
       ESP_LOGI(TAG, "failed to subscribe %s, rc=%d", SUBSCRIPTIONS[i], rc);
     }
+    //vTaskDelay(500 / portTICK_PERIOD_MS);
+
   }
+  xEventGroupSetBits(mqtt_event_group, SUBSCRIBED_BIT);
+      
 }
 
 MQTTClient* mqtt_init()
@@ -225,10 +245,15 @@ MQTTClient* mqtt_init()
 }
 
 void mqtt_connect(void *pvParameter){
+
+  if (MAX_SUB > MAX_MESSAGE_HANDLERS) {
+    ESP_LOGE(TAG, "MAX subscription limit(%d) passed", MAX_MESSAGE_HANDLERS);
+  }
+  
   MQTTClient* pclient = (MQTTClient*) pvParameter;
   int rc;
   while(true) {
-    ESP_LOGI(TAG, "wait wifi connect...");
+    ESP_LOGI(TAG, "wait/check wifi connect...");
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 
 #ifdef MQTT_SSL
@@ -237,11 +262,13 @@ void mqtt_connect(void *pvParameter){
       if ((rc = NetworkConnect(&network, CONFIG_MQTT_SERVER, CONFIG_MQTT_PORT)) != 0) {
 #endif //MQTT_SSL
         ESP_LOGE(TAG, "Return code from network connect is %d", rc);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
         continue;
       }
       if ((rc = MQTTConnect(pclient, &connectData)) != 0) {
         ESP_LOGE(TAG, "Return code from MQTT connect is %d", rc);
         network.disconnect(&network);
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
         continue;
       }
       
@@ -269,6 +296,9 @@ void mqtt_connect(void *pvParameter){
         vTaskDelay(1000 / portTICK_PERIOD_MS);
       }
       xEventGroupClearBits(mqtt_event_group, CONNECTED_BIT | SUBSCRIBED_BIT | PUBLISHED_BIT | INIT_FINISHED_BIT);
+      network.disconnect(&network);
+      ESP_LOGE(TAG, "MQTT disconnected, will reconnect in 10 seconds");
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
 

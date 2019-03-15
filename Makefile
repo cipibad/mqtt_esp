@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := mqtt_demo
+PROJECT_NAME := mqtt_ssl
 
 include $(IDF_PATH)/make/project.mk
 

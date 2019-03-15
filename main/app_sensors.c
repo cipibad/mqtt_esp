@@ -139,7 +139,7 @@ void publish_sensor_data(MQTTClient* pclient)
 
       int rc = MQTTPublish(pclient, sensors_topic, &message);
       if (rc == 0) {
-        ESP_LOGI(TAG, "sent publish relay successful, rc=%d", rc);
+        ESP_LOGI(TAG, "sent publish sensors successful, rc=%d", rc);
       } else {
         ESP_LOGI(TAG, "failed to publish relay, rc=%d", rc);
       }
