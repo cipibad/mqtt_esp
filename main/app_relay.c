@@ -16,11 +16,10 @@
 extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 
-const int relayBase = CONFIG_RELAYS_BASE;
 const int relaysNb = CONFIG_RELAYS_NB;
 static int relayStatus[MAX_RELAYS];
 
-const int relayToGpioMap[4] = {4, 14, 12, 13};
+const int relayToGpioMap[CONFIG_RELAYS_NB] = {12, 13};
 
 static const char *TAG = "MQTTS_RELAY";
 
@@ -70,7 +69,7 @@ void publish_relay_data(MQTTClient* pClient) //FIXME
 
       int rc = MQTTPublish(pClient, relays_topic, &message);
       if (rc == 0) {
-        ESP_LOGI(TAG, "sent publish relay successful, rc=%d", rc);
+        ESP_LOGI(TAG, "sent publish relay successful HERE, rc=%d", rc);
       } else {
         ESP_LOGI(TAG, "failed to publish relay, rc=%d", rc);
       }
@@ -80,20 +79,25 @@ void publish_relay_data(MQTTClient* pClient) //FIXME
 
 void update_relay_state(int id, char value)
 {
+  ESP_LOGI(TAG, "update_relay_state: id: %d, value: %d", id, value);
+  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id]);
   if (value == relayStatus[id]) {
     //reversed logic
     if (value == OFF) {
       relayStatus[id] = ON;
+      ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
     }
     if (value == ON) {
       relayStatus[id] = OFF;
+      ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
-    gpio_set_level(relayBase + id, relayStatus[id]);
+    gpio_set_level(relayToGpioMap[id], relayStatus[id]);
   }
 }
 
 void handle_relay_cmd_task(void* pvParameters)
 {
+  ESP_LOGI(TAG, "handle_relay_cmd_task started");
 #ifdef ESP8266
   MQTTClient* client = (MQTTClient*) pvParameters;
 #endif //ESP8266
@@ -107,6 +111,8 @@ void handle_relay_cmd_task(void* pvParameters)
   while(1) {
     if( xQueueReceive( relayQueue, &r , portMAX_DELAY) )
       {
+        ESP_LOGI(TAG, "handle_relay_cmd_task received message");
+
         id=r.relayId;
         value=r.relayValue;
         update_relay_state(id, value);
@@ -115,25 +121,4 @@ void handle_relay_cmd_task(void* pvParameters)
       }
   }
 }
-
-/* int handle_specific_relay_cmd(int id, MQTTMessage *data) */
-/* { */
-/*   ESP_LOGI(TAG, "handle_specific_relay_cmd"); */
-/*   if (data->payloadlen >= 32 ) */
-/*     { */
-/*       ESP_LOGI(TAG, "unextected relay cmd payload"); */
-/*       return -1; */
-/*     } */
-/*   int value = ((char*)(data->payload))[0] - '0'; */
-/*   value =value == OFF ? 0 : 1; */
-/*   ESP_LOGI(TAG,"id: %d, new value: %d,current value: %d", id, value, relayStatus[id]); */
-
-/*   if (value != relayStatus[id]) { */
-/*     relayStatus[id] = value; */
-/*     gpio_set_level(relayToGpioMap[id], relayStatus[id]); */
-/*     xEventGroupSetBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT); */
-/*   } */
-/*   return 0; */
-
-/* } */
 

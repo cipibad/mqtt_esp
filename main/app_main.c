@@ -16,11 +16,10 @@
 #include "app_wifi.h"
 #include "app_mqtt.h"
 
-#include "app_sensors.h"
-#include "app_thermostat.h"
+/* #include "app_sensors.h" */
+/* #include "app_thermostat.h" */
 #include "app_relay.h"
 
-#include "app_sensors_publish.h"
 #include "app_ota.h"
 
 int32_t wtemperature;
@@ -30,10 +29,10 @@ int16_t pressure;
 #define FW_VERSION "0.02"
 
 
-extern int targetTemperature;
-extern int targetTemperatureSensibility;
-extern const char * targetTemperatureTAG;
-extern const char * targetTemperatureSensibilityTAG;
+/* extern int targetTemperature; */
+/* extern int targetTemperatureSensibility; */
+/* extern const char * targetTemperatureTAG; */
+/* extern const char * targetTemperatureSensibilityTAG; */
 
 int16_t connect_reason;
 const int boot = 0;
@@ -49,7 +48,7 @@ const int INIT_FINISHED_BIT = BIT3;
 
 QueueHandle_t relayQueue;
 QueueHandle_t otaQueue;
-QueueHandle_t thermostatQueue;
+/* QueueHandle_t thermostatQueue; */
 QueueHandle_t mqttQueue;
 
 const int MQTT_PUBLISH_RELAYS_BIT = BIT5; //FIXME
@@ -58,7 +57,7 @@ const int MQTT_PUBLISH_DHT22_BIT = BIT6; //FIXME
 static const char *TAG = "MQTT(S?)_MAIN";
 
 
-#define BLINK_GPIO GPIO_NUM_16
+#define BLINK_GPIO GPIO_NUM_13
 void blink_task(void *pvParameter)
 {
   /* Configure the IOMUX register for pad BLINK_GPIO (some pads are
@@ -285,7 +284,7 @@ void app_main(void)
   mqtt_event_group = xEventGroupCreate();
   wifi_event_group = xEventGroupCreate();
 
-  thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
+  /* thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) ); */
   relayQueue = xQueueCreate(1, sizeof(struct RelayMessage) );
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
   mqttQueue = xQueueCreate(1, sizeof(void *) );
@@ -303,19 +302,19 @@ void app_main(void)
 
   ESP_LOGI(TAG, "nvs_flash_init done");
 
-  err=read_thermostat_nvs(targetTemperatureTAG, &targetTemperature);
-  ESP_ERROR_CHECK( err );
+  /* err=read_thermostat_nvs(targetTemperatureTAG, &targetTemperature); */
+  /* ESP_ERROR_CHECK( err ); */
 
-  err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility);
-  ESP_ERROR_CHECK( err );
+  /* err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility); */
+  /* ESP_ERROR_CHECK( err ); */
 
   MQTTClient* client = mqtt_init();
 
-  xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
+  /* xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL); */
 
   xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
-  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+  /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
 
   wifi_init();
 

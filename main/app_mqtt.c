@@ -14,8 +14,8 @@
 
 #include "app_relay.h"
 #include "app_ota.h"
-#include "app_sensors.h"
-#include "app_thermostat.h"
+/* #include "app_sensors.h" */
+/* #include "app_thermostat.h" */
 
 #include "cJSON.h"
 
@@ -31,7 +31,7 @@ extern const int INIT_FINISHED_BIT;
 
 extern int16_t connect_reason;
 extern const int mqtt_disconnect;
-#define FW_VERSION "0.02.05"
+#define FW_VERSION "0.02.013"
 
 extern QueueHandle_t relayQueue;
 extern QueueHandle_t otaQueue;
@@ -121,11 +121,13 @@ void dispatch_mqtt_event(MessageData* data)
         char value = state->valueint;
         ESP_LOGI(TAG, "id: %d, value: %d", id, value);
         struct RelayMessage r={id, value};
+        ESP_LOGE(TAG, "Sending to relayQueue with timeout");
         if (xQueueSend( relayQueue
                         ,( void * )&r
-                        ,portMAX_DELAY) != pdPASS) {
+                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
           ESP_LOGE(TAG, "Cannot send to relayQueue");
         }
+        ESP_LOGE(TAG, "Sending to relayQueue finished");
         return;
       }
     }
@@ -136,7 +138,7 @@ void dispatch_mqtt_event(MessageData* data)
     struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
                     ,( void * )&o
-                    ,portMAX_DELAY) != pdPASS) {
+                    ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to relayQueue");
 
     }
@@ -169,7 +171,7 @@ void dispatch_mqtt_event(MessageData* data)
   /*     if (t.targetTemperature || t.targetTemperatureSensibility) { */
   /*       if (xQueueSend( thermostatQueue */
   /*                       ,( void * )&t */
-  /*                       ,portMAX_DELAY) != pdPASS) { */
+  /*                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) { */
   /*         ESP_LOGE(TAG, "Cannot send to thermostatQueue"); */
   /*       } */
   /*     } */
@@ -288,9 +290,9 @@ void mqtt_connect(void *pvParameter){
       xEventGroupSetBits(mqtt_event_group, INIT_FINISHED_BIT);
       publish_connected_data(pclient);
       publish_relay_data(pclient);
-      publish_thermostat_data(pclient);
       publish_ota_data(pclient, OTA_READY);
-      publish_sensor_data(pclient);
+      /* publish_thermostat_data(pclient); */
+      /* publish_sensor_data(pclient); */
       
       while (pclient->isconnected) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -304,7 +306,7 @@ void mqtt_connect(void *pvParameter){
 
 void mqtt_start (MQTTClient* pclient)
 {
-  ESP_LOGI(TAG, "init mqtt (re)connect thread");
+  ESP_LOGI(TAG, "init mqtt (re)connect thread, fw version " FW_VERSION);
   xTaskCreate(mqtt_connect, "mqtt_connect", configMINIMAL_STACK_SIZE * 3, pclient, 3, NULL);
   xEventGroupWaitBits(mqtt_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 }
