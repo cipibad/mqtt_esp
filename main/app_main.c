@@ -15,6 +15,7 @@
 
 #include "app_wifi.h"
 #include "app_mqtt.h"
+#include "app_switch.h"
 
 /* #include "app_sensors.h" */
 /* #include "app_thermostat.h" */
@@ -69,7 +70,13 @@ void blink_task(void *pvParameter)
 
   //gpio_pad_select_gpio(BLINK_GPIO); //FIXME why not implemented on esp8266??
   /* Set the GPIO as a push/pull output */
+  gpio_config_t io_conf;
+  io_conf.pin_bit_mask = (1ULL << BLINK_GPIO);
+  gpio_config(&io_conf);
+
   gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+
+  
   int interval;
   while(1) {
     gpio_set_level(BLINK_GPIO, ON);
@@ -289,7 +296,7 @@ void app_main(void)
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
   mqttQueue = xQueueCreate(1, sizeof(void *) );
 
-  xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE, NULL, 3, NULL);
+  xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
 
   esp_err_t err = nvs_flash_init();
   if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
@@ -317,7 +324,7 @@ void app_main(void)
   /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
 
   wifi_init();
-
+  gpio_switch_init(NULL);
   mqtt_start(client);
 
 }

@@ -19,7 +19,7 @@ extern const int INIT_FINISHED_BIT;
 const int relaysNb = CONFIG_RELAYS_NB;
 static int relayStatus[MAX_RELAYS];
 
-const int relayToGpioMap[CONFIG_RELAYS_NB] = {12, 13};
+const int relayToGpioMap[CONFIG_RELAYS_NB] = {12};
 
 static const char *TAG = "MQTTS_RELAY";
 

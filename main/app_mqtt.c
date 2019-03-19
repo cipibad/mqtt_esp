@@ -31,7 +31,7 @@ extern const int INIT_FINISHED_BIT;
 
 extern int16_t connect_reason;
 extern const int mqtt_disconnect;
-#define FW_VERSION "0.02.013"
+#define FW_VERSION "0.02.014"
 
 extern QueueHandle_t relayQueue;
 extern QueueHandle_t otaQueue;
