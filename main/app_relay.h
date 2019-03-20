@@ -1,6 +1,9 @@
 #ifndef APP_RELAY_H
 #define APP_RELAY_H
 
+#define MAX_RELAYS 4
+
+
 struct RelayMessage
 {
     char relayId;
