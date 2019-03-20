@@ -11,8 +11,6 @@
 #include "app_esp8266.h"
 #include "app_relay.h"
 
-#define MAX_RELAYS 4
-
 extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 extern const int PUBLISHED_BIT;
