@@ -14,8 +14,8 @@
 
 #include "app_relay.h"
 #include "app_ota.h"
-#include "app_sensors.h"
-#include "app_thermostat.h"
+/* #include "app_sensors.h" */
+/* #include "app_thermostat.h" */
 
 #include "cJSON.h"
 
@@ -31,7 +31,7 @@ extern const int INIT_FINISHED_BIT;
 
 extern int16_t connect_reason;
 extern const int mqtt_disconnect;
-#define FW_VERSION "0.02.05"
+#define FW_VERSION "0.02.014"
 
 extern QueueHandle_t relayQueue;
 extern QueueHandle_t otaQueue;
@@ -290,9 +290,9 @@ void mqtt_connect(void *pvParameter){
       xEventGroupSetBits(mqtt_event_group, INIT_FINISHED_BIT);
       publish_connected_data(pclient);
       publish_all_relays_data(pclient);
-      publish_thermostat_data(pclient);
       publish_ota_data(pclient, OTA_READY);
-      publish_sensor_data(pclient);
+      /* publish_thermostat_data(pclient); */
+      /* publish_sensor_data(pclient); */
       
       while (pclient->isconnected) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -306,7 +306,7 @@ void mqtt_connect(void *pvParameter){
 
 void mqtt_start (MQTTClient* pclient)
 {
-  ESP_LOGI(TAG, "init mqtt (re)connect thread");
+  ESP_LOGI(TAG, "init mqtt (re)connect thread, fw version " FW_VERSION);
   xTaskCreate(mqtt_connect, "mqtt_connect", configMINIMAL_STACK_SIZE * 3, pclient, 5, NULL);
   xEventGroupWaitBits(mqtt_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 }

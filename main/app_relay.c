@@ -19,7 +19,7 @@ extern const int INIT_FINISHED_BIT;
 const int relaysNb = CONFIG_RELAYS_NB;
 static int relayStatus[MAX_RELAYS];
 
-const int relayToGpioMap[4] = {4, 14, 12, 13};
+const int relayToGpioMap[CONFIG_RELAYS_NB] = {12};
 
 static const char *TAG = "MQTTS_RELAY";
 
@@ -96,6 +96,7 @@ void update_relay_state(int id, char value, MQTTClient* client)
 
 void handle_relay_cmd_task(void* pvParameters)
 {
+  ESP_LOGI(TAG, "handle_relay_cmd_task started");
 #ifdef ESP8266
   MQTTClient* client = (MQTTClient*) pvParameters;
 #endif //ESP8266
@@ -110,13 +111,9 @@ void handle_relay_cmd_task(void* pvParameters)
     ESP_LOGI(TAG, "relay loop start, waiting in queue");
     if( xQueueReceive( relayQueue, &r , portMAX_DELAY) )
       {
-        ESP_LOGI(TAG, "relay loop, queue message received");
         id=r.relayId;
         value=r.relayValue;
-        ESP_LOGI(TAG, "relay loop, updatind relay state");
         update_relay_state(id, value, client);
-        ESP_LOGI(TAG, "relay loop end, publish done");
-
       }
   }
 }
