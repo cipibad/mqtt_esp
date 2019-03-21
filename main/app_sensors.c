@@ -115,6 +115,7 @@ void sensors_read(void* pvParameters)
       publish_sensor_data(pclient);
       ESP_LOGI(TAG, "loop end, waiting 60 seconds");
       vTaskDelay(60000 / portTICK_PERIOD_MS);
+      //vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 }
 

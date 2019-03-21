@@ -41,25 +41,19 @@ void relays_init()
   }
 }
 
-void publish_relay_data(MQTTClient* pClient) //FIXME
+
+void publish_relay_data(int id, MQTTClient* client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
     {
-      const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relays";
-      char data[256];
-      char relayData[32];
-      memset(data,0,256);
-      strcat(data, "{");
-      for(int i = 0; i < relaysNb; i++) {
-        memset(relayData,0,32);
-        sprintf(relayData, "\"relay%dState\":%d", i, relayStatus[i] == ON);
-        if (i != (relaysNb-1)) {
-          strcat(relayData, ",");
-        }
-        strcat(data, relayData);
-      }
-      strcat(data, "}");
+      const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
+      char data[32];
+      memset(data,0,32);
+      sprintf(data, "{\"state\":%d}", relayStatus[id] == ON);
 
+      char topic[64];
+      memset(topic,0,64);
+      sprintf(topic, "%s%d", relays_topic, id);
       
       MQTTMessage message;
       message.qos = QOS1;
@@ -67,17 +61,24 @@ void publish_relay_data(MQTTClient* pClient) //FIXME
       message.payload = data;
       message.payloadlen = strlen(data);
 
-      int rc = MQTTPublish(pClient, relays_topic, &message);
+      int rc = MQTTPublish(client, topic, &message);
       if (rc == 0) {
-        ESP_LOGI(TAG, "sent publish relay successful, rc=%d", rc);
+        ESP_LOGI(TAG, "sent publish relay %d successful, rc=%d", id, rc);
       } else {
-        ESP_LOGI(TAG, "failed to publish relay, rc=%d", rc);
+        ESP_LOGI(TAG, "failed to publish %d relay, rc=%d", id, rc);
       }
     }
 }
+void publish_all_relays_data(MQTTClient* client) //FIXME
+{
+  for(int id = 0; id < relaysNb; id++) {
+    publish_relay_data(id, client);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
 
 
-void update_relay_state(int id, char value)
+void update_relay_state(int id, char value, MQTTClient* client)
 {
   if (value != (relayStatus[id] == ON)) {
     if (value == 1) {
@@ -89,6 +90,7 @@ void update_relay_state(int id, char value)
       ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
     gpio_set_level(relayToGpioMap[id], relayStatus[id]);
+    publish_relay_data(id, client);
   }
 }
 
@@ -112,9 +114,7 @@ void handle_relay_cmd_task(void* pvParameters)
         id=r.relayId;
         value=r.relayValue;
         ESP_LOGI(TAG, "relay loop, updatind relay state");
-        update_relay_state(id, value);
-        ESP_LOGI(TAG, "relay loop, publishing relays");
-        publish_relay_data(client);
+        update_relay_state(id, value, client);
         ESP_LOGI(TAG, "relay loop end, publish done");
 
       }

@@ -113,15 +113,15 @@ esp_err_t read_thermostat_nvs(const char * tag, int * value)
   return err;
 }
 
-void updateHeatingState(bool heatEnabled)
+void updateHeatingState(bool heatEnabled, MQTTClient* client)
 {
   if (heatEnabled)
     {
-      update_relay_state(0,1);
+      update_relay_state(0,1, client);
     }
   else
     {
-      update_relay_state(0,0);
+      update_relay_state(0,0, client);
     }
 
   ESP_LOGI(TAG, "heat state updated to %d", heatEnabled);
@@ -141,8 +141,7 @@ void update_thermostat(MQTTClient* client)
       if (heatEnabled==true) {
         ESP_LOGI(TAG, "stop heating as sensor is not reporting");
         heatEnabled=false;
-        updateHeatingState(heatEnabled);
-        publish_relay_data(client);
+        updateHeatingState(heatEnabled, client);
       }
       return;
     }
@@ -150,17 +149,14 @@ void update_thermostat(MQTTClient* client)
   if (heatEnabled==true && wtemperature * 10 > targetTemperature + targetTemperatureSensibility)
     {
       heatEnabled=false;
-      updateHeatingState(heatEnabled);
-      publish_relay_data(client);
+      updateHeatingState(heatEnabled, client);
     }
 
 
   if (heatEnabled==false && wtemperature  * 10 < targetTemperature - targetTemperatureSensibility)
     {
       heatEnabled=true;
-      updateHeatingState(heatEnabled);
-      publish_relay_data(client);
-
+      updateHeatingState(heatEnabled, client);
     }
 
 }
