@@ -16,7 +16,6 @@
 extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 
-const int relayBase = CONFIG_RELAYS_BASE;
 const int relaysNb = CONFIG_RELAYS_NB;
 static int relayStatus[MAX_RELAYS];
 
@@ -80,15 +79,16 @@ void publish_relay_data(MQTTClient* pClient) //FIXME
 
 void update_relay_state(int id, char value)
 {
-  if (value == relayStatus[id]) {
-    //reversed logic
-    if (value == OFF) {
+  if (value != (relayStatus[id] == ON)) {
+    if (value == 1) {
       relayStatus[id] = ON;
+      ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
     }
-    if (value == ON) {
+    if (value == 0) {
       relayStatus[id] = OFF;
+      ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
-    gpio_set_level(relayBase + id, relayStatus[id]);
+    gpio_set_level(relayToGpioMap[id], relayStatus[id]);
   }
 }
 
@@ -105,35 +105,19 @@ void handle_relay_cmd_task(void* pvParameters)
   int id;
   int value;
   while(1) {
+    ESP_LOGI(TAG, "relay loop start, waiting in queue");
     if( xQueueReceive( relayQueue, &r , portMAX_DELAY) )
       {
+        ESP_LOGI(TAG, "relay loop, queue message received");
         id=r.relayId;
         value=r.relayValue;
+        ESP_LOGI(TAG, "relay loop, updatind relay state");
         update_relay_state(id, value);
+        ESP_LOGI(TAG, "relay loop, publishing relays");
         publish_relay_data(client);
+        ESP_LOGI(TAG, "relay loop end, publish done");
 
       }
   }
 }
-
-/* int handle_specific_relay_cmd(int id, MQTTMessage *data) */
-/* { */
-/*   ESP_LOGI(TAG, "handle_specific_relay_cmd"); */
-/*   if (data->payloadlen >= 32 ) */
-/*     { */
-/*       ESP_LOGI(TAG, "unextected relay cmd payload"); */
-/*       return -1; */
-/*     } */
-/*   int value = ((char*)(data->payload))[0] - '0'; */
-/*   value =value == OFF ? 0 : 1; */
-/*   ESP_LOGI(TAG,"id: %d, new value: %d,current value: %d", id, value, relayStatus[id]); */
-
-/*   if (value != relayStatus[id]) { */
-/*     relayStatus[id] = value; */
-/*     gpio_set_level(relayToGpioMap[id], relayStatus[id]); */
-/*     xEventGroupSetBits(mqtt_publish_event_group, MQTT_PUBLISH_RELAYS_BIT); */
-/*   } */
-/*   return 0; */
-
-/* } */
 

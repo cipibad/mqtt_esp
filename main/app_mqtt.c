@@ -71,9 +71,9 @@ const char *SUBSCRIPTIONS[MAX_SUB] =
     RELAY_TOPIC "/0",
     RELAY_TOPIC "/1",
     RELAY_TOPIC "/2",
-    /* RELAY_TOPIC "/3", */
-    OTA_TOPIC,
-    THERMOSTAT_TOPIC
+    RELAY_TOPIC "/3",
+    OTA_TOPIC/* , */
+    /* THERMOSTAT_TOPIC */
   };
 
 #define MIN(a,b) ((a<b)?a:b)
@@ -121,11 +121,13 @@ void dispatch_mqtt_event(MessageData* data)
         char value = state->valueint;
         ESP_LOGI(TAG, "id: %d, value: %d", id, value);
         struct RelayMessage r={id, value};
+        ESP_LOGE(TAG, "Sending to relayQueue with timeout");
         if (xQueueSend( relayQueue
                         ,( void * )&r
-                        ,portMAX_DELAY) != pdPASS) {
+                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
           ESP_LOGE(TAG, "Cannot send to relayQueue");
         }
+        ESP_LOGE(TAG, "Sending to relayQueue finished");
         return;
       }
     }
@@ -136,7 +138,7 @@ void dispatch_mqtt_event(MessageData* data)
     struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
                     ,( void * )&o
-                    ,portMAX_DELAY) != pdPASS) {
+                    ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to relayQueue");
 
     }
@@ -169,7 +171,7 @@ void dispatch_mqtt_event(MessageData* data)
   /*     if (t.targetTemperature || t.targetTemperatureSensibility) { */
   /*       if (xQueueSend( thermostatQueue */
   /*                       ,( void * )&t */
-  /*                       ,portMAX_DELAY) != pdPASS) { */
+  /*                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) { */
   /*         ESP_LOGE(TAG, "Cannot send to thermostatQueue"); */
   /*       } */
   /*     } */

@@ -20,7 +20,6 @@
 #include "app_thermostat.h"
 #include "app_relay.h"
 
-#include "app_sensors_publish.h"
 #include "app_ota.h"
 
 int32_t wtemperature;
@@ -286,7 +285,7 @@ void app_main(void)
   wifi_event_group = xEventGroupCreate();
 
   thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
-  relayQueue = xQueueCreate(1, sizeof(struct RelayMessage) );
+  relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
   mqttQueue = xQueueCreate(1, sizeof(void *) );
 
