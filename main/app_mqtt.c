@@ -14,7 +14,9 @@
 
 #include "app_relay.h"
 #include "app_ota.h"
-/* #include "app_sensors.h" */
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+#include "app_sensors.h"
+#endif //CONFIG_MQTT_SENSOR_DHT22
 /* #include "app_thermostat.h" */
 
 #include "cJSON.h"
@@ -292,7 +294,9 @@ void mqtt_connect(void *pvParameter){
       publish_all_relays_data(pclient);
       publish_ota_data(pclient, OTA_READY);
       /* publish_thermostat_data(pclient); */
-      /* publish_sensor_data(pclient); */
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+      publish_sensors_data(pclient);
+#endif //CONFIG_MQTT_SENSOR_DHT22
       
       while (pclient->isconnected) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);

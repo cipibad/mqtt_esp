@@ -19,7 +19,7 @@ extern const int INIT_FINISHED_BIT;
 const int relaysNb = CONFIG_RELAYS_NB;
 static int relayStatus[MAX_RELAYS];
 
-const int relayToGpioMap[CONFIG_RELAYS_NB] = {12};
+const int relayToGpioMap[CONFIG_RELAYS_NB] = {4, 14, 12, 13};
 
 static const char *TAG = "MQTTS_RELAY";
 
@@ -108,7 +108,6 @@ void handle_relay_cmd_task(void* pvParameters)
   int id;
   int value;
   while(1) {
-    ESP_LOGI(TAG, "relay loop start, waiting in queue");
     if( xQueueReceive( relayQueue, &r , portMAX_DELAY) )
       {
         id=r.relayId;

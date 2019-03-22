@@ -14,7 +14,7 @@
 #include "bme280.h"
 #include "app_bme280.h"
 #include "app_sensors.h"
-#include "app_thermostat.h"
+/* #include "app_thermostat.h" */
 
 
 extern EventGroupHandle_t mqtt_event_group;
@@ -34,7 +34,6 @@ void sensors_read(void* pvParameters)
   MQTTClient* pclient = (MQTTClient*) pvParameters;
 
   const dht_sensor_type_t sensor_type = DHT_TYPE_DHT22;
-  const int dht_gpio = 5; //D1
   /* const int DS_PIN = 4; */
   /* const int sda_pin = 5; //D1 */
   /* const int scl_pin = 4; //D2 */
@@ -72,8 +71,7 @@ void sensors_read(void* pvParameters)
   while (1)
     {
       //FIXME bug when no sensor
-      ESP_LOGI(TAG, "start sensor reading loop");
-      if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature) == ESP_OK)
+      if (dht_read_data(sensor_type, CONFIG_MQTT_SENSOR_DHT22_GPIO, &humidity, &temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC", humidity/10, humidity%10 , temperature/10,temperature%10);
         }
@@ -81,7 +79,6 @@ void sensors_read(void* pvParameters)
         {
           ESP_LOGE(TAG, "Could not read data from DHT sensor\n");
         }
-      ESP_LOGI(TAG, "finished sensor reading");
       /* END FIXME */
 
       /* porting */
@@ -109,17 +106,14 @@ void sensors_read(void* pvParameters)
       /*     ESP_LOGE(TAG, "Could not read data from DHT sensor\n"); */
       /*   } */
 
-      ESP_LOGI(TAG, "checking thermostat update");
-      update_thermostat(pclient);
-      ESP_LOGI(TAG, "publishing sensor data");
-      publish_sensor_data(pclient);
-      ESP_LOGI(TAG, "loop end, waiting 60 seconds");
+      /* update_thermostat(pclient); */
+      publish_sensors_data(pclient);
       vTaskDelay(60000 / portTICK_PERIOD_MS);
       //vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 }
 
-void publish_sensor_data(MQTTClient* pclient)
+void publish_sensors_data(MQTTClient* pclient)
 {
     if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
     {

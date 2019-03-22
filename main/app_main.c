@@ -15,10 +15,13 @@
 
 #include "app_wifi.h"
 #include "app_mqtt.h"
-#include "app_switch.h"
+/* #include "app_switch.h" */
 
-/* #include "app_sensors.h" */
-/* #include "app_thermostat.h" */
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+#include "app_sensors.h"
+#endif //CONFIG_MQTT_SENSOR_DHT22
+/* #include "app_thermostat.h"
+*/
 #include "app_relay.h"
 
 #include "app_ota.h"
@@ -58,7 +61,7 @@ const int MQTT_PUBLISH_DHT22_BIT = BIT6; //FIXME
 static const char *TAG = "MQTT(S?)_MAIN";
 
 
-#define BLINK_GPIO GPIO_NUM_13
+#define BLINK_GPIO GPIO_NUM_16
 void blink_task(void *pvParameter)
 {
   /* Set the GPIO as a push/pull output */
@@ -68,7 +71,6 @@ void blink_task(void *pvParameter)
 
   gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
 
-  
   int interval;
   while(1) {
 
@@ -136,14 +138,17 @@ void app_main(void)
 
   MQTTClient* client = mqtt_init();
 
-  /* xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL); */
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+  xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
+#endif //CONFIG_MQTT_SENSOR_DHT22
+
 
   xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
   /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
 
   wifi_init();
-  gpio_switch_init(NULL);
+  /* gpio_switch_init(NULL); */
   mqtt_start(client);
 
 }
