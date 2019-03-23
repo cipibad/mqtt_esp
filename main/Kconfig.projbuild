@@ -74,10 +74,45 @@ config MQTT_SENSOR_DHT22
         Enable temperature/humidity MQTT sensor readings
 
 config MQTT_SENSOR_DHT22_GPIO
-    int "enable DHT22 sensor"
+    int "DHT22 sensor gpio"
     default 5
     depends on MQTT_SENSOR_DHT22
     help
-        Enable temperature/humidity MQTT sensor readings
+        Gpio port of dht22 sensor
+
+config MQTT_RELAYS_NB
+    int "number of relays to control"
+    default 0
+    range 0 4
+    help
+        number of relays to control
+
+config MQTT_RELAYS_NB0_GPIO
+    int "relay 0 gpio port"
+    depends on MQTT_RELAYS_NB > 0
+    default 4
+    help
+        relay 0 gpio port
+
+config MQTT_RELAYS_NB1_GPIO
+    int "relay 1 gpio port"
+    depends on MQTT_RELAYS_NB > 1
+    default 14
+    help
+        relay 1 gpio port
+
+config MQTT_RELAYS_NB2_GPIO
+    int "relay 2 gpio port"
+    depends on MQTT_RELAYS_NB > 2
+    default 12
+    help
+        relay 2 gpio port
+
+config MQTT_RELAYS_NB3_GPIO
+    int "relay 3 gpio port"
+    depends on MQTT_RELAYS_NB > 3
+    default 13
+    help
+        relay 3 gpio port
 
 endmenu

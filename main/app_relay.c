@@ -16,10 +16,20 @@
 extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 
-const int relaysNb = CONFIG_RELAYS_NB;
-static int relayStatus[MAX_RELAYS];
+static int relayStatus[CONFIG_MQTT_RELAYS_NB];
 
-const int relayToGpioMap[CONFIG_RELAYS_NB] = {4, 14, 12, 13};
+const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
+  4,
+#if CONFIG_MQTT_RELAYS_NB > 1
+  14,
+#if CONFIG_MQTT_RELAYS_NB > 2
+  12,
+#if CONFIG_MQTT_RELAYS_NB > 3
+  13,
+#endif //CONFIG_MQTT_RELAYS_NB > 3
+#endif //CONFIG_MQTT_RELAYS_NB > 2
+#endif //CONFIG_MQTT_RELAYS_NB > 1
+};
 
 static const char *TAG = "MQTTS_RELAY";
 
@@ -29,12 +39,12 @@ void relays_init()
 {
   gpio_config_t io_conf;
   io_conf.pin_bit_mask = 0;
-  for(int i = 0; i < relaysNb; i++) {
+  for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     io_conf.pin_bit_mask |= (1ULL << relayToGpioMap[i]) ;
   }
   gpio_config(&io_conf);
   
-  for(int i = 0; i < relaysNb; i++) {
+  for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     relayStatus[i] = OFF;
     gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
     gpio_set_level(relayToGpioMap[i], OFF);
@@ -71,7 +81,7 @@ void publish_relay_data(int id, MQTTClient* client)
 }
 void publish_all_relays_data(MQTTClient* client) //FIXME
 {
-  for(int id = 0; id < relaysNb; id++) {
+  for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
     publish_relay_data(id, client);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }

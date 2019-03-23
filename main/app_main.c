@@ -22,7 +22,11 @@
 #endif //CONFIG_MQTT_SENSOR_DHT22
 /* #include "app_thermostat.h"
 */
+
+#if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
+QueueHandle_t relayQueue;
+#endif//CONFIG_MQTT_RELAYS_NB
 
 #include "app_ota.h"
 
@@ -50,7 +54,6 @@ const int SUBSCRIBED_BIT = BIT1;
 const int PUBLISHED_BIT = BIT2;
 const int INIT_FINISHED_BIT = BIT3;
 
-QueueHandle_t relayQueue;
 QueueHandle_t otaQueue;
 /* QueueHandle_t thermostatQueue; */
 QueueHandle_t mqttQueue;
@@ -107,13 +110,15 @@ void app_main(void)
   esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
   esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
 
-  relays_init();
 
   mqtt_event_group = xEventGroupCreate();
   wifi_event_group = xEventGroupCreate();
 
   /* thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) ); */
+#if CONFIG_MQTT_RELAYS_NB
   relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
+  relays_init();
+#endif //CONFIG_MQTT_RELAYS_NB
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
   mqttQueue = xQueueCreate(1, sizeof(void *) );
 
@@ -143,7 +148,10 @@ void app_main(void)
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 
+#if CONFIG_MQTT_RELAYS_NB
   xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+#endif //CONFIG_MQTT_RELAYS_NB
+
   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
   /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
 

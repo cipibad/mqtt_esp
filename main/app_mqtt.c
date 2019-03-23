@@ -12,7 +12,10 @@
 #include "app_mqtt.h"
 
 
+#if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
+extern QueueHandle_t relayQueue;
+#endif //CONFIG_MQTT_RELAYS_NB
 #include "app_ota.h"
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "app_sensors.h"
@@ -33,9 +36,8 @@ extern const int INIT_FINISHED_BIT;
 
 extern int16_t connect_reason;
 extern const int mqtt_disconnect;
-#define FW_VERSION "0.02.014"
+#define FW_VERSION "0.02.015"
 
-extern QueueHandle_t relayQueue;
 extern QueueHandle_t otaQueue;
 extern QueueHandle_t thermostatQueue;
 extern QueueHandle_t mqttQueue;
@@ -62,19 +64,27 @@ ssl_ca_crt_key_t ssl_cck;
 
 #endif //MQTT_SSL
 
+#define NB_SUBSCRIPTIONS  (1 + CONFIG_MQTT_RELAYS_NB)
 
-#define MAX_SUB 5 // must be lower that MAX_MESSAGE_HANDLERS
-#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/relay"
+#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
 #define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat"
 
-const char *SUBSCRIPTIONS[MAX_SUB] =
+const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
-    RELAY_TOPIC "/0",
-    RELAY_TOPIC "/1",
-    RELAY_TOPIC "/2",
-    RELAY_TOPIC "/3",
-    OTA_TOPIC/* , */
+#if CONFIG_MQTT_RELAYS_NB
+    RELAY_TOPIC"/0",
+#if CONFIG_MQTT_RELAYS_NB > 1
+    RELAY_TOPIC"/1",
+#if CONFIG_MQTT_RELAYS_NB > 2
+    RELAY_TOPIC"/2",
+#if CONFIG_MQTT_RELAYS_NB > 3
+    RELAY_TOPIC"/3",
+#endif //CONFIG_MQTT_RELAYS_NB > 3
+#endif //CONFIG_MQTT_RELAYS_NB > 2
+#endif //CONFIG_MQTT_RELAYS_NB > 1
+#endif //CONFIG_MQTT_RELAYS_NB
+    OTA_TOPIC,/* , */
     /* THERMOSTAT_TOPIC */
   };
 
@@ -89,6 +99,8 @@ void dispatch_mqtt_event(MessageData* data)
 
   const char * topic = data->topicName->lenstring.data;
   int topicLen = data->topicName->lenstring.len;
+
+#if CONFIG_MQTT_RELAYS_NB
   if (strncmp(topic, RELAY_TOPIC, MIN(topicLen, strlen(RELAY_TOPIC))) == 0) {
     char id=255;
     if (strncmp(topic, RELAY_TOPIC "/0", MIN(topicLen, strlen(RELAY_TOPIC "/0"))) == 0) {
@@ -136,6 +148,8 @@ void dispatch_mqtt_event(MessageData* data)
     ESP_LOGE(TAG, "bad json payload");
     return;
   }
+#endif //CONFIG_MQTT_RELAYS_NB
+
   if (strncmp(topic, OTA_TOPIC, MIN(topicLen, strlen(OTA_TOPIC))) == 0) {
     struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
@@ -211,7 +225,7 @@ static void mqtt_subscribe(MQTTClient* pclient)
 {
   int rc;
 
-  for (int i = 0; i < MAX_SUB; i++) {
+  for (int i = 0; i < NB_SUBSCRIPTIONS; i++) {
     xEventGroupClearBits(mqtt_event_group, SUBSCRIBED_BIT);
     if ((rc = MQTTSubscribe(pclient, SUBSCRIPTIONS[i], QOS1, dispatch_mqtt_event)) == 0) {
       ESP_LOGI(TAG, "subscribed %s successful", SUBSCRIPTIONS[i]);
@@ -222,7 +236,7 @@ static void mqtt_subscribe(MQTTClient* pclient)
 
   }
   xEventGroupSetBits(mqtt_event_group, SUBSCRIBED_BIT);
-      
+
 }
 
 MQTTClient* mqtt_init()
@@ -250,10 +264,10 @@ MQTTClient* mqtt_init()
 
 void mqtt_connect(void *pvParameter){
 
-  if (MAX_SUB > MAX_MESSAGE_HANDLERS) {
+  if (NB_SUBSCRIPTIONS > MAX_MESSAGE_HANDLERS) {
     ESP_LOGE(TAG, "MAX subscription limit(%d) passed", MAX_MESSAGE_HANDLERS);
   }
-  
+
   MQTTClient* pclient = (MQTTClient*) pvParameter;
   int rc;
   while(true) {
@@ -275,11 +289,11 @@ void mqtt_connect(void *pvParameter){
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         continue;
       }
-      
+
       ESP_LOGI(TAG, "MQTT Connected");
-      
+
 #if defined(MQTT_TASK)
-      
+
       if ((rc = MQTTStartTask(pclient)) != pdPASS) {
         ESP_LOGE(TAG, "Return code from start tasks is %d", rc);
       } else {
@@ -291,13 +305,16 @@ void mqtt_connect(void *pvParameter){
       mqtt_subscribe(pclient);
       xEventGroupSetBits(mqtt_event_group, INIT_FINISHED_BIT);
       publish_connected_data(pclient);
+#if CONFIG_MQTT_RELAYS_NB
       publish_all_relays_data(pclient);
+#endif //CONFIG_MQTT_RELAYS_NB
       publish_ota_data(pclient, OTA_READY);
       /* publish_thermostat_data(pclient); */
+
 #ifdef CONFIG_MQTT_SENSOR_DHT22
       publish_sensors_data(pclient);
 #endif //CONFIG_MQTT_SENSOR_DHT22
-      
+
       while (pclient->isconnected) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
       }
