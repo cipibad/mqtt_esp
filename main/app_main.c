@@ -17,9 +17,9 @@
 #include "app_mqtt.h"
 /* #include "app_switch.h" */
 
-#ifdef CONFIG_MQTT_SENSOR_DHT22
+#ifdef CONFIG_MQTT_SENSOR
 #include "app_sensors.h"
-#endif //CONFIG_MQTT_SENSOR_DHT22
+#endif //CONFIG_MQTT_SENSOR
 /* #include "app_thermostat.h"
 */
 
@@ -29,10 +29,6 @@ QueueHandle_t relayQueue;
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #include "app_ota.h"
-
-int32_t wtemperature;
-int32_t ctemperature;
-int16_t pressure;
 
 #define FW_VERSION "0.02"
 
@@ -57,9 +53,6 @@ const int INIT_FINISHED_BIT = BIT3;
 QueueHandle_t otaQueue;
 /* QueueHandle_t thermostatQueue; */
 QueueHandle_t mqttQueue;
-
-const int MQTT_PUBLISH_RELAYS_BIT = BIT5; //FIXME
-const int MQTT_PUBLISH_DHT22_BIT = BIT6; //FIXME
 
 static const char *TAG = "MQTT(S?)_MAIN";
 
@@ -143,9 +136,9 @@ void app_main(void)
 
   MQTTClient* client = mqtt_init();
 
-#ifdef CONFIG_MQTT_SENSOR_DHT22
+#ifdef CONFIG_MQTT_SENSOR
   xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
-#endif //CONFIG_MQTT_SENSOR_DHT22
+#endif //CONFIG_MQTT_SENSOR
 
 
 #if CONFIG_MQTT_RELAYS_NB

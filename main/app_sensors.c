@@ -6,7 +6,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
+#ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
+#endif //CONFIG_MQTT_SENSOR_DHT22
+
 #include "ds18b20.h"
 
 #include "app_esp8266.h"
@@ -20,12 +23,14 @@
 extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 
-extern int32_t wtemperature;
-extern int32_t ctemperature;
-extern int16_t pressure;
+int32_t wtemperature;
+int32_t ctemperature;
+int16_t pressure;
 
-int16_t temperature;
-int16_t humidity;
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+int16_t dht22_temperature;
+int16_t dht22_humidity;
+#endif //CONFIG_MQTT_SENSOR_DHT22
 
 static const char *TAG = "app_sensors";
 
@@ -33,7 +38,6 @@ void sensors_read(void* pvParameters)
 {
   MQTTClient* pclient = (MQTTClient*) pvParameters;
 
-  const dht_sensor_type_t sensor_type = DHT_TYPE_DHT22;
   /* const int DS_PIN = 4; */
   /* const int sda_pin = 5; //D1 */
   /* const int scl_pin = 4; //D2 */
@@ -71,14 +75,18 @@ void sensors_read(void* pvParameters)
   while (1)
     {
       //FIXME bug when no sensor
-      if (dht_read_data(sensor_type, CONFIG_MQTT_SENSOR_DHT22_GPIO, &humidity, &temperature) == ESP_OK)
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+      if (dht_read_data(DHT_TYPE_DHT22, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
-          ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC", humidity/10, humidity%10 , temperature/10,temperature%10);
+          ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
+                   dht22_humidity/10, dht22_humidity%10 ,
+                   dht22_temperature/10, dht22_temperature%10);
         }
       else
         {
-          ESP_LOGE(TAG, "Could not read data from DHT sensor\n");
+          ESP_LOGE(TAG, "Could not read data from DHT sensor");
         }
+#endif //CONFIG_MQTT_SENSOR_DHT22
       /* END FIXME */
 
       /* porting */
@@ -122,13 +130,21 @@ void publish_sensors_data(MQTTClient* pclient)
 
       char data[256];
       memset(data,0,256);
-      sprintf(data, "{\"counter\":%d, \"humidity\":%d.%d, \"temperature\":%d.%d, \"wtemperature\":%d.%d, \"ctemperature\":%d.%d}",0,
-
-              humidity / 10, humidity % 10,
-              temperature / 10, temperature % 10,
+      sprintf(data, "{\"wtemperature\":%d.%d, \"ctemperature\":%d.%d",
               wtemperature / 10, wtemperature % 10,
               ctemperature / 10, ctemperature % 10);
 
+
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+      char tstr[64];
+      sprintf(tstr, ", \"humidity\":%d.%d, \"temperature\":%d.%d",
+              dht22_humidity / 10, dht22_humidity % 10,
+              dht22_temperature / 10, dht22_temperature % 10
+              );
+        strcat(data, tstr);
+#endif //CONFIG_MQTT_SENSOR_DHT22
+
+      strcat(data, "}");
       MQTTMessage message;
       message.qos = QOS1;
       message.retained = 1;

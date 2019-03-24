@@ -67,9 +67,16 @@ config MQTT_PAYLOAD_BUFFER
         1460~2048 is recommended.
         MQTT payload size.
 
+config MQTT_SENSOR
+    boolean "enable sensor support"
+    default n
+    help
+        Enable sensor support
+
 config MQTT_SENSOR_DHT22
     boolean "enable DHT22 sensor"
     default n
+    depends on MQTT_SENSOR
     help
         Enable temperature/humidity MQTT sensor readings
 
