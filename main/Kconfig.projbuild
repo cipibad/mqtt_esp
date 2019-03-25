@@ -128,4 +128,26 @@ config MQTT_STATUS_LED_GPIO
     help
         internal LED status GPIO
 
+
+config MQTT_SWITCHES_NB
+    int "number of switches to control"
+    default 0
+    range 0 2
+    help
+        number of relays to control
+
+config MQTT_SWITCHES_NB0_GPIO
+    int "switch 0 gpio port"
+    depends on MQTT_SWITCHES_NB > 0
+    default 0
+    help
+        switch 0 gpio port
+
+config MQTT_SWITCHES_NB1_GPIO
+    int "switch 1 gpio port"
+    depends on MQTT_SWITCHES_NB > 1
+    default 9
+    help
+        switch 1 gpio port
+
 endmenu

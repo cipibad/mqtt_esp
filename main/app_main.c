@@ -15,7 +15,10 @@
 
 #include "app_wifi.h"
 #include "app_mqtt.h"
-/* #include "app_switch.h" */
+
+#if CONFIG_MQTT_SWITCHES_NB
+#include "app_switch.h"
+#endif //CONFIG_MQTT_SWITCHES_NB
 
 #ifdef CONFIG_MQTT_SENSOR
 #include "app_sensors.h"
@@ -141,7 +144,10 @@ void app_main(void)
   /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
 
   wifi_init();
-  /* gpio_switch_init(NULL); */
+#if CONFIG_MQTT_SWITCHES_NB
+  ESP_LOGI(TAG, "Enabling switch control");
+  gpio_switch_init(NULL);
+#endif //CONFIG_MQTT_SWITCHES_NB
   mqtt_start(client);
 
 }
