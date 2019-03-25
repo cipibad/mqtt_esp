@@ -15,6 +15,7 @@
 
 #include "app_wifi.h"
 #include "app_mqtt.h"
+#include "app_nvs.h"
 
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
@@ -32,7 +33,12 @@ QueueHandle_t relayQueue;
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #include "app_ota.h"
+#include "app_smart_config.h"
+QueueHandle_t smartconfigQueue;
 
+
+extern const char * smartconfigTAG;
+extern int smartconfigFlag;
 
 /* extern int targetTemperature; */
 /* extern int targetTemperatureSensibility; */
@@ -85,6 +91,7 @@ void blink_task(void *pvParameter)
 }
 
 
+
 void app_main(void)
 {
   ESP_LOGI(TAG, "[APP] Startup..");
@@ -128,26 +135,36 @@ void app_main(void)
 
   /* err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility); */
   /* ESP_ERROR_CHECK( err ); */
+  smartconfigQueue = xQueueCreate(1, sizeof(int) );
+  err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
+  ESP_ERROR_CHECK( err );
 
-  MQTTClient* client = mqtt_init();
+  if (smartconfigFlag) {
+    ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
+  } else {
+
+    xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)NULL, 5, NULL);
+
+    MQTTClient* client = mqtt_init();
 
 #ifdef CONFIG_MQTT_SENSOR
-  xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
+    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
 #endif //CONFIG_MQTT_SENSOR
 
 
 #if CONFIG_MQTT_RELAYS_NB
-  xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+    xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 #endif //CONFIG_MQTT_RELAYS_NB
 
-  xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
-  /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
-
-  wifi_init();
 #if CONFIG_MQTT_SWITCHES_NB
-  ESP_LOGI(TAG, "Enabling switch control");
-  gpio_switch_init(NULL);
+    gpio_switch_init(NULL);
 #endif //CONFIG_MQTT_SWITCHES_NB
-  mqtt_start(client);
 
+    xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
+    /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
+
+    wifi_init();
+    mqtt_start(client);
+
+  }
 }
