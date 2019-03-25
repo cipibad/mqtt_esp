@@ -51,15 +51,14 @@ QueueHandle_t mqttQueue;
 static const char *TAG = "MQTT(S?)_MAIN";
 
 
-#define BLINK_GPIO GPIO_NUM_16
 void blink_task(void *pvParameter)
 {
   /* Set the GPIO as a push/pull output */
   gpio_config_t io_conf;
-  io_conf.pin_bit_mask = (1ULL << BLINK_GPIO);
+  io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_STATUS_LED_GPIO);
   gpio_config(&io_conf);
 
-  gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+  gpio_set_direction(CONFIG_MQTT_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
   int interval;
   while(1) {
@@ -70,14 +69,14 @@ void blink_task(void *pvParameter)
       interval=500;
     }
 
-    gpio_set_level(BLINK_GPIO, ON);
+    gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, ON);
 
     bits = xEventGroupGetBits(mqtt_event_group);
     while ( bits & CONNECTED_BIT ) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     vTaskDelay(interval / portTICK_PERIOD_MS);
-    gpio_set_level(BLINK_GPIO, OFF);
+    gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, OFF);
     vTaskDelay(interval / portTICK_PERIOD_MS);
   }
 }

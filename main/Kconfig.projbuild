@@ -122,4 +122,10 @@ config MQTT_RELAYS_NB3_GPIO
     help
         relay 3 gpio port
 
+config MQTT_STATUS_LED_GPIO
+    int "internal LED status GPIO"
+    default 16
+    help
+        internal LED status GPIO
+
 endmenu
