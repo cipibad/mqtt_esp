@@ -139,12 +139,11 @@ void app_main(void)
   err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
   ESP_ERROR_CHECK( err );
 
+  xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)NULL, 5, NULL);
+
   if (smartconfigFlag) {
     ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
   } else {
-
-    xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)NULL, 5, NULL);
-
     MQTTClient* client = mqtt_init();
 
 #ifdef CONFIG_MQTT_SENSOR
