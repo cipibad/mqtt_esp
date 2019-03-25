@@ -1,19 +1,12 @@
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/queue.h"
 
-#include "app_esp8266.h"
-#include "app_relay.h"
 
 #include "app_switch.h"
 
 #include "driver/gpio.h"
 
-extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
-
-TickType_t pushTick = 0;
-TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
-
-extern QueueHandle_t relayQueue;
 extern QueueHandle_t smartconfigQueue;
 
 /* The event group allows multiple bits for each event,
@@ -22,24 +15,11 @@ extern QueueHandle_t smartconfigQueue;
 
 static void gpio_isr_handler(void *arg)
 {
-  if (pushTick == 0) {
-    pushTick = xTaskGetTickCountFromISR();
-  }
-  else {
-    if ((xTaskGetTickCountFromISR() - pushTick ) < ticksToWait) {
-      struct RelayMessage r={0, !(relayStatus[0] == ON)};
-      xQueueSendFromISR(relayQueue
-                        ,( void * )&r
-                        ,NULL);
-    }
-    else {
-      int n=0;
-      xQueueSendFromISR(smartconfigQueue
-                        ,( void * )&n
-                        ,NULL);
-    }
-    pushTick = 0;
-  }
+  int n=xTaskGetTickCountFromISR();
+  xQueueSendFromISR(smartconfigQueue
+                    ,( void * )&n
+                    ,NULL);
+
 }
 
 void gpio_switch_init (void *arg)
