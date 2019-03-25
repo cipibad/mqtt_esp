@@ -92,6 +92,11 @@ void publish_all_relays_data(esp_mqtt_client_handle_t client) //FIXME
 
 void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
 {
+<<<<<<< HEAD
+=======
+  ESP_LOGI(TAG, "update_relay_state: id: %d, value: %d", id, value);
+  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id]);
+>>>>>>> fix relay handling
   if (value != (relayStatus[id] == ON)) {
     if (value == 1) {
       relayStatus[id] = ON;
