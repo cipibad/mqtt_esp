@@ -16,7 +16,7 @@
 #include <esp_log.h>
 
 // DHT timer precision in microseconds
-#define DHT_TIMER_INTERVAL 2
+#define DHT_TIMER_INTERVAL 1
 #define DHT_DATA_BITS 40
 
 /*
@@ -48,8 +48,6 @@
  */
 
 static const char *TAG = "DHTxx";
-
-static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
 #define CHECK_ARG(VAL) do { if (!VAL) return ESP_ERR_INVALID_ARG; } while (0)
 
@@ -97,27 +95,30 @@ static inline esp_err_t dht_fetch_data(gpio_num_t pin, bool bits[DHT_DATA_BITS])
     uint32_t high_duration;
 
     // Phase 'A' pulling signal low to initiate read sequence
+    gpio_set_direction( pin, GPIO_MODE_OUTPUT );
     gpio_set_level(pin, 0);
-    ets_delay_us(20000);
+    ets_delay_us(5000);
     gpio_set_level(pin, 1);
+    ets_delay_us(30);
 
-    // Step through Phase 'B', 40us
-    CHECK_LOGE(dht_await_pin_state(pin, 40, 0, NULL),
-            "Initialization error, problem in phase 'B'");
+    gpio_set_direction( pin, GPIO_MODE_INPUT );
+  
     // Step through Phase 'C', 88us
-    CHECK_LOGE(dht_await_pin_state(pin, 88, 1, NULL),
-            "Initialization error, problem in phase 'C'");
+    CHECK_LOGE(dht_await_pin_state(pin, 80, 0, NULL),
+            "Initialization error, problem in phase 'Cucu'");
     // Step through Phase 'D', 88us
-    CHECK_LOGE(dht_await_pin_state(pin, 88, 0, NULL),
-            "Initialization error, problem in phase 'D'");
+    CHECK_LOGE(dht_await_pin_state(pin, 80, 1, NULL),
+            "Initialization error, problem in phase 'Dudu'");
+    CHECK_LOGE(dht_await_pin_state(pin, 80, 0, NULL),
+                "LOW bit 1st timeout");
 
     // Read in each of the 40 bits of data...
     for (int i = 0; i < DHT_DATA_BITS; i++)
     {
-        CHECK_LOGE(dht_await_pin_state(pin, 65, 1, &low_duration),
-                "LOW bit timeout");
-        CHECK_LOGE(dht_await_pin_state(pin, 75, 0, &high_duration),
+        CHECK_LOGE(dht_await_pin_state(pin, 50, 1, &low_duration),
                 "HIGH bit timeout");
+        CHECK_LOGE(dht_await_pin_state(pin, 75, 0, &high_duration),
+                "LOW bit timeout");
         bits[i] = high_duration > low_duration;
     }
 
@@ -153,12 +154,12 @@ esp_err_t dht_read_data(dht_sensor_type_t sensor_type, gpio_num_t pin,
     bool bits[DHT_DATA_BITS];
     uint8_t data[DHT_DATA_BITS / 8] = { 0 };
 
-    gpio_set_direction(pin, GPIO_MODE_INPUT_OUTPUT_OD);
+    gpio_set_direction(pin, GPIO_MODE_OUTPUT);
     gpio_set_level(pin, 1);
 
-    portENTER_CRITICAL(&mux);
+    portENTER_CRITICAL();
     esp_err_t result = dht_fetch_data(pin, bits);
-    portEXIT_CRITICAL(&mux);
+    portEXIT_CRITICAL();
 
     gpio_set_level(pin, 1);
 
