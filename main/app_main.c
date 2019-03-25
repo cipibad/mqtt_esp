@@ -30,17 +30,11 @@ QueueHandle_t relayQueue;
 
 #include "app_ota.h"
 
-#define FW_VERSION "0.02"
-
 
 /* extern int targetTemperature; */
 /* extern int targetTemperatureSensibility; */
 /* extern const char * targetTemperatureTAG; */
 /* extern const char * targetTemperatureSensibilityTAG; */
-
-int16_t connect_reason;
-const int boot = 0;
-const int mqtt_disconnect = 1;
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 EventGroupHandle_t wifi_event_group;
@@ -91,7 +85,6 @@ void blink_task(void *pvParameter)
 
 void app_main(void)
 {
-  connect_reason=boot;
   ESP_LOGI(TAG, "[APP] Startup..");
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());

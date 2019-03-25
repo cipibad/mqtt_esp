@@ -12,11 +12,13 @@
 #include "app_mqtt.h"
 
 
+#include "app_ota.h"
+
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
-#include "app_ota.h"
+
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "app_sensors.h"
 #endif //CONFIG_MQTT_SENSOR_DHT22
@@ -34,8 +36,10 @@ extern const int PUBLISHED_BIT;
 extern const int INIT_FINISHED_BIT;
 
 
-extern int16_t connect_reason;
-extern const int mqtt_disconnect;
+int16_t connect_reason;
+const int boot = 0;
+const int mqtt_disconnect = 1;
+
 #define FW_VERSION "0.02.015"
 
 extern QueueHandle_t otaQueue;
@@ -72,6 +76,7 @@ ssl_ca_crt_key_t ssl_cck;
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
+    OTA_TOPIC,
 #if CONFIG_MQTT_RELAYS_NB
     RELAY_TOPIC"/0",
 #if CONFIG_MQTT_RELAYS_NB > 1
@@ -84,7 +89,6 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #endif //CONFIG_MQTT_RELAYS_NB > 2
 #endif //CONFIG_MQTT_RELAYS_NB > 1
 #endif //CONFIG_MQTT_RELAYS_NB
-    OTA_TOPIC,/* , */
     /* THERMOSTAT_TOPIC */
   };
 
@@ -270,6 +274,7 @@ void mqtt_connect(void *pvParameter){
 
   MQTTClient* pclient = (MQTTClient*) pvParameter;
   int rc;
+  connect_reason=boot;
   while(true) {
     ESP_LOGI(TAG, "wait/check wifi connect...");
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
@@ -319,6 +324,7 @@ void mqtt_connect(void *pvParameter){
         vTaskDelay(1000 / portTICK_PERIOD_MS);
       }
       xEventGroupClearBits(mqtt_event_group, CONNECTED_BIT | SUBSCRIBED_BIT | PUBLISHED_BIT | INIT_FINISHED_BIT);
+      connect_reason=mqtt_disconnect;
       network.disconnect(&network);
       ESP_LOGE(TAG, "MQTT disconnected, will reconnect in 10 seconds");
       vTaskDelay(10000 / portTICK_PERIOD_MS);
