@@ -1,5 +1,4 @@
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 #include "freertos/queue.h"
 
 #include "app_esp8266.h"
@@ -9,10 +8,7 @@
 
 #include "driver/gpio.h"
 
-extern int relayStatus[MAX_RELAYS];
-
-int switch_gpio=0;
-
+extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
 
 extern QueueHandle_t relayQueue;
 
@@ -30,16 +26,15 @@ void gpio_switch_init (void *arg)
 //interrupt of rising edge
   io_conf.intr_type = GPIO_INTR_POSEDGE;
   //bit mask of the pins, use GPIO4/5 here
-  io_conf.pin_bit_mask = (1ULL << switch_gpio);
+  io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_SWITCHES_NB0_GPIO);
   //set as input mode
   io_conf.mode = GPIO_MODE_INPUT;
   gpio_config(&io_conf);
 
-
   //install gpio isr service
   gpio_install_isr_service(0);
   //hook isr handler for specific gpio pin
-  gpio_isr_handler_add(switch_gpio, gpio_isr_handler, (void *) switch_gpio);
+  gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB0_GPIO, gpio_isr_handler, (void *) CONFIG_MQTT_SWITCHES_NB0_GPIO);
   //hook isr handler for specific gpio pin
 
 }

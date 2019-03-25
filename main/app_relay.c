@@ -15,7 +15,7 @@ extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 extern const int PUBLISHED_BIT;
 
-static int relayStatus[CONFIG_MQTT_RELAYS_NB];
+int relayStatus[CONFIG_MQTT_RELAYS_NB];
 
 const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
   CONFIG_MQTT_RELAYS_NB0_GPIO,
