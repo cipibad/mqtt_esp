@@ -88,6 +88,11 @@ void publish_all_relays_data(MQTTClient* client) //FIXME
 
 void update_relay_state(int id, char value, MQTTClient* client)
 {
+<<<<<<< HEAD
+=======
+  ESP_LOGI(TAG, "update_relay_state: id: %d, value: %d", id, value);
+  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id]);
+>>>>>>> fix relay handling
   if (value != (relayStatus[id] == ON)) {
     if (value == 1) {
       relayStatus[id] = ON;
