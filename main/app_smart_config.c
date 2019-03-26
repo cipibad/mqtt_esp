@@ -39,8 +39,6 @@ const int REQUESTED_BIT = BIT0;
 static const int CONNECTED_BIT = BIT1;
 static const int ESPTOUCH_DONE_BIT = BIT2;
 
-
-
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {
   switch (status) {
@@ -77,7 +75,6 @@ static void sc_callback(smartconfig_status_t status, void *pdata)
     break;
   }
 }
-
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
@@ -123,6 +120,7 @@ void smartconfig_cmd_task(void* pvParameters)
     initialise_wifi();
     while (1) {
       uxBits = xEventGroupWaitBits(smartconfig_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
+
       if(uxBits & CONNECTED_BIT) {
         ESP_LOGI(TAG, "WiFi Connected to ap");
       }
