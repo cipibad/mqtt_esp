@@ -61,7 +61,6 @@ void wifi_init(void)
   err=read_nvs_str(wifi_pass_tag, wifi_pass, &length);
   ESP_ERROR_CHECK( err );
 
-
   wifi_config_t wifi_config = {
     .sta = {
       .ssid = CONFIG_WIFI_SSID,

@@ -23,7 +23,6 @@ esp_err_t write_nvs_integer(const char * tag, int value)
   return err;
 }
 
-
 esp_err_t read_nvs_integer(const char * tag, int * value)
 {
   printf("Opening Non-Volatile Storage (NVS) handle... ");
@@ -60,8 +59,6 @@ esp_err_t read_nvs_integer(const char * tag, int * value)
   return err;
 }
 
-
-
 esp_err_t write_nvs_str(const char * tag, char * value)
 {
   nvs_handle my_handle;
@@ -83,7 +80,6 @@ esp_err_t write_nvs_str(const char * tag, char * value)
   return err;
 }
 
-
 esp_err_t read_nvs_str(const char * tag, char * value, size_t * length)
 {
   printf("Opening Non-Volatile Storage (NVS) handle... ");
@@ -101,7 +97,7 @@ esp_err_t read_nvs_str(const char * tag, char * value, size_t * length)
     switch (err) {
     case ESP_OK:
       printf("Done\n");
-      printf("%s = %d\n", tag, *value);
+      printf("%s = %s\n", tag, value);
       break;
     case ESP_ERR_NVS_NOT_FOUND:
       printf("The value is not initialized yet!\n");
