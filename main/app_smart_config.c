@@ -163,7 +163,7 @@ void smartconfig_cmd_task(void* pvParameters)
           else {
             ESP_LOGI(TAG, "up ");
             if ((n - pushTick ) < ticksToWait) {
-              struct RelayMessage r={0, !(relayStatus[0] == ON)};
+              struct RelayMessage r={0, !(relayStatus[0] == RELAY_ON)};
               xQueueSendFromISR(relayQueue
                                 ,( void * )&r
                                 ,NULL);

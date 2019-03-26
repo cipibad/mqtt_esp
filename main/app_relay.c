@@ -46,9 +46,9 @@ void relays_init()
   //gpio_config(&io_conf);
   
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
-    relayStatus[i] = OFF;
+    relayStatus[i] = RELAY_OFF;
     gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
-    gpio_set_level(relayToGpioMap[i], OFF);
+    gpio_set_level(relayToGpioMap[i], RELAY_OFF);
   }
 }
 
@@ -60,7 +60,7 @@ void publish_relay_data(int id, esp_mqtt_client_handle_t client)
       const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
       char data[32];
       memset(data,0,32);
-      sprintf(data, "{\"state\":%d}", relayStatus[id] == ON);
+      sprintf(data, "{\"state\":%d}", relayStatus[id] == RELAY_ON);
 
       char topic[64];
       memset(topic,0,64);
@@ -94,13 +94,13 @@ void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
 {
   ESP_LOGI(TAG, "update_relay_state: id: %d, value: %d", id, value);
   ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id]);
-  if (value != (relayStatus[id] == ON)) {
+  if (value != (relayStatus[id] == RELAY_ON)) {
     if (value == 1) {
-      relayStatus[id] = ON;
+      relayStatus[id] = RELAY_ON;
       ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
     }
     if (value == 0) {
-      relayStatus[id] = OFF;
+      relayStatus[id] = RELAY_OFF;
       ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
     gpio_set_level(relayToGpioMap[id], relayStatus[id]);
