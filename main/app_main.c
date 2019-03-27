@@ -5,11 +5,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 
 #include "driver/gpio.h"
 
 #include <string.h> //for memset
-#include "MQTTClient.h"
 
 #include "app_esp8266.h"
 
@@ -35,6 +35,11 @@ QueueHandle_t relayQueue;
 /* extern int targetTemperatureSensibility; */
 /* extern const char * targetTemperatureTAG; */
 /* extern const char * targetTemperatureSensibilityTAG; */
+
+int16_t connect_reason;
+const int boot = 0;
+const int mqtt_disconnect = 1;
+
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 EventGroupHandle_t wifi_event_group;
@@ -126,7 +131,7 @@ void app_main(void)
   /* err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility); */
   /* ESP_ERROR_CHECK( err ); */
 
-  MQTTClient* client = mqtt_init();
+  esp_mqtt_client_handle_t client = mqtt_init();
 
 #ifdef CONFIG_MQTT_SENSOR
   xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
@@ -139,6 +144,7 @@ void app_main(void)
 
   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
   /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
+  xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 
   wifi_init();
   /* gpio_switch_init(NULL); */

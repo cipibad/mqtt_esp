@@ -31,31 +31,30 @@ extern QueueHandle_t thermostatQueue;
 
 static const char *TAG = "APP_THERMOSTAT";
 
-void publish_thermostat_data(MQTTClient* client)
+void publish_thermostat_data(esp_mqtt_client_handle_t client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
     {
-      const char * thermostat_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
       char data[256];
       memset(data,0,256);
 
       sprintf(data, "{\"targetTemperature\":%02f, \"targetTemperatureSensibility\":%02f}", targetTemperature/10., targetTemperatureSensibility/10.);
-
-      MQTTMessage message;
-      message.qos = QOS1;
-      message.retained = 1;
-      message.payload = data;
-      message.payloadlen = strlen(data);
-
-      int rc = MQTTPublish(client, thermostat_topic, &message);
-      if (rc == 0) {
-        ESP_LOGI(TAG, "sent publish thermostat successful, rc=%d", rc);
+      xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT);
+      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
+      if (msg_id > 0) {
+        ESP_LOGI(TAG, "sent publish thermostat data successful, msg_id=%d", msg_id);
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & PUBLISHED_BIT) {
+          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+        } else {
+          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+        }
       } else {
-        ESP_LOGI(TAG, "failed to publish thermostat, rc=%d", rc);
+        ESP_LOGI(TAG, "failed to publish thermostat, msg_id=%d", msg_id);
       }
     }
 }
-
 esp_err_t write_thermostat_nvs(const char * tag, int value)
 {
   nvs_handle my_handle;
@@ -113,7 +112,7 @@ esp_err_t read_thermostat_nvs(const char * tag, int * value)
   return err;
 }
 
-void updateHeatingState(bool heatEnabled, MQTTClient* client)
+void updateHeatingState(bool heatEnabled, esp_mqtt_client_handle_t client)
 {
   if (heatEnabled)
     {
@@ -128,7 +127,7 @@ void updateHeatingState(bool heatEnabled, MQTTClient* client)
 }
 
 
-void update_thermostat(MQTTClient* client)
+void update_thermostat(esp_mqtt_client_handle_t client)
 {
 
   ESP_LOGI(TAG, "heat state is %d", heatEnabled);
@@ -163,8 +162,7 @@ void update_thermostat(MQTTClient* client)
 
 void handle_thermostat_cmd_task(void* pvParameters)
 {
-  MQTTClient* client = (MQTTClient*) pvParameters;
-  //esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
+  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
   struct ThermostatMessage t;
   while(1) {
     if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) )

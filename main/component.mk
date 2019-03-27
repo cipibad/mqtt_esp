@@ -1,5 +1,3 @@
-#
-# "main" pseudo-component makefile.
-#
-# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
+COMPONENT_EMBED_TXTFILES += sw_iot_cipex_ro.pem
+COMPONENT_EMBED_TXTFILES += mqtt_iot_cipex_ro.pem
 

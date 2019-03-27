@@ -29,6 +29,8 @@ extern QueueHandle_t otaQueue;
 #include "nvs.h"
 #include "nvs_flash.h"
 
+#include "app_esp8266.h"
+
 #define EXAMPLE_SERVER_IP "sw.iot.cipex.ro"
 #define EXAMPLE_SERVER_PORT "8910"
 #define EXAMPLE_FILENAME "/"CONFIG_MQTT_CLIENT_ID".bin"
@@ -73,6 +75,7 @@ static int socket_id = -1;
 
 extern EventGroupHandle_t mqtt_event_group;
 extern const int CONNECTED_BIT;
+extern const int PUBLISHED_BIT;
 extern const int INIT_FINISHED_BIT;
 
 
@@ -309,7 +312,7 @@ static void esp_ota_firm_init(esp_ota_firm_t *ota_firm, const esp_partition_t *u
 void handle_ota_update_task(void *pvParameters)
 {
 
-  MQTTClient* client = (MQTTClient*) pvParameters;
+  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
 
   esp_err_t err;
   /* update handle : set by esp_ota_begin(), must be freed via esp_ota_end() */
@@ -456,8 +459,7 @@ void handle_ota_update_task(void *pvParameters)
 }
 
 
-
-void publish_ota_data(MQTTClient* pclient, int status)
+void publish_ota_data(esp_mqtt_client_handle_t client, int status)
 {
   if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
     {
@@ -466,18 +468,18 @@ void publish_ota_data(MQTTClient* pclient, int status)
       memset(data,0,256);
 
       sprintf(data, "{\"status\":%d}", status);
-
-      MQTTMessage message;
-      message.qos = QOS1;
-      message.retained = 1;
-      message.payload = data;
-      message.payloadlen = strlen(data);
-
-      int rc = MQTTPublish(pclient, connect_topic, &message);
-      if (rc == 0) {
-        ESP_LOGI(TAG, "sent publish ota successful, rc=%d", rc);
+      xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT);
+      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
+      if (msg_id > 0) {
+        ESP_LOGI(TAG, "sent publish ota data successful, msg_id=%d", msg_id);
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & PUBLISHED_BIT) {
+          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+        } else {
+          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+        }
       } else {
-        ESP_LOGI(TAG, "failed to publish ota, rc=%d", rc);
+        ESP_LOGI(TAG, "failed to publish ota data, msg_id=%d", msg_id);
       }
     }
 }
