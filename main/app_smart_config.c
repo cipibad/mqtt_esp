@@ -159,8 +159,7 @@ void smartconfig_cmd_task(void* pvParameters)
           if (pushTick == 0) {
             ESP_LOGI(TAG, "down ");
             pushTick = n;
-          }
-          else {
+          } else {
             ESP_LOGI(TAG, "up ");
             if ((n - pushTick ) < ticksToWait) {
               struct RelayMessage r={0, !(relayStatus[0] == RELAY_ON)};
@@ -178,7 +177,6 @@ void smartconfig_cmd_task(void* pvParameters)
             pushTick = 0;
           }
           ESP_LOGI(TAG, "pushTick: %ld", pushTick);
-
         }
     }
   }

@@ -5,11 +5,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 
 #include "driver/gpio.h"
 
 #include <string.h> //for memset
-#include "MQTTClient.h"
 
 #include "app_esp8266.h"
 
@@ -32,7 +32,11 @@
 QueueHandle_t relayQueue;
 #endif//CONFIG_MQTT_RELAYS_NB
 
-#include "app_ota.h"
+#ifdef CONFIG_MQTT_OTA
+ #include "app_ota.h"
+QueueHandle_t otaQueue;
+#endif //CONFIG_MQTT_OTA
+
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
 
@@ -45,6 +49,11 @@ extern int smartconfigFlag;
 /* extern const char * targetTemperatureTAG; */
 /* extern const char * targetTemperatureSensibilityTAG; */
 
+int16_t connect_reason;
+const int boot = 0;
+const int mqtt_disconnect = 1;
+
+
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 EventGroupHandle_t wifi_event_group;
 EventGroupHandle_t mqtt_event_group;
@@ -53,7 +62,6 @@ const int SUBSCRIBED_BIT = BIT1;
 const int PUBLISHED_BIT = BIT2;
 const int INIT_FINISHED_BIT = BIT3;
 
-QueueHandle_t otaQueue;
 /* QueueHandle_t thermostatQueue; */
 QueueHandle_t mqttQueue;
 
@@ -71,13 +79,16 @@ void blink_task(void *pvParameter)
 
   int interval;
   while(1) {
-
-    interval=250;
-    EventBits_t bits = xEventGroupGetBits(wifi_event_group);
-    if( ( bits & CONNECTED_BIT ) != 0 ) {
-      interval=500;
+    EventBits_t bits;
+    if(smartconfigFlag) {
+      interval=150;
+    } else {
+      interval=250;
+      bits = xEventGroupGetBits(wifi_event_group);
+      if( ( bits & CONNECTED_BIT ) != 0 ) {
+        interval=500;
+      }
     }
-
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_ON);
 
     bits = xEventGroupGetBits(mqtt_event_group);
@@ -114,7 +125,11 @@ void app_main(void)
   relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
   relays_init();
 #endif //CONFIG_MQTT_RELAYS_NB
+
+
+#ifdef CONFIG_MQTT_OTA
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
+#endif //CONFIG_MQTT_OTA
   mqttQueue = xQueueCreate(1, sizeof(void *) );
 
   xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
@@ -144,7 +159,8 @@ void app_main(void)
   if (smartconfigFlag) {
     ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
   } else {
-    MQTTClient* client = mqtt_init();
+
+    esp_mqtt_client_handle_t client = mqtt_init();
 
 #ifdef CONFIG_MQTT_SENSOR
     xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
@@ -159,8 +175,12 @@ void app_main(void)
     gpio_switch_init(NULL);
 #endif //CONFIG_MQTT_SWITCHES_NB
 
-    xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
-    /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
+#ifdef CONFIG_MQTT_OTA
+   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
+#endif //CONFIG_MQTT_OTA
+
+  /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
+    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 
     wifi_init();
     mqtt_start(client);

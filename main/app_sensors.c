@@ -22,6 +22,7 @@
 
 extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
+extern const int PUBLISHED_BIT;
 
 int32_t wtemperature;
 int32_t ctemperature;
@@ -36,7 +37,7 @@ static const char *TAG = "app_sensors";
 
 void sensors_read(void* pvParameters)
 {
-  MQTTClient* pclient = (MQTTClient*) pvParameters;
+  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
 
   /* const int DS_PIN = 4; */
   /* const int sda_pin = 5; //D1 */
@@ -115,13 +116,13 @@ void sensors_read(void* pvParameters)
       /*   } */
 
       /* update_thermostat(pclient); */
-      publish_sensors_data(pclient);
+      publish_sensors_data(client);
       vTaskDelay(60000 / portTICK_PERIOD_MS);
       //vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 }
 
-void publish_sensors_data(MQTTClient* pclient)
+void publish_sensors_data(esp_mqtt_client_handle_t client)
 {
     if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
     {
@@ -134,7 +135,6 @@ void publish_sensors_data(MQTTClient* pclient)
               wtemperature / 10, wtemperature % 10,
               ctemperature / 10, ctemperature % 10);
 
-
 #ifdef CONFIG_MQTT_SENSOR_DHT22
       char tstr[64];
       sprintf(tstr, ", \"humidity\":%d.%d, \"temperature\":%d.%d",
@@ -145,19 +145,23 @@ void publish_sensors_data(MQTTClient* pclient)
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
       strcat(data, "}");
-      MQTTMessage message;
-      message.qos = QOS1;
-      message.retained = 1;
-      message.payload = data;
-      message.payloadlen = strlen(data);
 
-
-      int rc = MQTTPublish(pclient, sensors_topic, &message);
-      if (rc == 0) {
-        ESP_LOGI(TAG, "sent publish sensors successful, rc=%d", rc);
+      xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT);
+      int msg_id = esp_mqtt_client_publish(client, sensors_topic, data,strlen(data), 1, 0);
+      if (msg_id > 0) {
+        ESP_LOGI(TAG, "sent publish temp successful, msg_id=%d", msg_id);
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & PUBLISHED_BIT) {
+          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+        } else {
+          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+        }
       } else {
-        ESP_LOGI(TAG, "failed to publish relay, rc=%d", rc);
+        ESP_LOGI(TAG, "failed to publish temp, msg_id=%d", msg_id);
       }
+    } else {
+      ESP_LOGW(TAG, "skip publish sensor data as mqtt init not finished");
 
     }
 }
+

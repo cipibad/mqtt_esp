@@ -1,10 +1,9 @@
 #ifndef APP_SENSORS_H
 #define APP_SENSORS_H
 
+#include "mqtt_client.h"
+
 void sensors_read(void* pvParameters);
-#ifdef ESP8266
-#include "MQTTClient.h"
-void publish_sensors_data(MQTTClient* pClient);
-#endif //ESP8266
+void publish_sensors_data(esp_mqtt_client_handle_t client);
 
 #endif /* APP_SENSORS_H */

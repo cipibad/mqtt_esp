@@ -150,4 +150,10 @@ config MQTT_SWITCHES_NB1_GPIO
     help
         switch 1 gpio port
 
+config MQTT_OTA
+    boolean "enable OTA support"
+    default n
+    help
+        Enable OTA support
+
 endmenu
