@@ -74,11 +74,11 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     if (strncmp(event->topic, RELAY_TOPIC "/1", strlen(RELAY_TOPIC "/1")) == 0) {
       id=1;
     }
-    if (strncmp(event->topic, RELAY_TOPIC "/0", strlen(RELAY_TOPIC "/2")) == 0) {
-      id=3;
+    if (strncmp(event->topic, RELAY_TOPIC "/2", strlen(RELAY_TOPIC "/2")) == 0) {
+      id=2;
     }
-    if (strncmp(event->topic, RELAY_TOPIC "/1", strlen(RELAY_TOPIC "/3")) == 0) {
-      id=4;
+    if (strncmp(event->topic, RELAY_TOPIC "/3", strlen(RELAY_TOPIC "/3")) == 0) {
+      id=3;
     }
     if(id == 255)
       {
@@ -231,9 +231,6 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     break;
   case MQTT_EVENT_ERROR:
     ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
-    break;
-  case MQTT_EVENT_BEFORE_CONNECT:
-    ESP_LOGW(TAG, "MQTT_EVENT_BEFORE_CONNECT - unhandled");
     break;
   }
   return ESP_OK;
