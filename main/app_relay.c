@@ -43,7 +43,7 @@ void relays_init()
       io_conf.pin_bit_mask |= (1ULL << relayToGpioMap[i]) ;
     }
   }
-  //gpio_config(&io_conf);
+  gpio_config(&io_conf);
   
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     relayStatus[i] = RELAY_OFF;

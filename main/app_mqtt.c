@@ -7,12 +7,18 @@
 
 #include "app_esp8266.h"
 #include "app_relay.h"
-#include "app_ota.h"
 #include "app_sensors.h"
 #include "app_thermostat.h"
 #include "app_mqtt.h"
 
 #include "cJSON.h"
+
+
+#ifdef CONFIG_MQTT_OTA
+#include "app_ota.h"
+extern QueueHandle_t otaQueue;
+#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
+#endif //CONFIG_MQTT_OTA
 
 
 
@@ -30,21 +36,28 @@ extern const int mqtt_disconnect;
 #define FW_VERSION "0.02.05"
 
 extern QueueHandle_t relayQueue;
-extern QueueHandle_t otaQueue;
 /* extern QueueHandle_t thermostatQueue; */
 extern QueueHandle_t mqttQueue;
 
 static const char *TAG = "MQTTS_MQTTS";
 
-#define NB_SUBSCRIPTIONS  (1 + CONFIG_MQTT_RELAYS_NB)
+
+#ifdef CONFIG_MQTT_OTA
+#define OTA_NB 1
+#else
+#define OTA_NB 0
+#endif //CONFIG_MQTT_OTA
+
+#define NB_SUBSCRIPTIONS  (OTA_NB + CONFIG_MQTT_RELAYS_NB)
 
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
-#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
 #define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
+#ifdef CONFIG_MQTT_OTA
     OTA_TOPIC,
+#endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
     RELAY_TOPIC"/0",
 #if CONFIG_MQTT_RELAYS_NB > 1
@@ -112,6 +125,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     }
     ESP_LOGE(TAG, "bad json payload");
   }
+#ifdef CONFIG_MQTT_OTA
   if (strncmp(event->topic, OTA_TOPIC, strlen(OTA_TOPIC)) == 0) {
     struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
@@ -121,6 +135,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 
     }
   }
+#endif //CONFIG_MQTT_OTA
 
   /* if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) { */
   /*   if (event->data_len >= 64 ) */
@@ -293,7 +308,9 @@ void handle_mqtt_sub_pub(void* pvParameters)
         publish_connected_data(client);
         publish_all_relays_data(client);
         publish_thermostat_data(client);
+#ifdef CONFIG_MQTT_OTA
         publish_ota_data(client, OTA_READY);
+#endif //CONFIG_MQTT_OTA
         publish_sensors_data(client);
 
       }
