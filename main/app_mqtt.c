@@ -6,7 +6,6 @@
 #include "freertos/queue.h"
 
 #include "app_esp8266.h"
-#include "app_relay.h"
 #include "app_ota.h"
 #include "app_sensors.h"
 #include "app_thermostat.h"
@@ -14,6 +13,10 @@
 
 #include "cJSON.h"
 
+#if CONFIG_MQTT_RELAYS_NB
+#include "app_relay.h"
+extern QueueHandle_t relayQueue;
+#endif //CONFIG_MQTT_RELAYS_NB
 
 
 extern EventGroupHandle_t mqtt_event_group;
@@ -29,7 +32,6 @@ extern int16_t connect_reason;
 extern const int mqtt_disconnect;
 #define FW_VERSION "0.02.05"
 
-extern QueueHandle_t relayQueue;
 extern QueueHandle_t otaQueue;
 /* extern QueueHandle_t thermostatQueue; */
 extern QueueHandle_t mqttQueue;
@@ -65,7 +67,7 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
-
+#if CONFIG_MQTT_RELAYS_NB
   if (strncmp(event->topic, RELAY_TOPIC, strlen(RELAY_TOPIC)) == 0) {
     char id=255;
     if (strncmp(event->topic, RELAY_TOPIC "/0", strlen(RELAY_TOPIC "/0")) == 0) {
@@ -112,6 +114,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     }
     ESP_LOGE(TAG, "bad json payload");
   }
+#endif //CONFIG_MQTT_RELAYS_NB
   if (strncmp(event->topic, OTA_TOPIC, strlen(OTA_TOPIC)) == 0) {
     struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
@@ -291,10 +294,14 @@ void handle_mqtt_sub_pub(void* pvParameters)
         mqtt_subscribe(client);
         xEventGroupSetBits(mqtt_event_group, INIT_FINISHED_BIT);
         publish_connected_data(client);
+#if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_data(client);
+#endif//CONFIG_MQTT_RELAYS_NB
         publish_thermostat_data(client);
         publish_ota_data(client, OTA_READY);
+#ifdef CONFIG_MQTT_SENSOR
         publish_sensors_data(client);
+#endif//
 
       }
   }

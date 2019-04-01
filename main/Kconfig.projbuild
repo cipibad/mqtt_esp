@@ -87,6 +87,27 @@ config MQTT_SENSOR_DHT22_GPIO
     help
         Gpio port of dht22 sensor
 
+config MQTT_SENSOR_BME280
+    boolean "enable BME280 sensor"
+    default n
+    depends on MQTT_SENSOR
+    help
+        Enable temperature/humidity/pressure MQTT sensor readings
+
+config MQTT_SENSOR_BME280_SDA_GPIO
+    int "BME280 sensor SDA GPIO"
+    default 4
+    depends on MQTT_SENSOR_BME280
+    help
+        SDA Gpio port of dht22 sensor
+
+config MQTT_SENSOR_BME280_SCL_GPIO
+    int "BME280 sensor SCL GPIO"
+    default 5
+    depends on MQTT_SENSOR_BME280
+    help
+        SCL Gpio port of dht22 sensor
+
 config MQTT_RELAYS_NB
     int "number of relays to control"
     default 0
