@@ -72,8 +72,7 @@ void sensors_read(void* pvParameters)
   /* gpio_config(&io_conf); */
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
-  const int sda_pin = CONFIG_MQTT_SENSOR_BME280_SDA_GPIO;
-  const int scl_pin = CONFIG_MQTT_SENSOR_BME280_SCL_GPIO;
+  //Don't forget to connect SDO to Vio too
 
 	struct bme280_t bme280 = {
 		.bus_write = BME280_I2C_bus_write,
@@ -81,7 +80,9 @@ void sensors_read(void* pvParameters)
 		.dev_addr = BME280_I2C_ADDRESS2,
 		.delay_msec = BME280_delay_msek
 	};
-	esp_err_t err = BME280_I2C_init(&bme280, sda_pin, scl_pin);
+	esp_err_t err = BME280_I2C_init(&bme280,
+                                  CONFIG_MQTT_SENSOR_BME280_SDA_GPIO,
+                                  CONFIG_MQTT_SENSOR_BME280_SCL_GPIO);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Cannot init bme280 sensor");
   }
@@ -147,13 +148,13 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
 
       char data[256];
       memset(data,0,256);
-      sprintf(data, "{\"wtemperature\":%d.%d, \"ctemperature\":%d.%d",
+      sprintf(data, "{\"wtemperature\":%d.%d, \"ctemperature\":%d.%d, ",
               wtemperature / 10, wtemperature % 10,
               ctemperature / 10, ctemperature % 10);
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
       char tstr[64];
-      sprintf(tstr, ", \"humidity\":%d.%d, \"temperature\":%d.%d",
+      sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d",
               dht22_humidity / 10, dht22_humidity % 10,
               dht22_temperature / 10, dht22_temperature % 10
               );
@@ -163,10 +164,10 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
       char tstr[64];
-      sprintf(tstr, ", \"humidity\":%d.%d, \"temperature\":%d.%d, , \"pressure\":%d",
+      sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d, \"pressure\":%d",
               bme280_humidity/1000, bme280_humidity%1000,
               bme280_temperature/100,bme280_temperature%100,
-              (int)(bme280_pressure*0.00750061683)
+              (int)(bme280_pressure*0.750061683)
               );
         strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22

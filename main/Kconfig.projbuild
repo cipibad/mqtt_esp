@@ -96,14 +96,14 @@ config MQTT_SENSOR_BME280
 
 config MQTT_SENSOR_BME280_SDA_GPIO
     int "BME280 sensor SDA GPIO"
-    default 4
+    default 14
     depends on MQTT_SENSOR_BME280
     help
         SDA Gpio port of dht22 sensor
 
 config MQTT_SENSOR_BME280_SCL_GPIO
     int "BME280 sensor SCL GPIO"
-    default 5
+    default 2
     depends on MQTT_SENSOR_BME280
     help
         SCL Gpio port of dht22 sensor
