@@ -2,6 +2,8 @@
 #include "esp_log.h"
 
 #include "driver/gpio.h"
+#include "rom/gpio.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
@@ -39,17 +41,18 @@ extern QueueHandle_t relayQueue;
 
 void relays_init()
 {
-  gpio_config_t io_conf;
-  io_conf.pin_bit_mask = 0;
-  for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
-    if (relayToGpioMap[i] != 4) {
-      io_conf.pin_bit_mask |= (1ULL << relayToGpioMap[i]) ;
-    }
-  }
-  gpio_config(&io_conf);
+  /* gpio_config_t io_conf; */
+  /* io_conf.pin_bit_mask = 0; */
+  /* for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) { */
+  /*   if (relayToGpioMap[i] != 4) { */
+  /*     io_conf.pin_bit_mask |= (1ULL << relayToGpioMap[i]) ; */
+  /*   } */
+  /* } */
+  /* gpio_config(&io_conf); */
   
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     relayStatus[i] = RELAY_OFF;
+    gpio_pad_select_gpio(relayToGpioMap[i]);
     gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
     gpio_set_level(relayToGpioMap[i], RELAY_OFF);
   }

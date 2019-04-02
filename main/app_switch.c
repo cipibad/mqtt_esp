@@ -12,7 +12,6 @@ extern QueueHandle_t smartconfigQueue;
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
    to the AP with an IP? */
-
 #if CONFIG_MQTT_SWITCHES_NB
 
 static void gpio_isr_handler(void *arg)

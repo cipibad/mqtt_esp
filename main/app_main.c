@@ -8,7 +8,7 @@
 #include "freertos/queue.h"
 
 #include "driver/gpio.h"
-
+#include "rom/gpio.h"
 #include <string.h> //for memset
 
 #include "app_esp8266.h"
@@ -71,9 +71,11 @@ static const char *TAG = "MQTT(S?)_MAIN";
 void blink_task(void *pvParameter)
 {
   /* Set the GPIO as a push/pull output */
-  gpio_config_t io_conf;
-  io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_STATUS_LED_GPIO);
-  gpio_config(&io_conf);
+  /* gpio_config_t io_conf; */
+  /* io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_STATUS_LED_GPIO); */
+  /* gpio_config(&io_conf); */
+
+  gpio_pad_select_gpio(CONFIG_MQTT_STATUS_LED_GPIO);
 
   gpio_set_direction(CONFIG_MQTT_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
