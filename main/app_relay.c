@@ -39,7 +39,6 @@ static const char *TAG = "MQTTS_RELAY";
 extern QueueHandle_t relayQueue;
 
 
-
 void relays_init()
 {
   gpio_config_t io_conf;
