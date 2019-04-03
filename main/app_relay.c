@@ -15,7 +15,9 @@ extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 extern const int PUBLISHED_BIT;
 
-int relayStatus[CONFIG_MQTT_RELAYS_NB];
+#if CONFIG_MQTT_RELAYS_NB
+
+static int relayStatus[CONFIG_MQTT_RELAYS_NB];
 
 const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
   CONFIG_MQTT_RELAYS_NB0_GPIO,
@@ -33,6 +35,7 @@ const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
 static const char *TAG = "MQTTS_RELAY";
 
 extern QueueHandle_t relayQueue;
+
 
 void relays_init()
 {
@@ -125,3 +128,4 @@ void handle_relay_cmd_task(void* pvParameters)
   }
 }
 
+#endif //CONFIG_MQTT_RELAYS_NB

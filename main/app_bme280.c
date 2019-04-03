@@ -8,10 +8,7 @@
 
 #include "bme280.h"
 
-/* #define SDA_PIN GPIO_NUM_5  //D1 */
-/* #define SCL_PIN GPIO_NUM_4   //D2 */
-
-#define TAG_BME280 "BME280"
+#define TAG "BME280"
 
 #define I2C_MASTER_ACK 0
 #define I2C_MASTER_NACK 1
@@ -142,7 +139,6 @@ esp_err_t BME280_I2C_init(struct bme280_t *bme280, const int sda_pin, const int 
 
 	s32 com_rslt = 0;
 	com_rslt = bme280_init(bme280);
-
 	com_rslt += bme280_set_oversamp_pressure(BME280_OVERSAMP_16X);
 	com_rslt += bme280_set_oversamp_temperature(BME280_OVERSAMP_2X);
 	com_rslt += bme280_set_oversamp_humidity(BME280_OVERSAMP_1X);
@@ -170,7 +166,7 @@ esp_err_t bme_read_data(int32_t *temperature, int32_t *pressure, int32_t *humidi
 	  &v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32);
   
   if (com_rslt == BME280_SUCCESS) {
-    ESP_LOGI(TAG_BME280, "%d.%02d degC / %d hPa / %d.%03d %%",
+    ESP_LOGI(TAG, "%d.%02d degC / %d hPa / %d.%03d %%",
              bme280_compensate_temperature_int32(v_uncomp_temperature_s32)/100,
              bme280_compensate_temperature_int32(v_uncomp_temperature_s32)%100,
              bme280_compensate_pressure_int32(v_uncomp_pressure_s32)/100, // Pa -> hPa
@@ -181,50 +177,7 @@ esp_err_t bme_read_data(int32_t *temperature, int32_t *pressure, int32_t *humidi
     *humidity = bme280_compensate_humidity_int32(v_uncomp_humidity_s32);
     return ESP_OK;
   } else {
-    ESP_LOGE(TAG_BME280, "measure error. code: %d", com_rslt);
+    ESP_LOGE(TAG, "measure error. code: %d", com_rslt);
   }
   return ESP_FAIL;
 }
-
-/* void task_bme280_normal_mode(void *ignore) */
-/* { */
-
-/* 	s32 com_rslt; */
-
-/* 	struct bme280_t bme280 = { */
-/* 		.bus_write = BME280_I2C_bus_write, */
-/* 		.bus_read = BME280_I2C_bus_read, */
-/* 		.dev_addr = BME280_I2C_ADDRESS2, */
-/* 		.delay_msec = BME280_delay_msek */
-/* 	}; */
-
-/* 	com_rslt = BME280_I2C_init(&bme280); */
-
-/* 	/\* com_rslt += bme280_set_oversamp_pressure(BME280_OVERSAMP_16X); *\/ */
-/* 	/\* com_rslt += bme280_set_oversamp_temperature(BME280_OVERSAMP_2X); *\/ */
-/* 	/\* com_rslt += bme280_set_oversamp_humidity(BME280_OVERSAMP_1X); *\/ */
-
-/* 	/\* com_rslt += bme280_set_standby_durn(BME280_STANDBY_TIME_1_MS); *\/ */
-/* 	/\* com_rslt += bme280_set_filter(BME280_FILTER_COEFF_16); *\/ */
-
-/* 	/\* com_rslt += bme280_set_power_mode(BME280_NORMAL_MODE); *\/ */
-
-/*   s32 temperature; */
-/*   s32 pressure; */
-/*   s32 humidity; */
-
-/*   if (com_rslt == SUCCESS) { */
-
-/* 		while(true) { */
-/*       bme_read_data(&temperature, &pressure, &humidity); */
-/* 			vTaskDelay(2000 / portTICK_RATE_MS); */
-/*     } */
-
-
-/*   } else { */
-/* 		ESP_LOGE(TAG_BME280, "init or setting error. code: %d", com_rslt); */
-/* 	} */
-
-/* 	vTaskDelete(NULL); */
-/* } */
-

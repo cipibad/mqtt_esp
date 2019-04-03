@@ -14,8 +14,12 @@
 
 #include "app_esp8266.h"
 
+#ifdef CONFIG_MQTT_SENSOR_BME280
 #include "bme280.h"
 #include "app_bme280.h"
+#endif //CONFIG_MQTT_SENSOR_BME280
+
+
 #include "app_sensors.h"
 /* #include "app_thermostat.h" */
 
@@ -24,9 +28,15 @@ extern EventGroupHandle_t mqtt_event_group;
 extern const int INIT_FINISHED_BIT;
 extern const int PUBLISHED_BIT;
 
+
 int32_t wtemperature;
 int32_t ctemperature;
-int16_t pressure;
+
+#ifdef CONFIG_MQTT_SENSOR_BME280
+int32_t bme280_pressure;
+int32_t bme280_temperature;
+int32_t bme280_humidity;
+#endif //CONFIG_MQTT_SENSOR_BME280
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 int16_t dht22_temperature;
@@ -40,8 +50,6 @@ void sensors_read(void* pvParameters)
   esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
 
   /* const int DS_PIN = 4; */
-  /* const int sda_pin = 5; //D1 */
-  /* const int scl_pin = 4; //D2 */
   /* const int sda_pin = 4; //D3 */
   /* const int scl_pin = 5; //D4 */
 
@@ -56,23 +64,30 @@ void sensors_read(void* pvParameters)
   /* io_conf.pull_down_en = 0; */
   /* //disable pull-up mode */
   /* io_conf.pull_up_en = 0; */
-  
+
   /* //bit mask of the pins that you want to set,e.g.GPIO15/16 */
   /* io_conf.pin_bit_mask = 0; */
   /* io_conf.pin_bit_mask |= (1ULL << dht_gpio) ; */
   /* //configure GPIO with the given settings */
   /* gpio_config(&io_conf); */
 
-  /* i2c_master_init(SDA_PIN, SCL_PIN); */
-  /* bme280_normal_mode_init(); */
+#ifdef CONFIG_MQTT_SENSOR_BME280
+  //Don't forget to connect SDO to Vio too
 
-	/* struct bme280_t bme280 = { */
-	/* 	.bus_write = BME280_I2C_bus_write, */
-	/* 	.bus_read = BME280_I2C_bus_read, */
-	/* 	.dev_addr = BME280_I2C_ADDRESS2, */
-	/* 	.delay_msec = BME280_delay_msek */
-	/* }; */
-	/* ESP_ERROR_CHECK(BME280_I2C_init(&bme280, sda_pin, scl_pin)); */
+	struct bme280_t bme280 = {
+		.bus_write = BME280_I2C_bus_write,
+		.bus_read = BME280_I2C_bus_read,
+		.dev_addr = BME280_I2C_ADDRESS2,
+		.delay_msec = BME280_delay_msek
+	};
+	esp_err_t err = BME280_I2C_init(&bme280,
+                                  CONFIG_MQTT_SENSOR_BME280_SDA_GPIO,
+                                  CONFIG_MQTT_SENSOR_BME280_SCL_GPIO);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Cannot init bme280 sensor");
+  }
+#endif //CONFIG_MQTT_SENSOR_BME280
+
   while (1)
     {
       //FIXME bug when no sensor
@@ -105,15 +120,17 @@ void sensors_read(void* pvParameters)
       /*     ESP_LOGE(TAG, "Could not read data from ds18b20 sensor\n"); */
       /*   } */
 
-      /* if (bme_read_data(&temperature, &pressure, &humidity) == ESP_OK) */
-      /*   { */
-      /*     /\* xEventGroupSetBits(sensors_event_group, DHT22); *\/ */
-      /*     ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  temperature/100,temperature%100, pressure, humidity/1000, humidity%1000); */
-      /*   } */
-      /* else */
-      /*   { */
-      /*     ESP_LOGE(TAG, "Could not read data from DHT sensor\n"); */
-      /*   } */
+#ifdef CONFIG_MQTT_SENSOR_BME280
+      if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
+        {
+          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
+        }
+      else
+        {
+          ESP_LOGE(TAG, "Could not read data from BME sensor\n");
+        }
+#endif //CONFIG_MQTT_SENSOR_BME280
+
 
       /* update_thermostat(pclient); */
       publish_sensors_data(client);
@@ -131,15 +148,26 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
 
       char data[256];
       memset(data,0,256);
-      sprintf(data, "{\"wtemperature\":%d.%d, \"ctemperature\":%d.%d",
+      sprintf(data, "{\"wtemperature\":%d.%d, \"ctemperature\":%d.%d, ",
               wtemperature / 10, wtemperature % 10,
               ctemperature / 10, ctemperature % 10);
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
       char tstr[64];
-      sprintf(tstr, ", \"humidity\":%d.%d, \"temperature\":%d.%d",
+      sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d",
               dht22_humidity / 10, dht22_humidity % 10,
               dht22_temperature / 10, dht22_temperature % 10
+              );
+        strcat(data, tstr);
+#endif //CONFIG_MQTT_SENSOR_DHT22
+          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
+
+#ifdef CONFIG_MQTT_SENSOR_BME280
+      char tstr[64];
+      sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d, \"pressure\":%d",
+              bme280_humidity/1000, bme280_humidity%1000,
+              bme280_temperature/100,bme280_temperature%100,
+              (int)(bme280_pressure*0.750061683)
               );
         strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22
