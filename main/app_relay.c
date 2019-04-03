@@ -17,7 +17,7 @@ extern const int PUBLISHED_BIT;
 
 #if CONFIG_MQTT_RELAYS_NB
 
-static int relayStatus[CONFIG_MQTT_RELAYS_NB];
+int relayStatus[CONFIG_MQTT_RELAYS_NB];
 
 const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
   CONFIG_MQTT_RELAYS_NB0_GPIO,

@@ -1,9 +1,3 @@
-* [DONE] upgrade rtos to newest version
-* [DONE] enable cert verify TLS
-* [DONE] get publish working with newest rtos
-* get subscribe working with newest rtos(qos0 only?)
-* implement mqtt reconnect without board reset (upgrade code from mqtt echo example client, should have this implemented)
-* implement ota retry in case of failure, now it will block (bad filename for example)
-* implement way to locally config from phone
-* clean code
-* check why mqtt not enough stable, if still the case after reboot
+* add reset mqtt cmd
+* export toggleRelay from relays and don't use relayStatus externally
+

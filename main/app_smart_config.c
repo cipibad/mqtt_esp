@@ -15,8 +15,6 @@
 
 #include "app_esp8266.h"
 #include "app_relay.h"
-extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
-extern QueueHandle_t relayQueue;
 
 static const char *TAG = "MQTTS_SMARTCONFIG";
 
@@ -29,8 +27,6 @@ const char * wifi_pass_tag;
 char wifi_ssid[MAX_WIFI_CONFIG_LEN];
 char wifi_pass[MAX_WIFI_CONFIG_LEN];
 
-extern QueueHandle_t smartconfigQueue;
-EventGroupHandle_t smartconfig_event_group;
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
@@ -38,6 +34,15 @@ EventGroupHandle_t smartconfig_event_group;
 const int REQUESTED_BIT = BIT0;
 static const int CONNECTED_BIT = BIT1;
 static const int ESPTOUCH_DONE_BIT = BIT2;
+
+
+extern QueueHandle_t smartconfigQueue;
+EventGroupHandle_t smartconfig_event_group;
+
+#if CONFIG_MQTT_RELAYS_NB
+extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
+extern QueueHandle_t relayQueue;
+#endif //CONFIG_MQTT_RELAYS_NB
 
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {
@@ -162,10 +167,12 @@ void smartconfig_cmd_task(void* pvParameters)
           } else {
             ESP_LOGI(TAG, "up ");
             if ((n - pushTick ) < ticksToWait) {
-              struct RelayMessage r={0, !(relayStatus[0] == RELAY_ON)};
-              xQueueSendFromISR(relayQueue
-                                ,( void * )&r
-                                ,NULL);
+#if CONFIG_MQTT_RELAYS_NB
+              struct RelayMessage r={0, !(relayStatus[0] == RELAY_ON)}; //FIXME for two switches
+              xQueueSend(relayQueue
+                         ,( void * )&r
+                         ,MQTT_QUEUE_TIMEOUT);
+#endif //CONFIG_MQTT_RELAYS_NB
             }
             else {
               ESP_LOGI(TAG, "received smartconfig request:");

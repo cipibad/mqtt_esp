@@ -173,7 +173,7 @@ config MQTT_SWITCHES_NB1_GPIO
 
 config MQTT_OTA
     boolean "enable OTA support"
-    default n
+    default y
     help
         Enable OTA support
 

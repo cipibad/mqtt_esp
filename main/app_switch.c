@@ -13,6 +13,8 @@ extern QueueHandle_t smartconfigQueue;
    but we only care about one event - are we connected
    to the AP with an IP? */
 
+#if CONFIG_MQTT_SWITCHES_NB
+
 static void gpio_isr_handler(void *arg)
 {
   int n=xTaskGetTickCountFromISR();
@@ -38,6 +40,7 @@ void gpio_switch_init (void *arg)
   //hook isr handler for specific gpio pin
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB0_GPIO, gpio_isr_handler, (void *) CONFIG_MQTT_SWITCHES_NB0_GPIO);
   //hook isr handler for specific gpio pin
-
 }
+
+#endif //CONFIG_MQTT_SWITCHES_NB
 

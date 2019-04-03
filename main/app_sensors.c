@@ -160,9 +160,10 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
               );
         strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22
+#ifdef CONFIG_MQTT_SENSOR_BME280
+
           ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
 
-#ifdef CONFIG_MQTT_SENSOR_BME280
       char tstr[64];
       sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d, \"pressure\":%d",
               bme280_humidity/1000, bme280_humidity%1000,
