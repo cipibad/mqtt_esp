@@ -11,8 +11,8 @@
 #include "app_wifi.h"
 #include "app_nvs.h"
 
-extern EventGroupHandle_t wifi_event_group;
-extern const int CONNECTED_BIT;
+EventGroupHandle_t wifi_event_group;
+const int WIFI_CONNECTED_BIT;
 
 static const char *TAG = "MQTTS_WIFI";
 
@@ -30,11 +30,11 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     esp_wifi_connect();
     break;
   case SYSTEM_EVENT_STA_GOT_IP:
-    xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
+    xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
     esp_wifi_connect();
-    xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+    xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
     break;
   default:
     break;
@@ -79,5 +79,5 @@ void wifi_init(void)
   ESP_LOGI(TAG, "start the WIFI SSID:[%s]", wifi_config.sta.ssid);
   ESP_ERROR_CHECK(esp_wifi_start());
   ESP_LOGI(TAG, "Waiting for wifi");
-  xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
+  xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
 }

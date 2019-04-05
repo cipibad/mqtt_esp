@@ -5,6 +5,4 @@
 
 void wifi_init(void);
 
-
-
 #endif /* APP_WIFI_H */

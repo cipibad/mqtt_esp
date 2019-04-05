@@ -14,8 +14,8 @@
 #include "app_relay.h"
 
 extern EventGroupHandle_t mqtt_event_group;
-extern const int INIT_FINISHED_BIT;
-extern const int PUBLISHED_BIT;
+extern const int MQTT_INIT_FINISHED_BIT;
+extern const int MQTT_PUBLISHED_BIT;
 
 #if CONFIG_MQTT_RELAYS_NB
 
@@ -38,18 +38,8 @@ static const char *TAG = "MQTTS_RELAY";
 
 extern QueueHandle_t relayQueue;
 
-
 void relays_init()
 {
-  /* gpio_config_t io_conf; */
-  /* io_conf.pin_bit_mask = 0; */
-  /* for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) { */
-  /*   if (relayToGpioMap[i] != 4) { */
-  /*     io_conf.pin_bit_mask |= (1ULL << relayToGpioMap[i]) ; */
-  /*   } */
-  /* } */
-  /* gpio_config(&io_conf); */
-  
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     relayStatus[i] = RELAY_OFF;
     gpio_pad_select_gpio(relayToGpioMap[i]);
@@ -61,7 +51,7 @@ void relays_init()
 
 void publish_relay_data(int id, esp_mqtt_client_handle_t client)
 {
-  if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
+  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
       const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
       char data[32];
@@ -72,12 +62,12 @@ void publish_relay_data(int id, esp_mqtt_client_handle_t client)
       memset(topic,0,64);
       sprintf(topic, "%s%d", relays_topic, id);
       
-      xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT);
+      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, topic, data,strlen(data), 1, 0);
       if (msg_id > 0) {
         ESP_LOGI(TAG, "sent publish relay successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & PUBLISHED_BIT) {
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & MQTT_PUBLISHED_BIT) {
           ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
         } else {
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);

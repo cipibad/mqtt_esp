@@ -9,7 +9,6 @@
 
 #include "driver/gpio.h"
 #include "rom/gpio.h"
-#include <string.h> //for memset
 
 #include "app_esp8266.h"
 
@@ -33,13 +32,18 @@ QueueHandle_t relayQueue;
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
- #include "app_ota.h"
+#include "app_ota.h"
 QueueHandle_t otaQueue;
 #endif //CONFIG_MQTT_OTA
 
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
 
+extern EventGroupHandle_t wifi_event_group;
+extern const int WIFI_CONNECTED_BIT;
+
+extern EventGroupHandle_t mqtt_event_group;
+extern const int MQTT_CONNECTED_BIT;
 
 extern const char * smartconfigTAG;
 extern int smartconfigFlag;
@@ -48,19 +52,6 @@ extern int smartconfigFlag;
 /* extern int targetTemperatureSensibility; */
 /* extern const char * targetTemperatureTAG; */
 /* extern const char * targetTemperatureSensibilityTAG; */
-
-int16_t connect_reason;
-const int boot = 0;
-const int mqtt_disconnect = 1;
-
-
-/* FreeRTOS event group to signal when we are connected & ready to make a request */
-EventGroupHandle_t wifi_event_group;
-EventGroupHandle_t mqtt_event_group;
-const int CONNECTED_BIT = BIT0;
-const int SUBSCRIBED_BIT = BIT1;
-const int PUBLISHED_BIT = BIT2;
-const int INIT_FINISHED_BIT = BIT3;
 
 /* QueueHandle_t thermostatQueue; */
 QueueHandle_t mqttQueue;
@@ -87,14 +78,14 @@ void blink_task(void *pvParameter)
     } else {
       interval=250;
       bits = xEventGroupGetBits(wifi_event_group);
-      if( ( bits & CONNECTED_BIT ) != 0 ) {
+      if( ( bits & WIFI_CONNECTED_BIT ) != 0 ) {
         interval=500;
       }
     }
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_ON);
 
     bits = xEventGroupGetBits(mqtt_event_group);
-    while ( bits & CONNECTED_BIT ) {
+    while ( bits & MQTT_CONNECTED_BIT ) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     vTaskDelay(interval / portTICK_PERIOD_MS);
@@ -102,8 +93,6 @@ void blink_task(void *pvParameter)
     vTaskDelay(interval / portTICK_PERIOD_MS);
   }
 }
-
-
 
 void app_main(void)
 {
@@ -152,6 +141,7 @@ void app_main(void)
 
   /* err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility); */
   /* ESP_ERROR_CHECK( err ); */
+
   smartconfigQueue = xQueueCreate(1, sizeof(int) );
   err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
   ESP_ERROR_CHECK( err );

@@ -32,7 +32,7 @@ config MQTT_SERVER
 
 config MQTT_PORT
     int "Mqtt port"
-    default 1883
+    default 8883
     help
         Mqtt port
 
@@ -47,25 +47,6 @@ config MQTT_DEVICE_TYPE
     default "mqtt_device_type"
     help
         Mqtt device type(esp32/esp8266/rtc.)
-
-config RELAYS_NB
-    int "Number of relays"
-    default 2
-    help
-        Number of relays
-
-config RELAYS_BASE
-    int "Base IO pin of relays"
-    default 16
-    help
-        Base IO pin of relays
-
-config MQTT_PAYLOAD_BUFFER
-    int "MQTT payload size(Bytes)"
-    default 1460
-    help
-        1460~2048 is recommended.
-        MQTT payload size.
 
 config MQTT_SENSOR
     boolean "enable sensor support"
@@ -86,6 +67,20 @@ config MQTT_SENSOR_DHT22_GPIO
     depends on MQTT_SENSOR_DHT22
     help
         Gpio port of dht22 sensor
+
+config MQTT_SENSOR_DS18X20
+    boolean "enable DS18X20 sensor"
+    default n
+    depends on MQTT_SENSOR
+    help
+        Enable temperature DS18X20 sensor readings
+
+config MQTT_SENSOR_DS18X20_GPIO
+    int "DS18X20 sensor gpio"
+    default 5
+    depends on MQTT_SENSOR_DS18X20
+    help
+        Gpio port of DS18X20 sensor
 
 config MQTT_SENSOR_BME280
     boolean "enable BME280 sensor"

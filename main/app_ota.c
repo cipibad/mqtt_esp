@@ -74,9 +74,8 @@ static int binary_file_length = 0;
 static int socket_id = -1;
 
 extern EventGroupHandle_t mqtt_event_group;
-extern const int CONNECTED_BIT;
-extern const int PUBLISHED_BIT;
-extern const int INIT_FINISHED_BIT;
+extern const int MQTT_PUBLISHED_BIT;
+extern const int MQTT_INIT_FINISHED_BIT;
 
 
 int hostname_to_ip(char * hostname , char* ip)
@@ -461,19 +460,19 @@ void handle_ota_update_task(void *pvParameters)
 
 void publish_ota_data(esp_mqtt_client_handle_t client, int status)
 {
-  if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
+  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
       const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
       char data[256];
       memset(data,0,256);
 
       sprintf(data, "{\"status\":%d}", status);
-      xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT);
+      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
       if (msg_id > 0) {
         ESP_LOGI(TAG, "sent publish ota data successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & PUBLISHED_BIT) {
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & MQTT_PUBLISHED_BIT) {
           ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
         } else {
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);

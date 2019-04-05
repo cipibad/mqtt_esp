@@ -19,14 +19,13 @@
 #include "app_bme280.h"
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-
 #include "app_sensors.h"
 /* #include "app_thermostat.h" */
 
 
 extern EventGroupHandle_t mqtt_event_group;
-extern const int INIT_FINISHED_BIT;
-extern const int PUBLISHED_BIT;
+extern const int MQTT_INIT_FINISHED_BIT;
+extern const int MQTT_PUBLISHED_BIT;
 
 
 int32_t wtemperature;
@@ -141,7 +140,7 @@ void sensors_read(void* pvParameters)
 
 void publish_sensors_data(esp_mqtt_client_handle_t client)
 {
-    if (xEventGroupGetBits(mqtt_event_group) & INIT_FINISHED_BIT)
+    if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
       const char * sensors_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/sensors";
       ESP_LOGI(TAG, "starting mqtt_publish_sensor_data");
@@ -175,12 +174,12 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
 
       strcat(data, "}");
 
-      xEventGroupClearBits(mqtt_event_group, PUBLISHED_BIT);
+      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, sensors_topic, data,strlen(data), 1, 0);
       if (msg_id > 0) {
         ESP_LOGI(TAG, "sent publish temp successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & PUBLISHED_BIT) {
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & MQTT_PUBLISHED_BIT) {
           ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
         } else {
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
