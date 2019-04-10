@@ -25,8 +25,7 @@ extern QueueHandle_t otaQueue;
 #endif //CONFIG_MQTT_OTA
 
 int16_t connect_reason;
-const int boot = 0;
-const int mqtt_disconnect = 1;
+const int mqtt_disconnect = 33; //32+1
 
 EventGroupHandle_t mqtt_event_group;
 const int MQTT_CONNECTED_BIT = BIT0;
@@ -184,7 +183,7 @@ void publish_connected_data(esp_mqtt_client_handle_t client)
       char data[256];
       memset(data,0,256);
 
-      sprintf(data, "{\"v\":\"" FW_VERSION "\", \"r\":%d}", connect_reason);
+      sprintf(data, "{\"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
       if (msg_id > 0) {
@@ -301,7 +300,7 @@ void mqtt_start(esp_mqtt_client_handle_t client)
 
 void handle_mqtt_sub_pub(void* pvParameters)
 {
-  connect_reason=boot;
+  connect_reason=esp_reset_reason();
   esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
   void * unused;
   while(1) {
