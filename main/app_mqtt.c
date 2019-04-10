@@ -121,8 +121,9 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
           ESP_LOGE(TAG, "Cannot send to relayQueue");
         }
         ESP_LOGE(TAG, "Sending to relayQueue finished");
-        return;
       }
+      cJSON_Delete(root);
+      return;
     }
     ESP_LOGE(TAG, "bad json payload");
   }
