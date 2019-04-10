@@ -29,10 +29,10 @@ const int boot = 0;
 const int mqtt_disconnect = 1;
 
 EventGroupHandle_t mqtt_event_group;
-const int MQTT_CONNECTED_BIT;
-const int MQTT_SUBSCRIBED_BIT;
-const int MQTT_PUBLISHED_BIT;
-const int MQTT_INIT_FINISHED_BIT;
+const int MQTT_CONNECTED_BIT = BIT0;
+const int MQTT_SUBSCRIBED_BIT = BIT1;
+const int MQTT_PUBLISHED_BIT = BIT2;
+const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 

@@ -12,7 +12,7 @@
 #include "app_nvs.h"
 
 EventGroupHandle_t wifi_event_group;
-const int WIFI_CONNECTED_BIT;
+const int WIFI_CONNECTED_BIT = BIT0;
 
 static const char *TAG = "MQTTS_WIFI";
 
