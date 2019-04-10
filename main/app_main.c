@@ -15,6 +15,7 @@
 #include "app_wifi.h"
 #include "app_mqtt.h"
 #include "app_nvs.h"
+#include "app_ops.h"
 
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
@@ -176,6 +177,8 @@ void app_main(void)
 
     wifi_init();
     mqtt_start(client);
+
+    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 
   }
 }
