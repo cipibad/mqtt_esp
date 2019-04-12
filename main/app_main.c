@@ -15,7 +15,6 @@
 #include "app_wifi.h"
 #include "app_mqtt.h"
 #include "app_nvs.h"
-#include "app_ops.h"
 
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
@@ -36,6 +35,10 @@ QueueHandle_t relayQueue;
 #include "app_ota.h"
 QueueHandle_t otaQueue;
 #endif //CONFIG_MQTT_OTA
+
+#ifdef CONFIG_MQTT_OPS
+#include "app_ops.h"
+#endif // CONFIG_MQTT_OPS
 
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
@@ -178,7 +181,9 @@ void app_main(void)
     wifi_init();
     mqtt_start(client);
 
+#ifdef CONFIG_MQTT_OPS
     xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+#endif // CONFIG_MQTT_OPS
 
   }
 }

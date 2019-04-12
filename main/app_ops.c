@@ -9,8 +9,6 @@
 
 static const char *TAG = "MQTTS_OPS";
 
-
-
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_PUBLISHED_BIT;
 extern const int MQTT_INIT_FINISHED_BIT;
