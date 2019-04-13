@@ -172,4 +172,10 @@ config MQTT_OTA
     help
         Enable OTA support
 
+config MQTT_OPS
+    boolean "enable OPS support"
+    default n
+    help
+        Enable OPS support
+
 endmenu
