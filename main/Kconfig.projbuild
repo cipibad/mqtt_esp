@@ -31,8 +31,8 @@ config MQTT_SERVER
         Mqtt server
 
 config MQTT_PORT
-    int "Mqtt port"
-    default 8883
+    string "Mqtt port"
+    default "8883"
     help
         Mqtt port
 
