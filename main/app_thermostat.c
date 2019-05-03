@@ -6,7 +6,7 @@
 
 #include <string.h>
 
-#include "app_esp8266.h"
+#include "app_main.h"
 #include "app_relay.h"
 #include "app_thermostat.h"
 #include "app_nvs.h"
@@ -18,7 +18,7 @@ int targetTemperatureSensibility=5; //0.5 degrees
 const char * targetTemperatureTAG="targetTemp";
 const char * targetTemperatureSensibilityTAG="tgtTempSens";
 
-extern float wtemperature;
+extern int32_t wtemperature;
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_INIT_FINISHED_BIT;
 extern const int MQTT_PUBLISHED_BIT;
@@ -56,11 +56,11 @@ void updateHeatingState(bool heatEnabled, esp_mqtt_client_handle_t client)
 {
   if (heatEnabled)
     {
-      update_relay_state(0,1, client);
+      update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID,1, client);
     }
   else
     {
-      update_relay_state(0,0, client);
+      update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID,0, client);
     }
 
   ESP_LOGI(TAG, "heat state updated to %d", heatEnabled);
@@ -71,7 +71,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
 {
 
   ESP_LOGI(TAG, "heat state is %d", heatEnabled);
-  ESP_LOGI(TAG, "wtemperature is %f", wtemperature);
+  ESP_LOGI(TAG, "wtemperature is %d", wtemperature);
   ESP_LOGI(TAG, "targetTemperature is %d", targetTemperature);
   ESP_LOGI(TAG, "targetTemperatureSensibility is %d", targetTemperatureSensibility);
   if ( wtemperature == 0 )
@@ -85,14 +85,14 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       return;
     }
 
-  if (heatEnabled==true && wtemperature * 10 > targetTemperature + targetTemperatureSensibility)
+  if (heatEnabled==true && wtemperature > targetTemperature + targetTemperatureSensibility)
     {
       heatEnabled=false;
       updateHeatingState(heatEnabled, client);
     }
 
 
-  if (heatEnabled==false && wtemperature  * 10 < targetTemperature - targetTemperatureSensibility)
+  if (heatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility)
     {
       heatEnabled=true;
       updateHeatingState(heatEnabled, client);

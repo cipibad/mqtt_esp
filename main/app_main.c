@@ -10,7 +10,7 @@
 #include "driver/gpio.h"
 #include "rom/gpio.h"
 
-#include "app_esp8266.h"
+#include "app_main.h"
 
 #include "app_wifi.h"
 #include "app_mqtt.h"
@@ -23,8 +23,15 @@
 #ifdef CONFIG_MQTT_SENSOR
 #include "app_sensors.h"
 #endif //CONFIG_MQTT_SENSOR
-/* #include "app_thermostat.h"
-*/
+
+#ifdef CONFIG_MQTT_THERMOSTAT
+#include "app_thermostat.h"
+QueueHandle_t thermostatQueue;
+extern int targetTemperature;
+extern int targetTemperatureSensibility;
+extern const char * targetTemperatureTAG;
+extern const char * targetTemperatureSensibilityTAG;
+#endif // CONFIG_MQTT_THERMOSTAT
 
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
@@ -52,12 +59,6 @@ extern const int MQTT_CONNECTED_BIT;
 extern const char * smartconfigTAG;
 extern int smartconfigFlag;
 
-/* extern int targetTemperature; */
-/* extern int targetTemperatureSensibility; */
-/* extern const char * targetTemperatureTAG; */
-/* extern const char * targetTemperatureSensibilityTAG; */
-
-/* QueueHandle_t thermostatQueue; */
 QueueHandle_t mqttQueue;
 
 static const char *TAG = "MQTT(S?)_MAIN";
@@ -115,7 +116,9 @@ void app_main(void)
   mqtt_event_group = xEventGroupCreate();
   wifi_event_group = xEventGroupCreate();
 
-  /* thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) ); */
+#ifdef CONFIG_MQTT_THERMOSTAT
+  thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
+#endif // CONFIG_MQTT_THERMOSTAT
 #if CONFIG_MQTT_RELAYS_NB
   relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
   relays_init();
@@ -140,11 +143,14 @@ void app_main(void)
 
   ESP_LOGI(TAG, "nvs_flash_init done");
 
-  /* err=read_thermostat_nvs(targetTemperatureTAG, &targetTemperature); */
-  /* ESP_ERROR_CHECK( err ); */
+#ifdef CONFIG_MQTT_THERMOSTAT
+  err=read_nvs_integer(targetTemperatureTAG, &targetTemperature);
+  ESP_ERROR_CHECK( err );
 
-  /* err=read_thermostat_nvs(targetTemperatureSensibilityTAG, &targetTemperatureSensibility); */
-  /* ESP_ERROR_CHECK( err ); */
+  err=read_nvs_integer(targetTemperatureSensibilityTAG, &targetTemperatureSensibility);
+  ESP_ERROR_CHECK( err );
+#endif // CONFIG_MQTT_THERMOSTAT
+
 
   smartconfigQueue = xQueueCreate(1, sizeof(int) );
   err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
@@ -175,14 +181,16 @@ void app_main(void)
    xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
 #endif //CONFIG_MQTT_OTA
 
-  /* xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL); */
+#ifdef CONFIG_MQTT_THERMOSTAT
+  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+#endif // CONFIG_MQTT_THERMOSTAT
     xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 
     wifi_init();
     mqtt_start(client);
 
 #ifdef CONFIG_MQTT_OPS
-    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, (void *)client, 5, NULL);
 #endif // CONFIG_MQTT_OPS
 
   }

@@ -13,7 +13,7 @@
 #include "app_nvs.h"
 #include "app_smart_config.h"
 
-#include "app_esp8266.h"
+#include "app_main.h"
 #include "app_relay.h"
 
 static const char *TAG = "MQTTS_SMARTCONFIG";
@@ -151,7 +151,7 @@ void smartconfig_cmd_task(void* pvParameters)
     TickType_t pushTick = 0;
     TickType_t lastRead = 0;
     const TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
-    ESP_LOGI(TAG, "ticksToWait: %ld", ticksToWait);
+    ESP_LOGI(TAG, "ticksToWait: %d", ticksToWait);
     while (1) {
       if( xQueueReceive( smartconfigQueue, &n , portMAX_DELAY) )
         {
@@ -183,7 +183,7 @@ void smartconfig_cmd_task(void* pvParameters)
             }
             pushTick = 0;
           }
-          ESP_LOGI(TAG, "pushTick: %ld", pushTick);
+          ESP_LOGI(TAG, "pushTick: %d", pushTick);
         }
     }
   }

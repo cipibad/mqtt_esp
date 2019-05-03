@@ -10,7 +10,7 @@
 
 #include "string.h"
 
-#include "app_esp8266.h"
+#include "app_main.h"
 #include "app_relay.h"
 
 extern EventGroupHandle_t mqtt_event_group;

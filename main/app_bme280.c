@@ -36,7 +36,11 @@ esp_err_t i2c_master_init(const int sda_pin, const int scl_pin)
 		conf.scl_io_num = scl_pin,
     conf.sda_pullup_en = 1;
     conf.scl_pullup_en = 1;
+    #ifdef CONFIG_TARGET_DEVICE_ESP32
+    ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0));
+    #else //CONFIG_TARGET_DEVICE_ESP32
     ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode));
+    #endif //CONFIG_TARGET_DEVICE_ESP32
     ESP_ERROR_CHECK(i2c_param_config(i2c_master_port, &conf));
     return ESP_OK;
 }

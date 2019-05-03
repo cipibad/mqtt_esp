@@ -1,7 +1,5 @@
-#ifndef APP_ESP8266_H
-#define APP_ESP8266_H
-
-#define ESP8266
+#ifndef APP_MAIN_H
+#define APP_MAIN_H
 
 #if CONFIG_ESPTOOLPY_FLASHSIZE_1MB
 #define RELAY_ON 1
@@ -17,5 +15,6 @@
 #define MQTT_TIMEOUT 30
 #define MQTT_FLAG_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
 #define MQTT_QUEUE_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
-#endif /* APP_ESP8266_H */
 
+
+#endif /* APP_MAIN_H */

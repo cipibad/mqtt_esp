@@ -6,41 +6,42 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
+#include "app_main.h"
+#include "app_sensors.h"
+
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
+int16_t dht22_temperature;
+int16_t dht22_humidity;
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
-#include "ds18b20.h"
+#ifdef CONFIG_MQTT_SENSOR_DS18X20
+#include <ds18x20.h>
+#define MAX_SENSORS 8
+static const gpio_num_t SENSOR_GPIO = CONFIG_MQTT_SENSOR_DS18X20_GPIO;
+ds18x20_addr_t addrs[MAX_SENSORS];
+float temps[MAX_SENSORS];
+int32_t wtemperature;
+int32_t ctemperature;
+#endif // CONFIG_MQTT_SENSOR_DS18X20
 
-#include "app_esp8266.h"
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
 #include "bme280.h"
 #include "app_bme280.h"
-#endif //CONFIG_MQTT_SENSOR_BME280
-
-#include "app_sensors.h"
-/* #include "app_thermostat.h" */
-
-
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_INIT_FINISHED_BIT;
-extern const int MQTT_PUBLISHED_BIT;
-
-
-int32_t wtemperature;
-int32_t ctemperature;
-
-#ifdef CONFIG_MQTT_SENSOR_BME280
 int32_t bme280_pressure;
 int32_t bme280_temperature;
 int32_t bme280_humidity;
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-#ifdef CONFIG_MQTT_SENSOR_DHT22
-int16_t dht22_temperature;
-int16_t dht22_humidity;
-#endif //CONFIG_MQTT_SENSOR_DHT22
+#ifdef CONFIG_MQTT_THERMOSTAT
+#include "app_thermostat.h"
+#endif // CONFIG_MQTT_THERMOSTAT
+
+
+extern EventGroupHandle_t mqtt_event_group;
+extern const int MQTT_INIT_FINISHED_BIT;
+extern const int MQTT_PUBLISHED_BIT;
 
 static const char *TAG = "app_sensors";
 
@@ -48,27 +49,6 @@ void sensors_read(void* pvParameters)
 {
   esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
 
-  /* const int DS_PIN = 4; */
-  /* const int sda_pin = 4; //D3 */
-  /* const int scl_pin = 5; //D4 */
-
-  /* ds18b20_init(DS_PIN); */
-
-  /* gpio_config_t io_conf; */
-  /* //disable interrupt */
-  /* io_conf.intr_type = GPIO_INTR_DISABLE; */
-  /* //set as output mode */
-  /* io_conf.mode = GPIO_MODE_OUTPUT; */
-  /* //disable pull-down mode */
-  /* io_conf.pull_down_en = 0; */
-  /* //disable pull-up mode */
-  /* io_conf.pull_up_en = 0; */
-
-  /* //bit mask of the pins that you want to set,e.g.GPIO15/16 */
-  /* io_conf.pin_bit_mask = 0; */
-  /* io_conf.pin_bit_mask |= (1ULL << dht_gpio) ; */
-  /* //configure GPIO with the given settings */
-  /* gpio_config(&io_conf); */
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
   //Don't forget to connect SDO to Vio too
@@ -89,7 +69,6 @@ void sensors_read(void* pvParameters)
 
   while (1)
     {
-      //FIXME bug when no sensor
 #ifdef CONFIG_MQTT_SENSOR_DHT22
       if (dht_read_data(DHT_TYPE_DHT22, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
@@ -102,22 +81,43 @@ void sensors_read(void* pvParameters)
           ESP_LOGE(TAG, "Could not read data from DHT sensor");
         }
 #endif //CONFIG_MQTT_SENSOR_DHT22
-      /* END FIXME */
 
-      /* porting */
-      /* if (-55. < wtemperature && wtemperature < 125. ) { */
-      /*   xEventGroupSetBits(asensors_event_group, DS); */
-      /* } */
+#ifdef CONFIG_MQTT_SENSOR_DS18X20
+      wtemperature=0;
+      ctemperature=0;
 
-      /* if (ds18b20_get_temp(&wtemperature) == ESP_OK) */
-      /*   { */
-      /*     /\* xEventGroupSetBits(sensors_event_group, DHT22); *\/ */
-      /*     ESP_LOGI(TAG, "Water temp: %d.%dC", wtemperature/10, wtemperature % 10); */
-      /*   } */
-      /* else */
-      /*   { */
-      /*     ESP_LOGE(TAG, "Could not read data from ds18b20 sensor\n"); */
-      /*   } */
+      int sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
+      if (sensor_count < 1) {
+        ESP_LOGW(TAG, "No sensors detected!\n");
+      } else {
+        ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
+        for (int j = 0; j < sensor_count; j++)
+          {
+            // The ds18x20 address is a 64-bit integer, but newlib-nano
+            // printf does not support printing 64-bit values, so we
+            // split it up into two 32-bit integers and print them
+            // back-to-back to make it look like one big hex number.
+            char addr[8+8+1];
+            sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
+            sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
+            int temp_c = (int)(temps[j] * 10);
+            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, temp_c%10 );
+
+#ifdef CONFIG_MQTT_THERMOSTAT
+            if (strcmp(addr, CONFIG_MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS) == 0) {
+              wtemperature = temp_c;
+            }
+            else {
+              ctemperature = temp_c;
+            }
+#else
+            ctemperature = temp_c;
+#endif // CONFIG_MQTT_THERMOSTAT
+          }
+
+      }
+#endif // CONFIG_MQTT_SENSOR_DS18X20
+
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
       if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
@@ -130,11 +130,11 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-
-      /* update_thermostat(pclient); */
+#ifdef CONFIG_MQTT_THERMOSTAT
+      update_thermostat(client);
+#endif // CONFIG_MQTT_THERMOSTAT
       publish_sensors_data(client);
       vTaskDelay(60000 / portTICK_PERIOD_MS);
-      //vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -147,31 +147,36 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
 
       char data[256];
       memset(data,0,256);
-      sprintf(data, "{\"wtemperature\":%d.%d, \"ctemperature\":%d.%d, ",
-              wtemperature / 10, wtemperature % 10,
-              ctemperature / 10, ctemperature % 10);
+      char tstr[64];
+      strcat(data, "{");
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      char tstr[64];
-      sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d",
+      sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,",
               dht22_humidity / 10, dht22_humidity % 10,
               dht22_temperature / 10, dht22_temperature % 10
               );
         strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22
+
+#ifdef CONFIG_MQTT_SENSOR_DS18X20
+      sprintf(tstr, "\"wtemperature\":%d.%d,\"ctemperature\":%d.%d,",
+              wtemperature / 10, wtemperature % 10,
+              ctemperature / 10, ctemperature % 10);
+      strcat(data, tstr);
+#endif // CONFIG_MQTT_SENSOR_DS18X20
+
 #ifdef CONFIG_MQTT_SENSOR_BME280
 
-          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
+          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ", bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
 
-      char tstr[64];
-      sprintf(tstr, "\"humidity\":%d.%d, \"temperature\":%d.%d, \"pressure\":%d",
+      sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,\"pressure\":%d,",
               bme280_humidity/1000, bme280_humidity%1000,
               bme280_temperature/100,bme280_temperature%100,
               (int)(bme280_pressure*0.750061683)
               );
-        strcat(data, tstr);
-#endif //CONFIG_MQTT_SENSOR_DHT22
-
+      strcat(data, tstr);
+#endif //CONFIG_MQTT_SENSOR_BME280
+      data[strlen(data)-1] = 0;
       strcat(data, "}");
 
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);

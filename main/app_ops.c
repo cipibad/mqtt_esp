@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
-#include "app_esp8266.h"
+#include "app_main.h"
 #include "app_ops.h"
 
 static const char *TAG = "MQTTS_OPS";

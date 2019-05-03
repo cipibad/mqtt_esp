@@ -48,7 +48,9 @@
  */
 
 static const char *TAG = "DHTxx";
-
+#ifdef CONFIG_TARGET_DEVICE_ESP32
+static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+#endif //CONFIG_TARGET_DEVICE_ESP32
 #define CHECK_ARG(VAL) do { if (!VAL) return ESP_ERR_INVALID_ARG; } while (0)
 
 #define CHECK_LOGE(x, msg, ...) do { \
@@ -157,9 +159,19 @@ esp_err_t dht_read_data(dht_sensor_type_t sensor_type, gpio_num_t pin,
     gpio_set_direction(pin, GPIO_MODE_OUTPUT);
     gpio_set_level(pin, 1);
 
+    #ifdef CONFIG_TARGET_DEVICE_ESP32
+    portENTER_CRITICAL(&mux);
+    #else //CONFIG_TARGET_DEVICE_ESP32
     portENTER_CRITICAL();
+    #endif //CONFIG_TARGET_DEVICE_ESP32
+
     esp_err_t result = dht_fetch_data(pin, bits);
+
+    #ifdef CONFIG_TARGET_DEVICE_ESP32
+    portEXIT_CRITICAL(&mux);
+    #else //CONFIG_TARGET_DEVICE_ESP32
     portEXIT_CRITICAL();
+    #endif //CONFIG_TARGET_DEVICE_ESP32
 
     gpio_set_level(pin, 1);
 

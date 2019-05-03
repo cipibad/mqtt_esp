@@ -1,3 +1,5 @@
+#include "esp_system.h"
+#ifdef CONFIG_TARGET_DEVICE_ESP8266
 #include "app_ota.h"
 
 /* OTA example
@@ -20,7 +22,6 @@
 
 extern QueueHandle_t otaQueue;
 
-#include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
 #include "esp_log.h"
@@ -29,7 +30,7 @@ extern QueueHandle_t otaQueue;
 #include "nvs.h"
 #include "nvs_flash.h"
 
-#include "app_esp8266.h"
+#include "app_main.h"
 
 #define EXAMPLE_SERVER_IP "sw.iot.cipex.ro"
 #define EXAMPLE_SERVER_PORT "8910"
@@ -482,3 +483,4 @@ void publish_ota_data(esp_mqtt_client_handle_t client, int status)
       }
     }
 }
+#endif //CONFIG_TARGET_DEVICE_ESP8266

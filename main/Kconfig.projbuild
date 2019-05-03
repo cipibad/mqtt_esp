@@ -1,5 +1,19 @@
 menu "MQTT SSL CONF"
 
+
+choice TARGET_DEVICE
+   bool "Target device type"
+   default ESP8266
+   help
+       Target device type
+
+config TARGET_DEVICE_ESP32
+   bool "ESP32"
+config TARGET_DEVICE_ESP8266
+   bool "ESP8266/sonoffbasic/sonoff plug/sonoff wall switch"
+endchoice
+
+
 config WIFI_SSID
     string "WiFi SSID"
     default "myssid"
@@ -177,5 +191,27 @@ config MQTT_OPS
     default n
     help
         Enable OPS support
+
+config MQTT_THERMOSTAT
+    boolean "enable thermostat control"
+    default n
+    depends on MQTT_SENSOR
+    help
+        Enable thermostat control
+
+config MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS
+    string "Thermostat DS18X20 sensor address"
+    default "4802069245473e28"
+    depends on MQTT_THERMOSTAT
+    help
+        Address of DS18X20 sensor to be used as thermostat
+
+config MQTT_THERMOSTAT_RELAY_ID
+    int "Thermostat Relay Id"
+    default 0
+    depends on MQTT_THERMOSTAT
+    help
+        Thermostat relay id
+
 
 endmenu

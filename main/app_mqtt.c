@@ -5,10 +5,9 @@
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
 
-#include "app_esp8266.h"
+#include "app_main.h"
 
 #include "app_sensors.h"
-#include "app_thermostat.h"
 #include "app_mqtt.h"
 
 #include "cJSON.h"
@@ -19,10 +18,31 @@ extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
+
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
-#endif //CONFIG_MQTT_OTA
+#define OTA_NB 1
+
+#else // CONFIG_MQTT_OTA
+
+#define OTA_NB 0
+
+#endif // CONFIG_MQTT_OTA
+
+#ifdef CONFIG_MQTT_THERMOSTAT
+
+#include "app_thermostat.h"
+extern QueueHandle_t thermostatQueue;
+#define THERMOSTAT_NB 1
+#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat"
+
+#else // CONFIG_MQTT_THERMOSTAT
+
+#define THERMOSTAT_NB 0
+
+#endif // CONFIG_MQTT_THERMOSTAT
+
 
 int16_t connect_reason;
 const int mqtt_disconnect = 33; //32+1
@@ -37,22 +57,14 @@ int16_t mqtt_reconnect_counter;
 
 #define FW_VERSION "0.02.05"
 
-/* extern QueueHandle_t thermostatQueue; */
 extern QueueHandle_t mqttQueue;
 
 static const char *TAG = "MQTTS_MQTTS";
 
 
-#ifdef CONFIG_MQTT_OTA
-#define OTA_NB 1
-#else
-#define OTA_NB 0
-#endif //CONFIG_MQTT_OTA
-
-#define NB_SUBSCRIPTIONS  (OTA_NB + CONFIG_MQTT_RELAYS_NB)
+#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + CONFIG_MQTT_RELAYS_NB)
 
 #define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
-#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -71,7 +83,9 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #endif //CONFIG_MQTT_RELAYS_NB > 2
 #endif //CONFIG_MQTT_RELAYS_NB > 1
 #endif //CONFIG_MQTT_RELAYS_NB
-    /* THERMOSTAT_TOPIC */
+#ifdef CONFIG_MQTT_THERMOSTAT
+    THERMOSTAT_TOPIC
+#endif // CONFIG_MQTT_THERMOSTAT
   };
 
 
@@ -142,39 +156,41 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
   }
 #endif //CONFIG_MQTT_OTA
 
-  /* if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) { */
-  /*   if (event->data_len >= 64 ) */
-  /*     { */
-  /*       ESP_LOGI(TAG, "unextected relay cmd payload"); */
-  /*       return; */
-  /*     } */
-  /*   char tmpBuf[64]; */
-  /*   memcpy(tmpBuf, event->data, event->data_len); */
-  /*   tmpBuf[event->data_len] = 0; */
-  /*   cJSON * root   = cJSON_Parse(tmpBuf); */
-  /*   if (root) { */
-  /*     cJSON * ttObject = cJSON_GetObjectItem(root,"targetTemperature"); */
-  /*     cJSON * ttsObject = cJSON_GetObjectItem(root,"targetTemperatureSensibility"); */
-  /*     struct ThermostatMessage t = {0,0}; */
-  /*     if (ttObject) { */
-  /*       float targetTemperature = ttObject->valuedouble; */
-  /*       ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature); */
-  /*       t.targetTemperature = targetTemperature; */
-  /*     } */
-  /*     if (ttsObject) { */
-  /*       float targetTemperatureSensibility = ttsObject->valuedouble; */
-  /*       ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility); */
-  /*       t.targetTemperatureSensibility = targetTemperatureSensibility; */
-  /*     } */
-  /*     if (t.targetTemperature || t.targetTemperatureSensibility) { */
-  /*       if (xQueueSend( thermostatQueue */
-  /*                       ,( void * )&t */
-  /*                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) { */
-  /*         ESP_LOGE(TAG, "Cannot send to thermostatQueue"); */
-  /*       } */
-  /*     } */
-  /*   } */
-  /* } */
+#ifdef CONFIG_MQTT_THERMOSTAT
+  if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) {
+    if (event->data_len >= 64 )
+      {
+        ESP_LOGI(TAG, "unextected relay cmd payload");
+        return;
+      }
+    char tmpBuf[64];
+    memcpy(tmpBuf, event->data, event->data_len);
+    tmpBuf[event->data_len] = 0;
+    cJSON * root   = cJSON_Parse(tmpBuf);
+    if (root) {
+      cJSON * ttObject = cJSON_GetObjectItem(root,"targetTemperature");
+      cJSON * ttsObject = cJSON_GetObjectItem(root,"targetTemperatureSensibility");
+      struct ThermostatMessage t = {0,0};
+      if (ttObject) {
+        float targetTemperature = ttObject->valuedouble;
+        ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature);
+        t.targetTemperature = targetTemperature;
+      }
+      if (ttsObject) {
+        float targetTemperatureSensibility = ttsObject->valuedouble;
+        ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility);
+        t.targetTemperatureSensibility = targetTemperatureSensibility;
+      }
+      if (t.targetTemperature || t.targetTemperatureSensibility) {
+        if (xQueueSend( thermostatQueue
+                        ,( void * )&t
+                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+          ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+        }
+      }
+    }
+  }
+#endif // CONFIG_MQTT_THERMOSTAT
 }
 
 void publish_connected_data(esp_mqtt_client_handle_t client)
