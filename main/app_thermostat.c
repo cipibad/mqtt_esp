@@ -1,3 +1,6 @@
+#include "esp_system.h"
+#ifdef CONFIG_MQTT_THERMOSTAT
+
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
@@ -122,3 +125,4 @@ void handle_thermostat_cmd_task(void* pvParameters)
       }
   }
 }
+#endif // CONFIG_MQTT_THERMOSTAT

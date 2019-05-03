@@ -44,6 +44,13 @@ extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
 extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
+
+#ifdef CONFIG_TARGET_DEVICE_ESP32
+#define TICKS_FORMAT "%d"
+#else // CONFIG_TARGET_DEVICE_ESP32
+#define TICKS_FORMAT "%ld"
+#endif // CONFIG_TARGET_DEVICE_ESP32
+
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {
   switch (status) {
@@ -151,7 +158,7 @@ void smartconfig_cmd_task(void* pvParameters)
     TickType_t pushTick = 0;
     TickType_t lastRead = 0;
     const TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
-    ESP_LOGI(TAG, "ticksToWait: %d", ticksToWait);
+    ESP_LOGI(TAG, "ticksToWait: " TICKS_FORMAT, ticksToWait);
     while (1) {
       if( xQueueReceive( smartconfigQueue, &n , portMAX_DELAY) )
         {
@@ -183,7 +190,7 @@ void smartconfig_cmd_task(void* pvParameters)
             }
             pushTick = 0;
           }
-          ESP_LOGI(TAG, "pushTick: %d", pushTick);
+          ESP_LOGI(TAG, "pushTick: " TICKS_FORMAT, pushTick);
         }
     }
   }

@@ -331,7 +331,9 @@ void handle_mqtt_sub_pub(void* pvParameters)
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_data(client);
 #endif//CONFIG_MQTT_RELAYS_NB
+#ifdef CONFIG_MQTT_THERMOSTAT
         publish_thermostat_data(client);
+#endif // CONFIG_MQTT_THERMOSTAT
 #ifdef CONFIG_MQTT_OTA
         publish_ota_data(client, OTA_READY);
 #endif //CONFIG_MQTT_OTA
