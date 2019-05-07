@@ -92,6 +92,7 @@ void blink_task(void *pvParameter)
     bits = xEventGroupGetBits(mqtt_event_group);
     while ( bits & MQTT_CONNECTED_BIT ) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
+      bits = xEventGroupGetBits(mqtt_event_group);
     }
     vTaskDelay(interval / portTICK_PERIOD_MS);
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_OFF);
