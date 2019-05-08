@@ -110,17 +110,22 @@ void handle_thermostat_cmd_task(void* pvParameters)
   while(1) {
     if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) )
       {
+        bool updated = false;
         if (t.targetTemperature && targetTemperature != t.targetTemperature * 10) {
           targetTemperature=t.targetTemperature*10;
           esp_err_t err = write_nvs_integer(targetTemperatureTAG, targetTemperature);
           ESP_ERROR_CHECK( err );
-          update_thermostat(client);
+          updated = true;
         }
         if (t.targetTemperatureSensibility && targetTemperatureSensibility != t.targetTemperatureSensibility * 10) {
           targetTemperatureSensibility=t.targetTemperatureSensibility*10;
           esp_err_t err = write_nvs_integer(targetTemperatureSensibilityTAG, targetTemperatureSensibility);
           ESP_ERROR_CHECK( err );
+          updated = true;
+        }
+        if (updated) {
           update_thermostat(client);
+          publish_thermostat_data(client);
         }
       }
   }
