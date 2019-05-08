@@ -100,8 +100,8 @@ void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
       ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
     gpio_set_level(relayToGpioMap[id], relayStatus[id]);
-    publish_relay_data(id, client);
   }
+  publish_relay_data(id, client);
 }
 
 void handle_relay_cmd_task(void* pvParameters)
