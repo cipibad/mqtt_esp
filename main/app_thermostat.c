@@ -40,7 +40,7 @@ void publish_thermostat_data(esp_mqtt_client_handle_t client)
 
       sprintf(data, "{\"targetTemperature\":%02f, \"targetTemperatureSensibility\":%02f}", targetTemperature/10., targetTemperatureSensibility/10.);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
+      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
       if (msg_id > 0) {
         ESP_LOGI(TAG, "sent publish thermostat data successful, msg_id=%d", msg_id);
         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);

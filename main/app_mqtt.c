@@ -46,6 +46,7 @@ extern QueueHandle_t thermostatQueue;
 
 int16_t connect_reason;
 const int mqtt_disconnect = 33; //32+1
+const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connection";
 
 EventGroupHandle_t mqtt_event_group;
 const int MQTT_CONNECTED_BIT = BIT0;
@@ -55,7 +56,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.05"
+#define FW_VERSION "0.02.06"
 
 extern QueueHandle_t mqttQueue;
 
@@ -197,13 +198,12 @@ void publish_connected_data(esp_mqtt_client_handle_t client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connected";
       char data[256];
       memset(data,0,256);
 
-      sprintf(data, "{\"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
+      sprintf(data, "{\"state\":\"connected\", \"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
+      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
       if (msg_id > 0) {
         ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id);
         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
@@ -278,7 +278,7 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
 
   for (int i = 0; i < NB_SUBSCRIPTIONS; i++) {
     xEventGroupClearBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT);
-    msg_id = esp_mqtt_client_subscribe(client, SUBSCRIPTIONS[i], 0);
+    msg_id = esp_mqtt_client_subscribe(client, SUBSCRIPTIONS[i], 1);
     if (msg_id > 0) {
       ESP_LOGI(TAG, "sent subscribe %s successful, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT, false, true, MQTT_FLAG_TIMEOUT);
@@ -295,12 +295,17 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
 
 esp_mqtt_client_handle_t mqtt_init()
 {
+  const char * lwtmsg = "{\"state\":\"disconnected\"}";
   const esp_mqtt_client_config_t mqtt_cfg = {
     .uri = "mqtts://" CONFIG_MQTT_USERNAME ":" CONFIG_MQTT_PASSWORD "@" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
     .event_handle = mqtt_event_handler,
     .cert_pem = (const char *)mqtt_iot_cipex_ro_pem_start,
     .client_id = CONFIG_MQTT_CLIENT_ID,
-    .lwt_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/disconnected",
+    .lwt_topic = connect_topic,
+    .lwt_msg = lwtmsg,
+    .lwt_qos = 1,
+    .lwt_retain = 1,
+    .lwt_msg_len = strlen(lwtmsg),
     .keepalive = MQTT_TIMEOUT
   };
 

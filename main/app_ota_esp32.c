@@ -43,7 +43,7 @@ void publish_ota_data(esp_mqtt_client_handle_t client, int status)
 
       sprintf(data, "{\"status\":%d}", status);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 0);
+      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
       if (msg_id > 0) {
         ESP_LOGI(TAG, "sent publish ota data successful, msg_id=%d", msg_id);
         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
