@@ -14,7 +14,7 @@
 #include "app_thermostat.h"
 #include "app_nvs.h"
 
-bool heatEnabled = false;
+bool thermostatEnabled = false;
 int targetTemperature=23*10; //30 degrees
 int targetTemperatureSensibility=5; //0.5 degrees
 
@@ -55,9 +55,9 @@ void publish_thermostat_data(esp_mqtt_client_handle_t client)
     }
 }
 
-void updateHeatingState(bool heatEnabled, esp_mqtt_client_handle_t client)
+void updateHeatingState(bool thermostatEnabled, esp_mqtt_client_handle_t client)
 {
-  if (heatEnabled)
+  if (thermostatEnabled)
     {
       update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID,1, client);
     }
@@ -66,39 +66,39 @@ void updateHeatingState(bool heatEnabled, esp_mqtt_client_handle_t client)
       update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID,0, client);
     }
 
-  ESP_LOGI(TAG, "heat state updated to %d", heatEnabled);
+  ESP_LOGI(TAG, "heat state updated to %d", thermostatEnabled);
 }
 
 
 void update_thermostat(esp_mqtt_client_handle_t client)
 {
 
-  ESP_LOGI(TAG, "heat state is %d", heatEnabled);
+  ESP_LOGI(TAG, "heat state is %d", thermostatEnabled);
   ESP_LOGI(TAG, "wtemperature is %d", wtemperature);
   ESP_LOGI(TAG, "targetTemperature is %d", targetTemperature);
   ESP_LOGI(TAG, "targetTemperatureSensibility is %d", targetTemperatureSensibility);
   if ( wtemperature == 0 )
     {
       ESP_LOGI(TAG, "sensor is not reporting, no thermostat handling");
-      if (heatEnabled==true) {
+      if (thermostatEnabled==true) {
         ESP_LOGI(TAG, "stop heating as sensor is not reporting");
-        heatEnabled=false;
-        updateHeatingState(heatEnabled, client);
+        thermostatEnabled=false;
+        updateHeatingState(thermostatEnabled, client);
       }
       return;
     }
 
-  if (heatEnabled==true && wtemperature > targetTemperature + targetTemperatureSensibility)
+  if (thermostatEnabled==true && wtemperature > targetTemperature + targetTemperatureSensibility)
     {
-      heatEnabled=false;
-      updateHeatingState(heatEnabled, client);
+      thermostatEnabled=false;
+      updateHeatingState(thermostatEnabled, client);
     }
 
 
-  if (heatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility)
+  if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility)
     {
-      heatEnabled=true;
-      updateHeatingState(heatEnabled, client);
+      thermostatEnabled=true;
+      updateHeatingState(thermostatEnabled, client);
     }
 
 }
