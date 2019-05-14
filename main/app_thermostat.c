@@ -50,23 +50,52 @@ void publish_thermostat_data(esp_mqtt_client_handle_t client)
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
         }
       } else {
-        ESP_LOGI(TAG, "failed to publish thermostat, msg_id=%d", msg_id);
+        ESP_LOGI(TAG, "failed to publish thermostat data, msg_id=%d", msg_id);
       }
     }
 }
 
-void updateHeatingState(bool thermostatEnabled, esp_mqtt_client_handle_t client)
-{
-  if (thermostatEnabled)
-    {
-      update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID,1, client);
-    }
-  else
-    {
-      update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID,0, client);
-    }
 
-  ESP_LOGI(TAG, "heat state updated to %d", thermostatEnabled);
+void publish_thermostat_state(esp_mqtt_client_handle_t client)
+{
+  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
+    {
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
+      char data[256];
+      memset(data,0,256);
+
+      sprintf(data, "{\"state\":%d}", thermostatEnabled);
+      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
+      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
+      if (msg_id > 0) {
+        ESP_LOGI(TAG, "sent publish thermostat state successful, msg_id=%d", msg_id);
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & MQTT_PUBLISHED_BIT) {
+          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+        } else {
+          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+        }
+      } else {
+        ESP_LOGI(TAG, "failed to publish thermostat state, msg_id=%d", msg_id);
+      }
+    }
+}
+
+
+void disableHeating(esp_mqtt_client_handle_t client)
+{
+  thermostatEnabled=false;
+  update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 0, client);
+  publish_thermostat_state(client);
+  ESP_LOGI(TAG, "heating disabled");
+}
+
+void enableHeating(esp_mqtt_client_handle_t client)
+{
+  thermostatEnabled=true;
+  update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1, client);
+  publish_thermostat_state(client);
+  ESP_LOGI(TAG, "heating disabled");
 }
 
 
@@ -82,23 +111,20 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       ESP_LOGI(TAG, "sensor is not reporting, no thermostat handling");
       if (thermostatEnabled==true) {
         ESP_LOGI(TAG, "stop heating as sensor is not reporting");
-        thermostatEnabled=false;
-        updateHeatingState(thermostatEnabled, client);
+        disableHeating(client);
       }
       return;
     }
 
   if (thermostatEnabled==true && wtemperature > targetTemperature + targetTemperatureSensibility)
     {
-      thermostatEnabled=false;
-      updateHeatingState(thermostatEnabled, client);
+      disableHeating(client);
     }
 
 
-  if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility)
+  if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility /*&& (getTime -savedTime) > toggleProtection/tick /*/)
     {
-      thermostatEnabled=true;
-      updateHeatingState(thermostatEnabled, client);
+      enableHeating(client);
     }
 
 }
