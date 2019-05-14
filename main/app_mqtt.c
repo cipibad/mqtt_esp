@@ -35,7 +35,7 @@ extern QueueHandle_t otaQueue;
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
 #define THERMOSTAT_NB 1
-#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat"
+#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat/cfg"
 
 #else // CONFIG_MQTT_THERMOSTAT
 
@@ -56,7 +56,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.07"
+#define FW_VERSION "0.02.08"
 
 extern QueueHandle_t mqttQueue;
 

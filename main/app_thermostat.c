@@ -30,11 +30,11 @@ extern QueueHandle_t thermostatQueue;
 
 static const char *TAG = "APP_THERMOSTAT";
 
-void publish_thermostat_data(esp_mqtt_client_handle_t client)
+void publish_thermostat_cfg(esp_mqtt_client_handle_t client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/cfg";
       char data[256];
       memset(data,0,256);
 
@@ -55,12 +55,11 @@ void publish_thermostat_data(esp_mqtt_client_handle_t client)
     }
 }
 
-
 void publish_thermostat_state(esp_mqtt_client_handle_t client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/state";
       char data[256];
       memset(data,0,256);
 
@@ -81,21 +80,27 @@ void publish_thermostat_state(esp_mqtt_client_handle_t client)
     }
 }
 
+void publish_thermostat_data(esp_mqtt_client_handle_t client)
+{
+  publish_thermostat_state(client);
+  publish_thermostat_cfg(client);
+}
 
-void disableHeating(esp_mqtt_client_handle_t client)
+
+void disableThermostat(esp_mqtt_client_handle_t client)
 {
   thermostatEnabled=false;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 0, client);
   publish_thermostat_state(client);
-  ESP_LOGI(TAG, "heating disabled");
+  ESP_LOGI(TAG, "thermostat disabled");
 }
 
-void enableHeating(esp_mqtt_client_handle_t client)
+void enableThermostat(esp_mqtt_client_handle_t client)
 {
   thermostatEnabled=true;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1, client);
   publish_thermostat_state(client);
-  ESP_LOGI(TAG, "heating disabled");
+  ESP_LOGI(TAG, "thermostat disabled");
 }
 
 
@@ -110,21 +115,21 @@ void update_thermostat(esp_mqtt_client_handle_t client)
     {
       ESP_LOGI(TAG, "sensor is not reporting, no thermostat handling");
       if (thermostatEnabled==true) {
-        ESP_LOGI(TAG, "stop heating as sensor is not reporting");
-        disableHeating(client);
+        ESP_LOGI(TAG, "stop thermostat as sensor is not reporting");
+        disableThermostat(client);
       }
       return;
     }
 
   if (thermostatEnabled==true && wtemperature > targetTemperature + targetTemperatureSensibility)
     {
-      disableHeating(client);
+      disableThermostat(client);
     }
 
 
   if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility /*&& (getTime -savedTime) > toggleProtection/tick /*/)
     {
-      enableHeating(client);
+      enableThermostat(client);
     }
 
 }
@@ -151,7 +156,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
         }
         if (updated) {
           update_thermostat(client);
-          publish_thermostat_data(client);
+          publish_thermostat_cfg(client);
         }
       }
   }
