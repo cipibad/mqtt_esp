@@ -142,7 +142,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       publish_thermostat_state(client);
     }
 
-    if (heatingEnabled && wtemperature_2 > wtemperature_1 && wtemperature_1 > wtemperature) { //heating is disabled
+    if (heatingEnabled && wtemperature_2 >= wtemperature_1 && wtemperature_1 >= wtemperature) { //heating is disabled
       heatingEnabled = false;
       publish_thermostat_state(client);
 
