@@ -63,16 +63,20 @@ QueueHandle_t mqttQueue;
 
 static const char *TAG = "MQTT(S?)_MAIN";
 
+void reboot_in_5_minutes_task(void *pvParameter)
+{
+  ESP_LOGI(TAG, "Prepare to restart system in 5 minutes!");
+  vTaskDelay(1000 * 60 * 5 - 10000 / portTICK_PERIOD_MS);
+  ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+  vTaskDelay(10000 / portTICK_PERIOD_MS);
+  esp_restart();
+
+}
 
 void blink_task(void *pvParameter)
 {
-  /* Set the GPIO as a push/pull output */
-  /* gpio_config_t io_conf; */
-  /* io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_STATUS_LED_GPIO); */
-  /* gpio_config(&io_conf); */
 
   gpio_pad_select_gpio(CONFIG_MQTT_STATUS_LED_GPIO);
-
   gpio_set_direction(CONFIG_MQTT_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
   int interval;
@@ -160,6 +164,7 @@ void app_main(void)
   xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)NULL, 5, NULL);
 
   if (smartconfigFlag) {
+    xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
     ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
   } else {
 
