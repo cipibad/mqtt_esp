@@ -15,6 +15,7 @@
 #include "app_nvs.h"
 
 bool thermostatEnabled = false;
+bool heatingEnabled = false;
 int targetTemperature=23*10; //30 degrees
 int targetTemperatureSensibility=5; //0.5 degrees
 
@@ -22,6 +23,8 @@ const char * targetTemperatureTAG="targetTemp";
 const char * targetTemperatureSensibilityTAG="tgtTempSens";
 
 extern int32_t wtemperature;
+int32_t wtemperature_1 = 0;
+int32_t wtemperature_2 = 0;
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_INIT_FINISHED_BIT;
 extern const int MQTT_PUBLISHED_BIT;
@@ -63,7 +66,8 @@ void publish_thermostat_state(esp_mqtt_client_handle_t client)
       char data[256];
       memset(data,0,256);
 
-      sprintf(data, "{\"state\":%d}", thermostatEnabled);
+      sprintf(data, "{\"thermostatState\":%d, \"heatingState\":%d}",
+              thermostatEnabled, heatingEnabled);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
       if (msg_id > 0) {
@@ -132,6 +136,20 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       enableThermostat(client);
     }
 
+  if (wtemperature_2 && wtemperature_1 && wtemperature) {//three consecutive valid readings
+    if (!heatingEnabled && wtemperature_2 < wtemperature_1 && wtemperature_1 < wtemperature) { //heating is enabled
+      heatingEnabled = true;
+      publish_thermostat_state(client);
+    }
+
+    if (heatingEnabled && wtemperature_2 > wtemperature_1 && wtemperature_1 > wtemperature) { //heating is disabled
+      heatingEnabled = false;
+      publish_thermostat_state(client);
+
+    }
+  }
+  wtemperature_2 = wtemperature_1;
+  wtemperature_1 = wtemperature;
 }
 
 void handle_thermostat_cmd_task(void* pvParameters)
