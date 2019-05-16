@@ -93,6 +93,7 @@ void publish_thermostat_data(esp_mqtt_client_handle_t client)
 
 void disableThermostat(esp_mqtt_client_handle_t client)
 {
+  publish_thermostat_state(client);
   thermostatEnabled=false;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 0, client);
   publish_thermostat_state(client);
@@ -101,6 +102,7 @@ void disableThermostat(esp_mqtt_client_handle_t client)
 
 void enableThermostat(esp_mqtt_client_handle_t client)
 {
+  publish_thermostat_state(client);
   thermostatEnabled=true;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1, client);
   publish_thermostat_state(client);
@@ -138,11 +140,13 @@ void update_thermostat(esp_mqtt_client_handle_t client)
 
   if (wtemperature_2 && wtemperature_1 && wtemperature) {//three consecutive valid readings
     if (!heatingEnabled && wtemperature_2 < wtemperature_1 && wtemperature_1 < wtemperature) { //heating is enabled
+      publish_thermostat_state(client);
       heatingEnabled = true;
       publish_thermostat_state(client);
     }
 
     if (heatingEnabled && wtemperature_2 >= wtemperature_1 && wtemperature_1 >= wtemperature) { //heating is disabled
+      publish_thermostat_state(client);
       heatingEnabled = false;
       publish_thermostat_state(client);
 
