@@ -23,8 +23,9 @@ const char * targetTemperatureTAG="targetTemp";
 const char * targetTemperatureSensibilityTAG="tgtTempSens";
 
 extern int32_t wtemperature;
-int32_t wtemperature_1 = 0;
-int32_t wtemperature_2 = 0;
+extern int32_t ctemperature;
+int32_t ctemperature_1 = 0;
+int32_t ctemperature_2 = 0;
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_INIT_FINISHED_BIT;
 extern const int MQTT_PUBLISHED_BIT;
@@ -113,11 +114,12 @@ void enableThermostat(esp_mqtt_client_handle_t client)
 void update_thermostat(esp_mqtt_client_handle_t client)
 {
 
-  ESP_LOGI(TAG, "thermostat state is %d", thermostatEnabled);
   ESP_LOGI(TAG, "heating state is %d", heatingEnabled);
+  ESP_LOGI(TAG, "ctemperature_n is %d", ctemperature);
+  ESP_LOGI(TAG, "ctemperature_n_1 is %d", ctemperature_1);
+  ESP_LOGI(TAG, "ctemperature_n_2 is %d", ctemperature_2);
+  ESP_LOGI(TAG, "thermostat state is %d", thermostatEnabled);
   ESP_LOGI(TAG, "wtemperature is %d", wtemperature);
-  ESP_LOGI(TAG, "wtemperature_n_1 is %d", wtemperature_1);
-  ESP_LOGI(TAG, "wtemperature_n_2 is %d", wtemperature_2);
   ESP_LOGI(TAG, "targetTemperature is %d", targetTemperature);
   ESP_LOGI(TAG, "targetTemperatureSensibility is %d", targetTemperatureSensibility);
   if ( wtemperature == 0 )
@@ -141,15 +143,15 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       enableThermostat(client);
     }
 
-  if (wtemperature_2 && wtemperature_1 && wtemperature) {//three consecutive valid readings
-    if (!heatingEnabled && wtemperature_2 < wtemperature_1 && wtemperature_1 < wtemperature) { //heating is enabled
+  if (ctemperature_2 && ctemperature_1 && ctemperature) {//three consecutive valid readings
+    if (!heatingEnabled && ctemperature_2 < ctemperature_1 && ctemperature_1 < ctemperature) { //heating is enabled
       publish_thermostat_state(client);
       heatingEnabled = true;
       ESP_LOGI(TAG, "heating enabled");
       publish_thermostat_state(client);
     }
 
-    if (heatingEnabled && wtemperature_2 >= wtemperature_1 && wtemperature_1 >= wtemperature) { //heating is disabled
+    if (heatingEnabled && ctemperature_2 >= ctemperature_1 && ctemperature_1 >= ctemperature) { //heating is disabled
       publish_thermostat_state(client);
       heatingEnabled = false;
       ESP_LOGI(TAG, "heating disabled");
@@ -157,8 +159,8 @@ void update_thermostat(esp_mqtt_client_handle_t client)
 
     }
   }
-  wtemperature_2 = wtemperature_1;
-  wtemperature_1 = wtemperature;
+  ctemperature_2 = ctemperature_1;
+  ctemperature_1 = ctemperature;
 }
 
 void handle_thermostat_cmd_task(void* pvParameters)
