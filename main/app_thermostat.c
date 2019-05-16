@@ -113,8 +113,11 @@ void enableThermostat(esp_mqtt_client_handle_t client)
 void update_thermostat(esp_mqtt_client_handle_t client)
 {
 
-  ESP_LOGI(TAG, "heat state is %d", thermostatEnabled);
+  ESP_LOGI(TAG, "thermostat state is %d", thermostatEnabled);
+  ESP_LOGI(TAG, "heating state is %d", heatingEnabled);
   ESP_LOGI(TAG, "wtemperature is %d", wtemperature);
+  ESP_LOGI(TAG, "wtemperature_n_1 is %d", wtemperature_1);
+  ESP_LOGI(TAG, "wtemperature_n_2 is %d", wtemperature_2);
   ESP_LOGI(TAG, "targetTemperature is %d", targetTemperature);
   ESP_LOGI(TAG, "targetTemperatureSensibility is %d", targetTemperatureSensibility);
   if ( wtemperature == 0 )
@@ -142,12 +145,14 @@ void update_thermostat(esp_mqtt_client_handle_t client)
     if (!heatingEnabled && wtemperature_2 < wtemperature_1 && wtemperature_1 < wtemperature) { //heating is enabled
       publish_thermostat_state(client);
       heatingEnabled = true;
+      ESP_LOGI(TAG, "heating enabled");
       publish_thermostat_state(client);
     }
 
     if (heatingEnabled && wtemperature_2 >= wtemperature_1 && wtemperature_1 >= wtemperature) { //heating is disabled
       publish_thermostat_state(client);
       heatingEnabled = false;
+      ESP_LOGI(TAG, "heating disabled");
       publish_thermostat_state(client);
 
     }
