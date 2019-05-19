@@ -116,17 +116,7 @@ void publish_ops_data(esp_mqtt_client_handle_t client)
               );
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 0, 0);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish connected data, msg_id=%d", msg_id);
-      }
+      ESP_LOGI(TAG, "sent publish ops data, msg_id=%d", msg_id);
     }
 }
 

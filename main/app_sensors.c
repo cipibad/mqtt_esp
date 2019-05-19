@@ -181,20 +181,9 @@ void publish_sensors_data(esp_mqtt_client_handle_t client)
 
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, sensors_topic, data,strlen(data), 0, 0);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish temp successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGI(TAG, "failed to publish temp, msg_id=%d", msg_id);
-      }
+      ESP_LOGI(TAG, "sent publish temp, msg_id=%d", msg_id);
     } else {
       ESP_LOGW(TAG, "skip publish sensor data as mqtt init not finished");
-
     }
 }
 
