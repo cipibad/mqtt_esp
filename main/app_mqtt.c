@@ -129,14 +129,12 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
         char value = state->valueint;
         ESP_LOGI(TAG, "id: %d, value: %d", id, value);
         struct RelayMessage r={id, value};
-        ESP_LOGE(TAG, "Sending to relayQueue with timeout");
         if (xQueueSend( relayQueue
                         ,( void * )&r
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
           ESP_LOGE(TAG, "Cannot send to relayQueue");
           cJSON_Delete(state);
         }
-        ESP_LOGE(TAG, "Sending to relayQueue finished");
       }
       cJSON_Delete(root);
       return;
@@ -151,7 +149,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     if (xQueueSend( otaQueue
                     ,( void * )&o
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to relayQueue");
+      ESP_LOGE(TAG, "Cannot send to otaQueue");
 
     }
   }
@@ -228,7 +226,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     if (xQueueSend( mqttQueue
                     ,( void * )&unused
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to relayQueue");
+      ESP_LOGE(TAG, "Cannot send to mqttQueue");
     }
     ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
     mqtt_reconnect_counter=0;
