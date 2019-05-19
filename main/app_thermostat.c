@@ -56,7 +56,7 @@ void publish_thermostat_cfg(esp_mqtt_client_handle_t client)
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
         }
       } else {
-        ESP_LOGI(TAG, "failed to publish thermostat data, msg_id=%d", msg_id);
+        ESP_LOGW(TAG, "failed to publish thermostat data, msg_id=%d", msg_id);
       }
     }
 }
@@ -82,7 +82,7 @@ void publish_thermostat_state(esp_mqtt_client_handle_t client)
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
         }
       } else {
-        ESP_LOGI(TAG, "failed to publish thermostat state, msg_id=%d", msg_id);
+        ESP_LOGW(TAG, "failed to publish thermostat state, msg_id=%d", msg_id);
       }
     }
 }

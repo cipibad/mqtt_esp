@@ -479,7 +479,7 @@ void publish_ota_data(esp_mqtt_client_handle_t client, int status)
           ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
         }
       } else {
-        ESP_LOGI(TAG, "failed to publish ota data, msg_id=%d", msg_id);
+        ESP_LOGW(TAG, "failed to publish ota data, msg_id=%d", msg_id);
       }
     }
 }

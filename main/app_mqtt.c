@@ -286,7 +286,7 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
           ESP_LOGW(TAG, "subscribe ack not received, msg_id=%d", msg_id);
         }
     } else {
-      ESP_LOGI(TAG, "failed to subscribe %s, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
+      ESP_LOGW(TAG, "failed to subscribe %s, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
     }
   }
 }
