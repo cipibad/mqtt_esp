@@ -33,7 +33,9 @@ void gpio_switch_init (void *arg)
   io_conf.intr_type = GPIO_INTR_ANYEDGE;
   //bit mask of the pins, use GPIO4/5 here
   io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_SWITCHES_NB0_GPIO);
+#if CONFIG_MQTT_SWITCHES_NB > 1
   io_conf.pin_bit_mask |= (1ULL << CONFIG_MQTT_SWITCHES_NB1_GPIO);
+#endif
   //set as input mode
   io_conf.mode = GPIO_MODE_INPUT;
   gpio_config(&io_conf);
@@ -42,7 +44,9 @@ void gpio_switch_init (void *arg)
   gpio_install_isr_service(0);
   //hook isr handler for specific gpio pin
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB0_GPIO, gpio_isr_handler, (void *) 0);
+#if CONFIG_MQTT_RELAYS_NB > 1
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB1_GPIO, gpio_isr_handler, (void *) 1);
+#endif
   //hook isr handler for specific gpio pin
 }
 
