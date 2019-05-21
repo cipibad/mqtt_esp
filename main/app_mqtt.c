@@ -167,9 +167,15 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
+      cJSON * cttObject = cJSON_GetObjectItem(root,"columnTargetTemperature");
       cJSON * ttObject = cJSON_GetObjectItem(root,"targetTemperature");
       cJSON * ttsObject = cJSON_GetObjectItem(root,"targetTemperatureSensibility");
-      struct ThermostatMessage t = {0,0};
+      struct ThermostatMessage t = {0,0,0};
+      if (cttObject) {
+        float columnTargetTemperature = cttObject->valuedouble;
+        ESP_LOGI(TAG, "columnTargetTemperature: %f", columnTargetTemperature);
+        t.columnTargetTemperature = columnTargetTemperature;
+      }
       if (ttObject) {
         float targetTemperature = ttObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature);
@@ -180,7 +186,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
         ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility);
         t.targetTemperatureSensibility = targetTemperatureSensibility;
       }
-      if (t.targetTemperature || t.targetTemperatureSensibility) {
+      if (t.targetTemperature || t.targetTemperatureSensibility || t.columnTargetTemperature) {
         if (xQueueSend( thermostatQueue
                         ,( void * )&t
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {

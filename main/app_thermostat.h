@@ -3,6 +3,7 @@
 
 
 struct ThermostatMessage {
+  float columnTargetTemperature;
   float targetTemperature;
   float targetTemperatureSensibility;
 };

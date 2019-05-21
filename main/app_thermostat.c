@@ -17,9 +17,12 @@
 bool thermostatEnabled = false;
 bool heatingEnabled = false;
 bool heatingEnabled2 = false;
+
+int columnTargetTemperature=23*10; //30 degrees
 int targetTemperature=23*10; //30 degrees
 int targetTemperatureSensibility=5; //0.5 degrees
 
+const char * columnTargetTemperatureTAG="ctgtTemp";
 const char * targetTemperatureTAG="targetTemp";
 const char * targetTemperatureSensibilityTAG="tgtTempSens";
 
@@ -44,7 +47,7 @@ void publish_thermostat_cfg(esp_mqtt_client_handle_t client)
       char data[256];
       memset(data,0,256);
 
-      sprintf(data, "{\"targetTemperature\":%02f, \"targetTemperatureSensibility\":%02f}", targetTemperature/10., targetTemperatureSensibility/10.);
+      sprintf(data, "{\"columnTargetTemperature\":%02f, \"targetTemperature\":%02f, \"targetTemperatureSensibility\":%02f}", columnTargetTemperature/10., targetTemperature/10., targetTemperatureSensibility/10.);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
       if (msg_id > 0) {
@@ -109,7 +112,7 @@ void enableThermostat(esp_mqtt_client_handle_t client)
   thermostatEnabled=true;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1, client);
   publish_thermostat_state(client);
-  ESP_LOGI(TAG, "thermostat disabled");
+  ESP_LOGI(TAG, "thermostat enabled");
 }
 
 
@@ -122,6 +125,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
   ESP_LOGI(TAG, "ctemperature_n_1 is %d", ctemperature_1);
   ESP_LOGI(TAG, "ctemperature_n_2 is %d", ctemperature_2);
   ESP_LOGI(TAG, "ctemperature_n_3 is %d", ctemperature_3);
+  ESP_LOGI(TAG, "columnTargetTemperature is %d", columnTargetTemperature);
   ESP_LOGI(TAG, "thermostat state is %d", thermostatEnabled);
   ESP_LOGI(TAG, "wtemperature is %d", wtemperature);
   ESP_LOGI(TAG, "targetTemperature is %d", targetTemperature);
@@ -141,8 +145,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       disableThermostat(client);
     }
 
-
-  if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility /*&& (getTime -savedTime) > toggleProtection/tick /*/)
+  if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility && ctemperature < columnTargetTemperature)
     {
       enableThermostat(client);
     }
@@ -164,7 +167,8 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       heatingEnabled = false;
       ESP_LOGI(TAG, "heating disabled");
       publish_thermostat_state(client);
-
+      ESP_LOGI(TAG, "thermostat disabled due to heating disabled");
+      disableThermostat(client);
     }
   }
 
@@ -206,6 +210,12 @@ void handle_thermostat_cmd_task(void* pvParameters)
     if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) )
       {
         bool updated = false;
+        if (t.columnTargetTemperature && columnTargetTemperature != t.columnTargetTemperature * 10) {
+          columnTargetTemperature=t.columnTargetTemperature*10;
+          esp_err_t err = write_nvs_integer(columnTargetTemperatureTAG, columnTargetTemperature);
+          ESP_ERROR_CHECK( err );
+          updated = true;
+        }
         if (t.targetTemperature && targetTemperature != t.targetTemperature * 10) {
           targetTemperature=t.targetTemperature*10;
           esp_err_t err = write_nvs_integer(targetTemperatureTAG, targetTemperature);
