@@ -125,7 +125,7 @@ void smartconfig_cmd_task(void* pvParameters)
 {
   ESP_LOGI(TAG, "smartconfig_cmd_task started");
   smartconfig_event_group = xEventGroupCreate();
-  int n;
+  struct SmartConfigMessage scm;;
   EventBits_t uxBits;
   if (smartconfigFlag) {
     ESP_LOGI(TAG, "starting smartconfig");
@@ -160,22 +160,22 @@ void smartconfig_cmd_task(void* pvParameters)
     const TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
     ESP_LOGI(TAG, "ticksToWait: " TICKS_FORMAT, ticksToWait);
     while (1) {
-      if( xQueueReceive( smartconfigQueue, &n , portMAX_DELAY) )
+      if( xQueueReceive( smartconfigQueue, &scm , portMAX_DELAY) )
         {
-          ESP_LOGI(TAG, "received switch event at: %d", n);
-          if (n - lastRead < 5) {
+          ESP_LOGI(TAG, "received switch event at: %d", scm.ticks);
+          if (scm.ticks - lastRead < 5) {
             ESP_LOGI(TAG, "duplicate call, ignored ");
             continue;
           }
-          lastRead = n;
+          lastRead = scm.ticks;
           if (pushTick == 0) {
             ESP_LOGI(TAG, "down ");
-            pushTick = n;
+            pushTick = scm.ticks;
           } else {
             ESP_LOGI(TAG, "up ");
-            if ((n - pushTick ) < ticksToWait) {
+            if ((scm.ticks - pushTick ) < ticksToWait) {
 #if CONFIG_MQTT_RELAYS_NB
-              struct RelayMessage r={0, !(relayStatus[0] == RELAY_ON)}; //FIXME for two switches
+              struct RelayMessage r={scm.relayId, !(relayStatus[(int)scm.relayId] == RELAY_ON)}; //FIXME for two switches
               xQueueSend(relayQueue
                          ,( void * )&r
                          ,MQTT_QUEUE_TIMEOUT);

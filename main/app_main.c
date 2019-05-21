@@ -157,7 +157,7 @@ void app_main(void)
 #endif // CONFIG_MQTT_THERMOSTAT
 
 
-  smartconfigQueue = xQueueCreate(1, sizeof(int) );
+  smartconfigQueue = xQueueCreate(3, sizeof(struct SmartConfigMessage) );
   err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
   ESP_ERROR_CHECK( err );
 
