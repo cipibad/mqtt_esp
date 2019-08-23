@@ -14,7 +14,7 @@
 
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
-extern QueueHandle_t relayQueue;
+extern QueueHandle_t relayCmdQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -65,7 +65,7 @@ static const char *TAG = "MQTTS_MQTTS";
 
 #define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + CONFIG_MQTT_RELAYS_NB)
 
-#define RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
+#define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -73,13 +73,13 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     OTA_TOPIC,
 #endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
-    RELAY_TOPIC"/0",
+    RELAY_CMD_TOPIC"/0",
 #if CONFIG_MQTT_RELAYS_NB > 1
-    RELAY_TOPIC"/1",
+    RELAY_CMD_TOPIC"/1",
 #if CONFIG_MQTT_RELAYS_NB > 2
-    RELAY_TOPIC"/2",
+    RELAY_CMD_TOPIC"/2",
 #if CONFIG_MQTT_RELAYS_NB > 3
-    RELAY_TOPIC"/3",
+    RELAY_CMD_TOPIC"/3",
 #endif //CONFIG_MQTT_RELAYS_NB > 3
 #endif //CONFIG_MQTT_RELAYS_NB > 2
 #endif //CONFIG_MQTT_RELAYS_NB > 1
@@ -95,18 +95,18 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  if (strncmp(event->topic, RELAY_TOPIC, strlen(RELAY_TOPIC)) == 0) {
+  if (strncmp(event->topic, RELAY_CMD_TOPIC, strlen(RELAY_CMD_TOPIC)) == 0) {
     char id=255;
-    if (strncmp(event->topic, RELAY_TOPIC "/0", strlen(RELAY_TOPIC "/0")) == 0) {
+    if (strncmp(event->topic, RELAY_CMD_TOPIC "/0", strlen(RELAY_CMD_TOPIC "/0")) == 0) {
       id=0;
     }
-    if (strncmp(event->topic, RELAY_TOPIC "/1", strlen(RELAY_TOPIC "/1")) == 0) {
+    if (strncmp(event->topic, RELAY_CMD_TOPIC "/1", strlen(RELAY_CMD_TOPIC "/1")) == 0) {
       id=1;
     }
-    if (strncmp(event->topic, RELAY_TOPIC "/2", strlen(RELAY_TOPIC "/2")) == 0) {
+    if (strncmp(event->topic, RELAY_CMD_TOPIC "/2", strlen(RELAY_CMD_TOPIC "/2")) == 0) {
       id=2;
     }
-    if (strncmp(event->topic, RELAY_TOPIC "/3", strlen(RELAY_TOPIC "/3")) == 0) {
+    if (strncmp(event->topic, RELAY_CMD_TOPIC "/3", strlen(RELAY_CMD_TOPIC "/3")) == 0) {
       id=3;
     }
     if(id == 255)
@@ -128,11 +128,11 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       if (state) {
         char value = state->valueint;
         ESP_LOGI(TAG, "id: %d, value: %d", id, value);
-        struct RelayMessage r={id, value};
-        if (xQueueSend( relayQueue
+        struct RelayCmdMessage r={id, value};
+        if (xQueueSend( relayCmdQueue
                         ,( void * )&r
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-          ESP_LOGE(TAG, "Cannot send to relayQueue");
+          ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
           cJSON_Delete(state);
         }
       }

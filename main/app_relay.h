@@ -3,7 +3,7 @@
 
 #include "mqtt_client.h"
 
-struct RelayMessage
+struct RelayCmdMessage
 {
     char relayId;
     char relayValue;

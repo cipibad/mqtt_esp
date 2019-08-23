@@ -36,7 +36,7 @@ const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
 
 static const char *TAG = "MQTTS_RELAY";
 
-extern QueueHandle_t relayQueue;
+extern QueueHandle_t relayCmdQueue;
 
 void relays_init()
 {
@@ -108,11 +108,11 @@ void handle_relay_cmd_task(void* pvParameters)
 {
   ESP_LOGI(TAG, "handle_relay_cmd_task started");
   esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
-  struct RelayMessage r;
+  struct RelayCmdMessage r;
   int id;
   int value;
   while(1) {
-    if( xQueueReceive( relayQueue, &r , portMAX_DELAY) )
+    if( xQueueReceive( relayCmdQueue, &r , portMAX_DELAY) )
       {
         id=r.relayId;
         value=r.relayValue;

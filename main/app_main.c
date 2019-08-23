@@ -37,7 +37,7 @@ extern const char * targetTemperatureSensibilityTAG;
 
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
-QueueHandle_t relayQueue;
+QueueHandle_t relayCmdQueue;
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -127,7 +127,7 @@ void app_main(void)
   thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
 #endif // CONFIG_MQTT_THERMOSTAT
 #if CONFIG_MQTT_RELAYS_NB
-  relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
+  relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
   relays_init();
 #endif //CONFIG_MQTT_RELAYS_NB
 
