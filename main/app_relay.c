@@ -22,6 +22,7 @@ extern const int MQTT_PUBLISHED_BIT;
 
 int relayStatus[CONFIG_MQTT_RELAYS_NB];
 int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
+TimerHandle_t relayOnTimer[CONFIG_MQTT_RELAYS_NB];
 
 const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
   CONFIG_MQTT_RELAYS_NB0_GPIO,
@@ -47,6 +48,8 @@ void relays_init()
     gpio_pad_select_gpio(relayToGpioMap[i]);
     gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
     gpio_set_level(relayToGpioMap[i], RELAY_OFF);
+    relayOnTimer[i] = NULL;
+    relayOnTimeout[i] = 0;
   }
 }
 
@@ -125,9 +128,50 @@ void publish_all_relays_cfg_data(esp_mqtt_client_handle_t client)
   }
 }
 
+void vTimerCallback( TimerHandle_t xTimer )
+{
+  int id = (int)pvTimerGetTimerID( xTimer );
+  struct RelayCmdMessage r={id, 0};
+  if (xQueueSend( relayCmdQueue
+                  ,( void * )&r
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+  }
+}
+
 void update_timer(int id)
 {
+  if ((relayStatus[id] == RELAY_OFF)) {
+    if (relayOnTimer[id] != NULL) {
+      if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
+        xTimerStop( relayOnTimer[id], portMAX_DELAY );
+      }
+    }
+  }
 
+  if ((relayStatus[id] == RELAY_ON) && relayOnTimeout[id]) {
+    if (relayOnTimer[id] == NULL) {
+      relayOnTimer[id] =
+        xTimerCreate( "relayTimer",           /* Text name. */
+                      pdMS_TO_TICKS(relayOnTimeout[id]*1000),  /* Period. */
+                      pdFALSE,                /* Autoreload. */
+                      (void *)id,                  /* No ID. */
+                      vTimerCallback );  /* Callback function. */
+      if( relayOnTimer[id] != NULL ) {
+        if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
+          xTimerStop( relayOnTimer[id], portMAX_DELAY );
+        }
+
+        TickType_t xTimerPeriod = xTimerGetPeriod(relayOnTimer[id]);
+        if (xTimerPeriod != pdMS_TO_TICKS(relayOnTimeout[id]*1000)) {
+          xTimerChangePeriod(relayOnTimer[id], pdMS_TO_TICKS(relayOnTimeout[id]*1000), portMAX_DELAY ); //FIXME check return value
+            }
+        else {
+          xTimerStart( relayOnTimer[id], portMAX_DELAY );
+        }
+      }
+    }
+  }
 }
 
 void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
@@ -138,13 +182,13 @@ void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
     if (value == 1) {
       relayStatus[id] = RELAY_ON;
       ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
-      update_timer(id);
     }
     if (value == 0) {
       relayStatus[id] = RELAY_OFF;
       ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
     gpio_set_level(relayToGpioMap[id], relayStatus[id]);
+    update_timer(id);
   }
   publish_relay_data(id, client);
 }

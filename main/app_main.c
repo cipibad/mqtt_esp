@@ -131,7 +131,6 @@ void app_main(void)
 #if CONFIG_MQTT_RELAYS_NB
   relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
   relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCfgMessage) );
-  relays_init();
 #endif //CONFIG_MQTT_RELAYS_NB
 
 
@@ -154,6 +153,7 @@ void app_main(void)
   ESP_LOGI(TAG, "nvs_flash_init done");
 
 #if CONFIG_MQTT_RELAYS_NB
+  relays_init();
   char onTimeoutTag[32];
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     snprintf(onTimeoutTag, 32, "relayOnTimeout%d", i); //FIXME should check return value
