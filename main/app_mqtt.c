@@ -15,6 +15,7 @@
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 extern QueueHandle_t relayCmdQueue;
+extern QueueHandle_t relayCfgQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -63,7 +64,7 @@ extern QueueHandle_t mqttQueue;
 static const char *TAG = "MQTTS_MQTTS";
 
 
-#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + CONFIG_MQTT_RELAYS_NB)
+#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + 2 * CONFIG_MQTT_RELAYS_NB)
 
 #define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 
@@ -74,12 +75,16 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
     RELAY_CMD_TOPIC"/0",
+    RELAY_CMD_TOPIC"/0/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 1
     RELAY_CMD_TOPIC"/1",
+    RELAY_CMD_TOPIC"/1/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 2
     RELAY_CMD_TOPIC"/2",
+    RELAY_CMD_TOPIC"/2/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 3
     RELAY_CMD_TOPIC"/3",
+    RELAY_CMD_TOPIC"/3/cfg",
 #endif //CONFIG_MQTT_RELAYS_NB > 3
 #endif //CONFIG_MQTT_RELAYS_NB > 2
 #endif //CONFIG_MQTT_RELAYS_NB > 1
@@ -95,25 +100,63 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  if (strncmp(event->topic, RELAY_CMD_TOPIC, strlen(RELAY_CMD_TOPIC)) == 0) {
-    char id=255;
-    if (strncmp(event->topic, RELAY_CMD_TOPIC "/0", strlen(RELAY_CMD_TOPIC "/0")) == 0) {
-      id=0;
-    }
-    if (strncmp(event->topic, RELAY_CMD_TOPIC "/1", strlen(RELAY_CMD_TOPIC "/1")) == 0) {
-      id=1;
-    }
-    if (strncmp(event->topic, RELAY_CMD_TOPIC "/2", strlen(RELAY_CMD_TOPIC "/2")) == 0) {
-      id=2;
-    }
-    if (strncmp(event->topic, RELAY_CMD_TOPIC "/3", strlen(RELAY_CMD_TOPIC "/3")) == 0) {
-      id=3;
-    }
-    if(id == 255)
+  char relayId=255;
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/0/cfg", strlen(RELAY_CMD_TOPIC "/0/cfg")) == 0) {
+    relayId=0;
+  }
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/1/cfg", strlen(RELAY_CMD_TOPIC "/1/cfg")) == 0) {
+    relayId=1;
+  }
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/2/cfg", strlen(RELAY_CMD_TOPIC "/2/cfg")) == 0) {
+    relayId=2;
+  }
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/3/cfg", strlen(RELAY_CMD_TOPIC "/3/cfg")) == 0) {
+    relayId=3;
+  }
+  if(relayId != 255) {
+    if (event->data_len >= 32 )
       {
-        ESP_LOGI(TAG, "unexpected relay id");
+        ESP_LOGI(TAG, "unexpected relay cfg payload");
         return;
       }
+    char tmpBuf[32];
+    memcpy(tmpBuf, event->data, event->data_len);
+    tmpBuf[event->data_len] = 0;
+    cJSON * root   = cJSON_Parse(tmpBuf);
+    if (root) {
+      cJSON * timeout = cJSON_GetObjectItem(root,"onTimeout");
+      if (timeout) {
+        char value = timeout->valueint;
+        ESP_LOGI(TAG, "relayId: %d, onTimeout: %d", relayId, value);
+        struct RelayCfgMessage r={relayId, value};
+        if (xQueueSend( relayCfgQueue
+                        ,( void * )&r
+                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+          ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
+        }
+        cJSON_Delete(timeout);
+      }
+      cJSON_Delete(root);
+      return;
+    }
+    ESP_LOGE(TAG, "bad json payload");
+    return;
+  }
+
+  relayId=255;
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/0", strlen(RELAY_CMD_TOPIC "/0")) == 0) {
+    relayId=0;
+  }
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/1", strlen(RELAY_CMD_TOPIC "/1")) == 0) {
+    relayId=1;
+  }
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/2", strlen(RELAY_CMD_TOPIC "/2")) == 0) {
+    relayId=2;
+  }
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/3", strlen(RELAY_CMD_TOPIC "/3")) == 0) {
+    relayId=3;
+  }
+  if(relayId != 255) {
     if (event->data_len >= 32 )
       {
         ESP_LOGI(TAG, "unexpected relay cmd payload");
@@ -127,19 +170,20 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       cJSON * state = cJSON_GetObjectItem(root,"state");
       if (state) {
         char value = state->valueint;
-        ESP_LOGI(TAG, "id: %d, value: %d", id, value);
-        struct RelayCmdMessage r={id, value};
+        ESP_LOGI(TAG, "relayId: %d, value: %d", relayId, value);
+        struct RelayCmdMessage r={relayId, value};
         if (xQueueSend( relayCmdQueue
                         ,( void * )&r
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
           ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
-          cJSON_Delete(state);
         }
+        cJSON_Delete(state);
       }
       cJSON_Delete(root);
       return;
     }
     ESP_LOGE(TAG, "bad json payload");
+    return;
   }
 #endif //CONFIG_MQTT_RELAYS_NB
 
@@ -152,6 +196,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       ESP_LOGE(TAG, "Cannot send to otaQueue");
 
     }
+    return;
   }
 #endif //CONFIG_MQTT_OTA
 
@@ -175,16 +220,19 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
         float columnTargetTemperature = cttObject->valuedouble;
         ESP_LOGI(TAG, "columnTargetTemperature: %f", columnTargetTemperature);
         t.columnTargetTemperature = columnTargetTemperature;
+        cJSON_Delete(cttObject);
       }
       if (ttObject) {
         float targetTemperature = ttObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature);
         t.targetTemperature = targetTemperature;
+        cJSON_Delete(ttObject);
       }
       if (ttsObject) {
         float targetTemperatureSensibility = ttsObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility);
         t.targetTemperatureSensibility = targetTemperatureSensibility;
+        cJSON_Delete(ttsObject);
       }
       if (t.targetTemperature || t.targetTemperatureSensibility || t.columnTargetTemperature) {
         if (xQueueSend( thermostatQueue
@@ -193,7 +241,9 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
           ESP_LOGE(TAG, "Cannot send to thermostatQueue");
         }
       }
+      cJSON_Delete(root);
     }
+    return;
   }
 #endif // CONFIG_MQTT_THERMOSTAT
 }
@@ -318,7 +368,6 @@ esp_mqtt_client_handle_t mqtt_init()
   return client;
 }
 
-
 void mqtt_start(esp_mqtt_client_handle_t client)
 {
   esp_mqtt_client_start(client);
@@ -339,6 +388,7 @@ void handle_mqtt_sub_pub(void* pvParameters)
         publish_connected_data(client);
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_data(client);
+        publish_all_relays_cfg_data(client);
 #endif//CONFIG_MQTT_RELAYS_NB
 #ifdef CONFIG_MQTT_THERMOSTAT
         publish_thermostat_data(client);
@@ -349,7 +399,6 @@ void handle_mqtt_sub_pub(void* pvParameters)
 #ifdef CONFIG_MQTT_SENSOR
         publish_sensors_data(client);
 #endif//
-
       }
   }
 }

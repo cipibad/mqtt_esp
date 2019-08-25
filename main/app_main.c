@@ -38,6 +38,8 @@ extern const char * targetTemperatureSensibilityTAG;
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 QueueHandle_t relayCmdQueue;
+QueueHandle_t relayCfgQueue;
+int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -128,6 +130,7 @@ void app_main(void)
 #endif // CONFIG_MQTT_THERMOSTAT
 #if CONFIG_MQTT_RELAYS_NB
   relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
+  relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCfgMessage) );
   relays_init();
 #endif //CONFIG_MQTT_RELAYS_NB
 
@@ -149,6 +152,15 @@ void app_main(void)
   ESP_ERROR_CHECK( err );
 
   ESP_LOGI(TAG, "nvs_flash_init done");
+
+#if CONFIG_MQTT_RELAYS_NB
+  char onTimeoutTag[32];
+  for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
+    snprintf(onTimeoutTag, 32, "relayOnTimeout%d", i); //FIXME should check return value
+    err=read_nvs_integer(onTimeoutTag, &relayOnTimeout[i]);
+    ESP_ERROR_CHECK( err );
+  }
+#endif // CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_THERMOSTAT
   err=read_nvs_integer(columnTargetTemperatureTAG, &columnTargetTemperature);
@@ -182,6 +194,7 @@ void app_main(void)
 
 #if CONFIG_MQTT_RELAYS_NB
     xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+    xTaskCreate(handle_relay_cfg_task, "handle_relay_cfg_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #if CONFIG_MQTT_SWITCHES_NB
