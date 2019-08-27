@@ -40,6 +40,7 @@ const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
 static const char *TAG = "MQTTS_RELAY";
 
 extern QueueHandle_t relayCmdQueue;
+extern QueueHandle_t relayCfgQueue;
 
 void relays_init()
 {
@@ -89,7 +90,7 @@ void publish_relay_cfg_data(int id, esp_mqtt_client_handle_t client)
       const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
       char data[32];
       memset(data,0,32);
-      sprintf(data, "{\"state\":%d}", relayOnTimeout[id]);
+      sprintf(data, "{\"onTimeout\":%d}", relayOnTimeout[id]);
 
       char topic[64];
       memset(topic,0,64);
@@ -131,6 +132,7 @@ void publish_all_relays_cfg_data(esp_mqtt_client_handle_t client)
 void vTimerCallback( TimerHandle_t xTimer )
 {
   int id = (int)pvTimerGetTimerID( xTimer );
+  ESP_LOGI(TAG, "timer %d expired, sending stop msg", id);
   struct RelayCmdMessage r={id, 0};
   if (xQueueSend( relayCmdQueue
                   ,( void * )&r
@@ -141,9 +143,12 @@ void vTimerCallback( TimerHandle_t xTimer )
 
 void update_timer(int id)
 {
+  ESP_LOGI(TAG, "update_timer for %d, timeout: %d", id, relayOnTimeout[id]);
+
   if ((relayStatus[id] == RELAY_OFF)) {
     if (relayOnTimer[id] != NULL) {
       if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
+        ESP_LOGI(TAG, "found started timer, stopping");
         xTimerStop( relayOnTimer[id], portMAX_DELAY );
       }
     }
@@ -151,24 +156,29 @@ void update_timer(int id)
 
   if ((relayStatus[id] == RELAY_ON) && relayOnTimeout[id]) {
     if (relayOnTimer[id] == NULL) {
+      ESP_LOGI(TAG, "creating timer");
       relayOnTimer[id] =
         xTimerCreate( "relayTimer",           /* Text name. */
                       pdMS_TO_TICKS(relayOnTimeout[id]*1000),  /* Period. */
                       pdFALSE,                /* Autoreload. */
                       (void *)id,                  /* No ID. */
                       vTimerCallback );  /* Callback function. */
-      if( relayOnTimer[id] != NULL ) {
-        if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
-          xTimerStop( relayOnTimer[id], portMAX_DELAY );
-        }
+    }
+    if( relayOnTimer[id] != NULL ) {
+      ESP_LOGI(TAG, "timer is created");
+      if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
+        ESP_LOGI(TAG, "timer is active, stopping");
+        xTimerStop( relayOnTimer[id], portMAX_DELAY );
+      }
 
-        TickType_t xTimerPeriod = xTimerGetPeriod(relayOnTimer[id]);
-        if (xTimerPeriod != pdMS_TO_TICKS(relayOnTimeout[id]*1000)) {
-          xTimerChangePeriod(relayOnTimer[id], pdMS_TO_TICKS(relayOnTimeout[id]*1000), portMAX_DELAY ); //FIXME check return value
-            }
-        else {
-          xTimerStart( relayOnTimer[id], portMAX_DELAY );
-        }
+      TickType_t xTimerPeriod = xTimerGetPeriod(relayOnTimer[id]);
+      if (xTimerPeriod != pdMS_TO_TICKS(relayOnTimeout[id]*1000)) {
+        ESP_LOGI(TAG, "timer change period, starting also");
+        xTimerChangePeriod(relayOnTimer[id], pdMS_TO_TICKS(relayOnTimeout[id]*1000), portMAX_DELAY ); //FIXME check return value
+      }
+      else {
+        ESP_LOGI(TAG, "timer starting");
+        xTimerStart( relayOnTimer[id], portMAX_DELAY );
       }
     }
   }
@@ -195,7 +205,7 @@ void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
 
 void update_relay_onTimeout(int id, char onTimeout, esp_mqtt_client_handle_t client)
 {
-  ESP_LOGI(TAG, "update_relay_state: id: %d, value: %d", id, onTimeout);
+  ESP_LOGI(TAG, "update_relay_onTimeout: id: %d, value: %d", id, onTimeout);
   ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayOnTimeout[id]);
 
   if (onTimeout != relayOnTimeout[id]) {
@@ -236,7 +246,7 @@ void handle_relay_cfg_task(void* pvParameters)
   int id;
   int onTimeout;
   while(1) {
-    if( xQueueReceive( relayCmdQueue, &r , portMAX_DELAY) )
+    if( xQueueReceive( relayCfgQueue, &r , portMAX_DELAY) )
       {
         id=r.relayId;
         onTimeout=r.onTimeout;
