@@ -51,6 +51,8 @@ QueueHandle_t otaQueue;
 #include "app_ops.h"
 #endif // CONFIG_MQTT_OPS
 
+#include "app_scheduler.h"
+
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
 
@@ -216,6 +218,6 @@ void app_main(void)
 #ifdef CONFIG_MQTT_OPS
     xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, (void *)client, 5, NULL);
 #endif // CONFIG_MQTT_OPS
-
+    start_scheduler();
   }
 }

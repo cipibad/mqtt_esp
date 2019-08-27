@@ -1,4 +1,3 @@
-#include "esp_system.h"
 #include "esp_log.h"
 
 #include "driver/gpio.h"
@@ -7,8 +6,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
-
-#include "string.h"
 
 #include "app_main.h"
 #include "app_relay.h"
@@ -254,6 +251,5 @@ void handle_relay_cfg_task(void* pvParameters)
       }
   }
 }
-
 
 #endif //CONFIG_MQTT_RELAYS_NB
