@@ -63,8 +63,13 @@ extern QueueHandle_t mqttQueue;
 
 static const char *TAG = "MQTTS_MQTTS";
 
+#if CONFIG_MQTT_RELAYS_NB
+  #define CONFIG_MQTT_RELAYS_CFG 1
+#else
+  #define CONFIG_MQTT_RELAYS_CFG 0
+#endif // CONFIG_MQTT_RELAYS_NB
 
-#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + 2 * CONFIG_MQTT_RELAYS_NB)
+#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + CONFIG_MQTT_RELAYS_NB + CONFIG_MQTT_RELAYS_CFG)
 
 #define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 
@@ -75,16 +80,13 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
     RELAY_CMD_TOPIC"/0",
-    RELAY_CMD_TOPIC"/0/cfg",
+    RELAY_CMD_TOPIC"/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 1
     RELAY_CMD_TOPIC"/1",
-    RELAY_CMD_TOPIC"/1/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 2
     RELAY_CMD_TOPIC"/2",
-    RELAY_CMD_TOPIC"/2/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 3
     RELAY_CMD_TOPIC"/3",
-    RELAY_CMD_TOPIC"/3/cfg",
 #endif //CONFIG_MQTT_RELAYS_NB > 3
 #endif //CONFIG_MQTT_RELAYS_NB > 2
 #endif //CONFIG_MQTT_RELAYS_NB > 1
@@ -100,41 +102,39 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId=255;
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/0/cfg", strlen(RELAY_CMD_TOPIC "/0/cfg")) == 0) {
-    relayId=0;
-  }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/1/cfg", strlen(RELAY_CMD_TOPIC "/1/cfg")) == 0) {
-    relayId=1;
-  }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/2/cfg", strlen(RELAY_CMD_TOPIC "/2/cfg")) == 0) {
-    relayId=2;
-  }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/3/cfg", strlen(RELAY_CMD_TOPIC "/3/cfg")) == 0) {
-    relayId=3;
-  }
-  if(relayId != 255) {
-    if (event->data_len >= 32 )
+  if (strncmp(event->topic, RELAY_CMD_TOPIC "/cfg", strlen(RELAY_CMD_TOPIC "/0/cfg")) == 0) {
+    if (event->data_len >= 64 )
       {
         ESP_LOGI(TAG, "unexpected relay cfg payload");
         return;
       }
-    char tmpBuf[32];
+    char tmpBuf[64];
     memcpy(tmpBuf, event->data, event->data_len);
     tmpBuf[event->data_len] = 0;
+    bool to_send = false;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
-      cJSON * timeout = cJSON_GetObjectItem(root,"onTimeout");
-      if (timeout) {
-        char value = timeout->valueint;
-        ESP_LOGI(TAG, "relayId: %d, onTimeout: %d", relayId, value);
-        struct RelayCfgMessage r={relayId, value};
+      struct RelayCfgMessage r;
+      for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
+        r.onTimeout[id] = -1;
+      }
+      char key[16];
+      for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
+        sprintf(key, "onTimeout%d", id);
+        cJSON * timeout = cJSON_GetObjectItem(root, key);
+        if (timeout) {
+          to_send = true;
+          r.onTimeout[id] = timeout->valueint;
+          ESP_LOGI(TAG, "relayId: %d, onTimeout: %d", id, r.onTimeout[id]);
+          cJSON_Delete(timeout);
+        }
+      }
+      if (to_send) {
         if (xQueueSend( relayCfgQueue
                         ,( void * )&r
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
           ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
         }
-        cJSON_Delete(timeout);
       }
       cJSON_Delete(root);
       return;
@@ -143,7 +143,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     return;
   }
 
-  relayId=255;
+  int relayId=255;
   if (strncmp(event->topic, RELAY_CMD_TOPIC "/0", strlen(RELAY_CMD_TOPIC "/0")) == 0) {
     relayId=0;
   }

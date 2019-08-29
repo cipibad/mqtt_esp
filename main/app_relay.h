@@ -11,8 +11,7 @@ struct RelayCmdMessage
 
 struct RelayCfgMessage
 {
-    char relayId;
-    char onTimeout;
+    int onTimeout[CONFIG_MQTT_RELAYS_NB];
 };
 
 void publish_all_relays_data(esp_mqtt_client_handle_t client);
