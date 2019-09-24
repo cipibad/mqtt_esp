@@ -35,6 +35,12 @@ void gpio_switch_init (void *arg)
   io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_SWITCHES_NB0_GPIO);
 #if CONFIG_MQTT_SWITCHES_NB > 1
   io_conf.pin_bit_mask |= (1ULL << CONFIG_MQTT_SWITCHES_NB1_GPIO);
+#if CONFIG_MQTT_SWITCHES_NB > 2
+  io_conf.pin_bit_mask |= (1ULL << CONFIG_MQTT_SWITCHES_NB2_GPIO);
+#if CONFIG_MQTT_SWITCHES_NB > 3
+  io_conf.pin_bit_mask |= (1ULL << CONFIG_MQTT_SWITCHES_NB3_GPIO);
+#endif
+#endif
 #endif
   //set as input mode
   io_conf.mode = GPIO_MODE_INPUT;
@@ -46,6 +52,12 @@ void gpio_switch_init (void *arg)
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB0_GPIO, gpio_isr_handler, (void *) 0);
 #if CONFIG_MQTT_RELAYS_NB > 1
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB1_GPIO, gpio_isr_handler, (void *) 1);
+#if CONFIG_MQTT_RELAYS_NB > 2
+  gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB2_GPIO, gpio_isr_handler, (void *) 2);
+#if CONFIG_MQTT_RELAYS_NB > 3
+  gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB3_GPIO, gpio_isr_handler, (void *) 3);
+#endif
+#endif
 #endif
   //hook isr handler for specific gpio pin
 }

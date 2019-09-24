@@ -8,4 +8,5 @@ Supported Sonoff devices:
   * Sonoff Basic: https://sonoff.tech/product/wifi-diy-smart-switches/basicr2
   * Sonoff S20: https://www.itead.cc/smart-socket.html
   * Sonoff T1: https://www.itead.cc/sonoff-t1-eu.html
+  * Sonoff 4CH: https://www.itead.cc/smart-home/sonoff-4ch.html
 

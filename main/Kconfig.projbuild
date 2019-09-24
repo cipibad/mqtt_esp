@@ -162,7 +162,7 @@ config MQTT_STATUS_LED_GPIO
 config MQTT_SWITCHES_NB
     int "number of switches to control"
     default 0
-    range 0 2
+    range 0 4
     help
         number of relays to control
 
@@ -179,6 +179,21 @@ config MQTT_SWITCHES_NB1_GPIO
     default 9
     help
         switch 1 gpio port
+
+config MQTT_SWITCHES_NB2_GPIO
+    int "switch 2 gpio port"
+    depends on MQTT_SWITCHES_NB > 2
+    default 10
+    help
+        switch 2 gpio port
+
+config MQTT_SWITCHES_NB3_GPIO
+    int "switch 3 gpio port"
+    depends on MQTT_SWITCHES_NB > 3
+    default 14
+    help
+        switch 1 gpio port
+
 
 config MQTT_OTA
     boolean "enable OTA support"
