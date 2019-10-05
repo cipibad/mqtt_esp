@@ -40,6 +40,9 @@ extern const char * targetTemperatureSensibilityTAG;
 QueueHandle_t relayCmdQueue;
 QueueHandle_t relayCfgQueue;
 int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
+
+#include "app_scheduler.h"
+QueueHandle_t schedulerCfgQueue;
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -50,8 +53,6 @@ QueueHandle_t otaQueue;
 #ifdef CONFIG_MQTT_OPS
 #include "app_ops.h"
 #endif // CONFIG_MQTT_OPS
-
-#include "app_scheduler.h"
 
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
@@ -133,6 +134,8 @@ void app_main(void)
 #if CONFIG_MQTT_RELAYS_NB
   relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
   relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCfgMessage) );
+
+  schedulerCfgQueue = xQueueCreate(8, sizeof(struct SchedulerCfgMessage) );
 #endif //CONFIG_MQTT_RELAYS_NB
 
 
