@@ -112,6 +112,8 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 
 extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_ro_pem_start");
 
+char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event);
+
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
@@ -159,32 +161,23 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     relayId=3;
   }
   if(relayId != 255) {
-    if (event->data_len >= 32 )
-      {
-        ESP_LOGI(TAG, "unexpected relay cfg payload");
-        return;
-      }
-    char tmpBuf[32];
-    memcpy(tmpBuf, event->data, event->data_len);
-    tmpBuf[event->data_len] = 0;
-    cJSON * root   = cJSON_Parse(tmpBuf);
-    if (root) {
-      cJSON * timeout = cJSON_GetObjectItem(root,"onTimeout");
-      if (timeout) {
-        char value = timeout->valueint;
+     if (event->data_len >= 32 ) {
+       ESP_LOGI(TAG, "unexpected relay cfg payload");
+       return;
+     }
+     char value = get_relay_json_value("onTimeout", event);
+     if (value != 255) {
         ESP_LOGI(TAG, "relayId: %d, onTimeout: %d", relayId, value);
         struct RelayCfgMessage r={relayId, value};
         if (xQueueSend( relayCfgQueue
                         ,( void * )&r
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-          ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
+           ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
         }
-        cJSON_Delete(timeout);
-      }
-      cJSON_Delete(root);
-      return;
     }
-    ESP_LOGE(TAG, "bad json payload");
+    else {
+       ESP_LOGE(TAG, "bad json payload");
+    }
     return;
   }
 
@@ -202,32 +195,23 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     relayId=3;
   }
   if(relayId != 255) {
-    if (event->data_len >= 32 )
-      {
-        ESP_LOGI(TAG, "unexpected relay cmd payload");
-        return;
-      }
-    char tmpBuf[32];
-    memcpy(tmpBuf, event->data, event->data_len);
-    tmpBuf[event->data_len] = 0;
-    cJSON * root   = cJSON_Parse(tmpBuf);
-    if (root) {
-      cJSON * state = cJSON_GetObjectItem(root,"state");
-      if (state) {
-        char value = state->valueint;
-        ESP_LOGI(TAG, "relayId: %d, value: %d", relayId, value);
-        struct RelayCmdMessage r={relayId, value};
-        if (xQueueSend( relayCmdQueue
-                        ,( void * )&r
-                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-          ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
-        }
-        cJSON_Delete(state);
-      }
-      cJSON_Delete(root);
-      return;
+    if (event->data_len >= 32 ) {
+       ESP_LOGI(TAG, "unexpected relay cmd payload");
+       return;
     }
-    ESP_LOGE(TAG, "bad json payload");
+    char value = get_relay_json_value("state", event);
+    if (value != 255) {
+       ESP_LOGI(TAG, "relayId: %d, value: %d", relayId, value);
+       struct RelayCmdMessage r={relayId, value};
+       if (xQueueSend( relayCmdQueue
+                       ,( void * )&r
+                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+          ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+       }
+    }
+    else {
+       ESP_LOGE(TAG, "bad json payload");
+    }
     return;
   }
 #endif //CONFIG_MQTT_RELAYS_NB
@@ -291,6 +275,26 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     return;
   }
 #endif // CONFIG_MQTT_THERMOSTAT
+}
+
+char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
+{
+  char tmpBuf[32];
+  memcpy(tmpBuf, event->data, event->data_len);
+  tmpBuf[event->data_len] = 0;
+  cJSON * root   = cJSON_Parse(tmpBuf);
+  if (root)
+  {
+     cJSON * state = cJSON_GetObjectItem(root, tag);
+     if (state)
+     {
+        char value = state->valueint;
+        cJSON_Delete(state);
+        return value;
+     }
+     cJSON_Delete(root);
+   }
+   return 0xFF;
 }
 
 void publish_connected_data(esp_mqtt_client_handle_t client)
