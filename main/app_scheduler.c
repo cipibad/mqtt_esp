@@ -11,6 +11,8 @@
 
 static const char *TAG = "SCHEDULER";
 
+struct SchedulerCfgMessage schedulerCfg;
+
 void update_time_from_ntp()
 {
     time_t now = 0;
@@ -45,6 +47,7 @@ void vSchedulerCallback( TimerHandle_t xTimer )
   strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
   ESP_LOGI(TAG, "Current time after ntp update: %s", strftime_buf);
 
+  // FIXME do something if schedulerCfg.timestamp reached
   //we should be called each 60 seconds, but we should have defense in case we are called after 61 seconds (probably set a global last-run)
   //FIXME
   /* int id = (int)pvTimerGetTimerID( xTimer ); */

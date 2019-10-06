@@ -16,6 +16,18 @@
 #include "app_relay.h"
 extern QueueHandle_t relayCmdQueue;
 extern QueueHandle_t relayCfgQueue;
+
+#include "app_scheduler.h"
+extern QueueHandle_t schedulerCfgQueue;
+//FIXME hack until decide if queue+thread really usefull
+extern struct SchedulerCfgMessage schedulerCfg;
+//FIXME end hack until decide if queue+thread really usefull
+
+#define CONFIG_MQTT_SCHEDULER_NB 1
+
+#else //CONFIG_MQTT_RELAYS_NB
+
+#define CONFIG_MQTT_SCHEDULER_NB 0
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -64,9 +76,11 @@ extern QueueHandle_t mqttQueue;
 static const char *TAG = "MQTTS_MQTTS";
 
 
-#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + 2 * CONFIG_MQTT_RELAYS_NB)
+#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + 2 * CONFIG_MQTT_RELAYS_NB + CONFIG_MQTT_SCHEDULER_NB)
 
 #define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
+
+#define SCHEDULER_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/scheduler"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -74,6 +88,7 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     OTA_TOPIC,
 #endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
+    SCHEDULER_CMD_TOPIC,
     RELAY_CMD_TOPIC"/0",
     RELAY_CMD_TOPIC"/0/cfg",
 #if CONFIG_MQTT_RELAYS_NB > 1
@@ -100,6 +115,36 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
+
+  if (strncmp(event->topic, SCHEDULER_CMD_TOPIC, strlen(SCHEDULER_CMD_TOPIC)) == 0) {
+    struct SchedulerCfgMessage s;
+
+    char tmpBuf[64];
+    memcpy(tmpBuf, event->data, event->data_len);
+    tmpBuf[event->data_len] = 0;
+    cJSON * root   = cJSON_Parse(tmpBuf);
+    if (root) {
+      cJSON * schedulerTimestamp = cJSON_GetObjectItem(root,"schTst");
+      if (schedulerTimestamp) {
+        s.schedulerTimestamp = schedulerTimestamp->valueint;
+        cJSON_Delete(schedulerTimestamp);
+      }
+      //FIME add other fields, schRId, schRSt
+      cJSON_Delete(root);
+
+      //FIXME hack until decide if queue+thread really usefull
+      schedulerCfg.schedulerTimestamp = s.schedulerTimestamp;
+
+      /* if (xQueueSend(schedulerCfgQueue */
+      /*                ,( void * )&s */
+      /*                ,MQTT_QUEUE_TIMEOUT) != pdPASS) { */
+      /*   ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue"); */
+      /* } */
+      //FIXME end hack until decide if queue+thread really usefull
+}
+    return;
+  }
+
   char relayId=255;
   if (strncmp(event->topic, RELAY_CMD_TOPIC "/0/cfg", strlen(RELAY_CMD_TOPIC "/0/cfg")) == 0) {
     relayId=0;
