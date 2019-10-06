@@ -112,6 +112,11 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 
 extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_ro_pem_start");
 
+/**
+ * returns the value of a specific Json request
+ * @param: tag - the json event, i.e: "state" or "onTimeout"
+ * @param: event - mqtt event handler instance
+ */
 char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event);
 
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
@@ -147,7 +152,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     return;
   }
 
-  char relayId=255;
+  char relayId=JSON_BAD_RELAY_ID;
   if (strncmp(event->topic, RELAY_CMD_TOPIC "/0/cfg", strlen(RELAY_CMD_TOPIC "/0/cfg")) == 0) {
     relayId=0;
   }
@@ -160,13 +165,13 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
   if (strncmp(event->topic, RELAY_CMD_TOPIC "/3/cfg", strlen(RELAY_CMD_TOPIC "/3/cfg")) == 0) {
     relayId=3;
   }
-  if(relayId != 255) {
-     if (event->data_len >= 32 ) {
+  if(relayId != JSON_BAD_RELAY_ID) {
+     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
        ESP_LOGI(TAG, "unexpected relay cfg payload");
        return;
      }
      char value = get_relay_json_value("onTimeout", event);
-     if (value != 255) {
+     if (value != JSON_BAD_RELAY_VALUE) {
         ESP_LOGI(TAG, "relayId: %d, onTimeout: %d", relayId, value);
         struct RelayCfgMessage r={relayId, value};
         if (xQueueSend( relayCfgQueue
@@ -181,7 +186,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     return;
   }
 
-  relayId=255;
+  relayId=JSON_BAD_RELAY_ID;
   if (strncmp(event->topic, RELAY_CMD_TOPIC "/0", strlen(RELAY_CMD_TOPIC "/0")) == 0) {
     relayId=0;
   }
@@ -194,13 +199,13 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
   if (strncmp(event->topic, RELAY_CMD_TOPIC "/3", strlen(RELAY_CMD_TOPIC "/3")) == 0) {
     relayId=3;
   }
-  if(relayId != 255) {
-    if (event->data_len >= 32 ) {
+  if(relayId != JSON_BAD_RELAY_ID) {
+    if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
        ESP_LOGI(TAG, "unexpected relay cmd payload");
        return;
     }
     char value = get_relay_json_value("state", event);
-    if (value != 255) {
+    if (value != JSON_BAD_RELAY_VALUE) {
        ESP_LOGI(TAG, "relayId: %d, value: %d", relayId, value);
        struct RelayCmdMessage r={relayId, value};
        if (xQueueSend( relayCmdQueue
@@ -231,12 +236,12 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 
 #ifdef CONFIG_MQTT_THERMOSTAT
   if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) {
-    if (event->data_len >= 64 )
+    if (event->data_len >= MAX_MQTT_DATA_THERMOSTAT )
       {
         ESP_LOGI(TAG, "unextected relay cmd payload");
         return;
       }
-    char tmpBuf[64];
+    char tmpBuf[MAX_MQTT_DATA_THERMOSTAT];
     memcpy(tmpBuf, event->data, event->data_len);
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
@@ -279,7 +284,8 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 
 char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
 {
-  char tmpBuf[32];
+  char ret = JSON_BAD_RELAY_VALUE;
+  char tmpBuf[MAX_MQTT_DATA_LEN_RELAY];
   memcpy(tmpBuf, event->data, event->data_len);
   tmpBuf[event->data_len] = 0;
   cJSON * root   = cJSON_Parse(tmpBuf);
@@ -290,11 +296,11 @@ char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
      {
         char value = state->valueint;
         cJSON_Delete(state);
-        return value;
+        ret= value;
      }
      cJSON_Delete(root);
    }
-   return 0xFF;
+   return ret;
 }
 
 void publish_connected_data(esp_mqtt_client_handle_t client)
