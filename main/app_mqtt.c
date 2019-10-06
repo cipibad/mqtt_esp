@@ -177,7 +177,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
         if (xQueueSend( relayCfgQueue
                         ,( void * )&r
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-           ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
+          ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
         }
     }
     else {
