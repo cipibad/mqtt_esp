@@ -140,11 +140,6 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       return;
     }
 
-  if (thermostatEnabled==true && wtemperature > targetTemperature + targetTemperatureSensibility)
-    {
-      disableThermostat(client);
-    }
-
   if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility && ctemperature < columnTargetTemperature)
     {
       enableThermostat(client);
@@ -167,8 +162,6 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       heatingEnabled = false;
       ESP_LOGI(TAG, "heating disabled");
       publish_thermostat_state(client);
-      ESP_LOGI(TAG, "thermostat disabled due to heating disabled");
-      disableThermostat(client);
     }
   }
 
@@ -192,6 +185,8 @@ void update_thermostat(esp_mqtt_client_handle_t client)
       heatingEnabled2 = false;
       ESP_LOGI(TAG, "heating disabled");
       publish_thermostat_state(client);
+      ESP_LOGI(TAG, "thermostat disabled due to heating2 disabled");
+      disableThermostat(client);
 
     }
   }
