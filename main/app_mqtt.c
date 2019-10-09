@@ -134,7 +134,6 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       cJSON * schedulerTimestamp = cJSON_GetObjectItem(root,"schTst");
       if (schedulerTimestamp) {
         s.schedulerTimestamp = schedulerTimestamp->valueint;
-        cJSON_Delete(schedulerTimestamp);
       }
       //FIME add other fields, schRId, schRSt
       cJSON_Delete(root);
@@ -254,19 +253,16 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
         float columnTargetTemperature = cttObject->valuedouble;
         ESP_LOGI(TAG, "columnTargetTemperature: %f", columnTargetTemperature);
         t.columnTargetTemperature = columnTargetTemperature;
-        cJSON_Delete(cttObject);
       }
       if (ttObject) {
         float targetTemperature = ttObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature);
         t.targetTemperature = targetTemperature;
-        cJSON_Delete(ttObject);
       }
       if (ttsObject) {
         float targetTemperatureSensibility = ttsObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility);
         t.targetTemperatureSensibility = targetTemperatureSensibility;
-        cJSON_Delete(ttsObject);
       }
       if (t.targetTemperature || t.targetTemperatureSensibility || t.columnTargetTemperature) {
         if (xQueueSend( thermostatQueue
@@ -295,7 +291,6 @@ char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
      if (state)
      {
         char value = state->valueint;
-        cJSON_Delete(state);
         ret= value;
      }
      cJSON_Delete(root);
