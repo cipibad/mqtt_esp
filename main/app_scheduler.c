@@ -7,11 +7,12 @@
 #include "freertos/timers.h"
 #include "lwip/apps/sntp.h"
 
+#include "app_main.h"
 #include "app_scheduler.h"
 
 static const char *TAG = "SCHEDULER";
-
-struct SchedulerCfgMessage schedulerCfg;
+extern QueueHandle_t schedulerCfgQueue;
+extern QueueHandle_t relayCmdQueue;
 
 void update_time_from_ntp()
 {
@@ -47,21 +48,19 @@ void vSchedulerCallback( TimerHandle_t xTimer )
   strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
   ESP_LOGI(TAG, "Current time after ntp update: %s", strftime_buf);
 
-  // FIXME do something if schedulerCfg.timestamp reached
-  //we should be called each 60 seconds, but we should have defense in case we are called after 61 seconds (probably set a global last-run)
-  //FIXME
-  /* int id = (int)pvTimerGetTimerID( xTimer ); */
-  /* ESP_LOGI(TAG, "timer %d expired, sending stop msg", id); */
-  /* struct RelayCmdMessage r={id, 0}; */
-  /* if (xQueueSend( relayCmdQueue */
-  /*                 ,( void * )&r */
-  /*                 ,MQTT_QUEUE_TIMEOUT) != pdPASS) { */
-  /*   ESP_LOGE(TAG, "Cannot send to relayCmdQueue"); */
-  /* } */
+  //trigerring
+  struct SchedulerCfgMessage s;
+  s.actionId = TRIGGER_ACTION;
+  if (xQueueSend(schedulerCfgQueue
+                 ,( void * )&s
+                 ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue");
+  }
+
 }
 
 
-void start_scheduler()
+void start_scheduler_timer()
 {
   ESP_LOGI(TAG, "scheduler_task started");
 
@@ -84,4 +83,47 @@ void start_scheduler()
       ESP_LOGI(TAG, "timer is active");
     }
   }
+
+}
+
+
+void handle_scheduler(void* pvParameters)
+{
+  ESP_LOGI(TAG, "handle_scheduler task started");
+
+  struct SchedulerCfgMessage schedulerCfg[MAX_SCHEDULER_NB];
+  memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(schedulerCfg));
+  struct SchedulerCfgMessage tempSchedulerCfg;
+  while(1) {
+    if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg , portMAX_DELAY) )
+      {
+        if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
+          for (int i = 0; i < MAX_SCHEDULER_NB; ++i) {
+            ESP_LOGI(TAG, "id: %d, ts: %d, aId: %d",
+                     schedulerCfg[i].schedulerId,
+                     schedulerCfg[i].timestamp,
+                     schedulerCfg[i].actionId);
+            if (schedulerCfg[i].actionId == RELAY_ACTION) {
+              ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
+                       schedulerCfg[i].data.relayData.relayId,
+                       schedulerCfg[i].data.relayData.relayValue);
+            }
+
+            //FIXME implement solution to make sure it runs only one time
+            //FIXME check timestamp
+            if (schedulerCfg[i].actionId == RELAY_ACTION) {
+              struct RelayCmdMessage r=schedulerCfg[i].data.relayData;
+              if (xQueueSend( relayCmdQueue
+                              ,( void * )&r
+                              ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+              }
+            }
+          }
+        } else {
+          schedulerCfg[tempSchedulerCfg.schedulerId] = tempSchedulerCfg;
+        }
+      }
+  }
+
 }

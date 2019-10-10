@@ -85,7 +85,7 @@ static const char *TAG = "MQTTS_MQTTS";
 
 #define RELAY_CFG_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/relay/"
 
-#define SCHEDULER_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/scheduler"
+#define SCHEDULER_CFG_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/scheduler/"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -93,7 +93,7 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     OTA_TOPIC,
 #endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
-    SCHEDULER_CMD_TOPIC,
+    SCHEDULER_CFG_TOPIC "+",
     RELAY_CMD_TOPIC "+",
     RELAY_CFG_TOPIC "+",
 #endif //CONFIG_MQTT_RELAYS_NB
@@ -108,30 +108,46 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  if (strncmp(event->topic, SCHEDULER_CMD_TOPIC, strlen(SCHEDULER_CMD_TOPIC)) == 0) {
+  char schedulerId = get_topic_id(event, MAX_SCHEDULER_NB, SCHEDULER_CFG_TOPIC);
+
+  if (schedulerId != JSON_BAD_TOPIC_ID) {
     struct SchedulerCfgMessage s;
+    s.schedulerId = schedulerId;
 
     char tmpBuf[MAX_MQTT_DATA_SCHEDULER];
     memcpy(tmpBuf, event->data, event->data_len);
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
-      cJSON * schedulerTimestamp = cJSON_GetObjectItem(root,"schTst");
-      if (schedulerTimestamp) {
-        s.schedulerTimestamp = schedulerTimestamp->valueint;
+      cJSON * timestamp = cJSON_GetObjectItem(root,"ts");
+      if (timestamp) {
+        s.timestamp = timestamp->valueint;
       }
-      //FIME add other fields, schRId, schRSt
+
+      cJSON * actionId = cJSON_GetObjectItem(root,"aId");
+      if (actionId) {
+        s.actionId = actionId->valueint;
+      }
+      cJSON * data = cJSON_GetObjectItem(root,"data");
+      if (data) {
+        if (s.actionId == RELAY_ACTION) {
+          cJSON * relayId = cJSON_GetObjectItem(data,"relayId");
+          if (relayId) {
+            s.data.relayData.relayId = relayId->valueint;
+          }
+          cJSON * relayValue = cJSON_GetObjectItem(data,"relayValue");
+          if (relayValue) {
+            s.data.relayData.relayValue = relayValue->valueint;
+          }
+        }
+      }
       cJSON_Delete(root);
 
-      //FIXME hack until decide if queue+thread really usefull
-      schedulerCfg.schedulerTimestamp = s.schedulerTimestamp;
-
-      /* if (xQueueSend(schedulerCfgQueue */
-      /*                ,( void * )&s */
-      /*                ,MQTT_QUEUE_TIMEOUT) != pdPASS) { */
-      /*   ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue"); */
-      /* } */
-      //FIXME end hack until decide if queue+thread really usefull
+      if (xQueueSend(schedulerCfgQueue
+                     ,( void * )&s
+                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+        ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue");
+      }
     }
     return true;
   }
@@ -142,8 +158,8 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId = get_relay_id(event, RELAY_CFG_TOPIC);
-  if(relayId != JSON_BAD_RELAY_ID) {
+  char relayId = get_topic_id(event, CONFIG_MQTT_RELAYS_NB, RELAY_CFG_TOPIC);
+  if(relayId != JSON_BAD_TOPIC_ID) {
     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
       ESP_LOGI(TAG, "unexpected relay cfg payload");
       return true;
@@ -168,32 +184,32 @@ bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 }
 
 
-char get_relay_id(esp_mqtt_event_handle_t event, const char * relayTopic)
+char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
 {
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char fullTopic[MQTT_MAX_TOPIC_LEN];
+  memset(fullTopic,0,MQTT_MAX_TOPIC_LEN);
 
-  char relayId = 0;
+  char topicId = 0;
   bool found = false;
-  while (!found && relayId <= CONFIG_MQTT_RELAYS_NB) {
-    sprintf(topic, "%s%d", relayTopic, relayId);
-    if (strncmp(event->topic, topic, strlen(topic)) == 0) {
+  while (!found && topicId <= maxTopics) {
+    sprintf(fullTopic, "%s%d", topic, topicId);
+    if (strncmp(event->topic, fullTopic, strlen(fullTopic)) == 0) {
       found = true;
     } else {
-      relayId++;
+      topicId++;
     }
   }
   if (!found) {
-    relayId = JSON_BAD_RELAY_ID;
+    topicId = JSON_BAD_TOPIC_ID;
   }
-  return relayId;
+  return topicId;
 }
 
 bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId = get_relay_id(event, RELAY_CMD_TOPIC);
-  if(relayId != JSON_BAD_RELAY_ID) {
+  char relayId = get_topic_id(event, CONFIG_MQTT_RELAYS_NB, RELAY_CMD_TOPIC);
+  if(relayId != JSON_BAD_TOPIC_ID) {
     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
       ESP_LOGI(TAG, "unexpected relay cmd payload");
       return true;

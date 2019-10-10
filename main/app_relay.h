@@ -5,14 +5,14 @@
 
 struct RelayCmdMessage
 {
-    char relayId;
-    char relayValue;
+    unsigned char relayId;
+    unsigned char relayValue;
 };
 
 struct RelayCfgMessage
 {
-    char relayId;
-    char onTimeout;
+    unsigned char relayId;
+    unsigned char onTimeout;
 };
 
 void publish_all_relays_data(esp_mqtt_client_handle_t client);
