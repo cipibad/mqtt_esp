@@ -60,8 +60,8 @@ void publish_relay_data(int id, esp_mqtt_client_handle_t client)
       memset(data,0,32);
       sprintf(data, "{\"state\":%d}", relayStatus[id] == RELAY_ON);
 
-      char topic[64];
-      memset(topic,0,64);
+      char topic[MQTT_MAX_TOPIC_LEN];
+      memset(topic,0,MQTT_MAX_TOPIC_LEN);
       sprintf(topic, "%s%d", relays_topic, id);
 
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
@@ -89,8 +89,8 @@ void publish_relay_cfg_data(int id, esp_mqtt_client_handle_t client)
       memset(data,0,32);
       sprintf(data, "{\"onTimeout\":%d}", relayOnTimeout[id]);
 
-      char topic[64];
-      memset(topic,0,64);
+      char topic[MQTT_MAX_TOPIC_LEN];
+      memset(topic,0,MQTT_MAX_TOPIC_LEN);
       sprintf(topic, "%s%d/cfg", relays_topic, id);
 
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
