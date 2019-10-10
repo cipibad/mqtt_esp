@@ -80,7 +80,9 @@ static const char *TAG = "MQTTS_MQTTS";
 
 #define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
 
-#define SCHEDULER_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/scheduler"
+#define RELAY_CFG_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/relay"
+
+#define SCHEDULER_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/scheduler"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -90,16 +92,16 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #if CONFIG_MQTT_RELAYS_NB
     SCHEDULER_CMD_TOPIC,
     RELAY_CMD_TOPIC"/0",
-    RELAY_CMD_TOPIC"/0/cfg",
+    RELAY_CFG_TOPIC"/0",
 #if CONFIG_MQTT_RELAYS_NB > 1
     RELAY_CMD_TOPIC"/1",
-    RELAY_CMD_TOPIC"/1/cfg",
+    RELAY_CFG_TOPIC"/1",
 #if CONFIG_MQTT_RELAYS_NB > 2
     RELAY_CMD_TOPIC"/2",
-    RELAY_CMD_TOPIC"/2/cfg",
+    RELAY_CFG_TOPIC"/2",
 #if CONFIG_MQTT_RELAYS_NB > 3
     RELAY_CMD_TOPIC"/3",
-    RELAY_CMD_TOPIC"/3/cfg",
+    RELAY_CFG_TOPIC"/3",
 #endif //CONFIG_MQTT_RELAYS_NB > 3
 #endif //CONFIG_MQTT_RELAYS_NB > 2
 #endif //CONFIG_MQTT_RELAYS_NB > 1
@@ -150,16 +152,16 @@ bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
   char relayId=JSON_BAD_RELAY_ID;
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/0/cfg", strlen(RELAY_CMD_TOPIC "/0/cfg")) == 0) {
+  if (strncmp(event->topic, RELAY_CFG_TOPIC "/0", strlen(RELAY_CFG_TOPIC "/0")) == 0) {
     relayId=0;
   }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/1/cfg", strlen(RELAY_CMD_TOPIC "/1/cfg")) == 0) {
+  if (strncmp(event->topic, RELAY_CFG_TOPIC "/1", strlen(RELAY_CFG_TOPIC "/1")) == 0) {
     relayId=1;
   }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/2/cfg", strlen(RELAY_CMD_TOPIC "/2/cfg")) == 0) {
+  if (strncmp(event->topic, RELAY_CFG_TOPIC "/2", strlen(RELAY_CFG_TOPIC "/2")) == 0) {
     relayId=2;
   }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/3/cfg", strlen(RELAY_CMD_TOPIC "/3/cfg")) == 0) {
+  if (strncmp(event->topic, RELAY_CFG_TOPIC "/3", strlen(RELAY_CFG_TOPIC "/3")) == 0) {
     relayId=3;
   }
   if(relayId != JSON_BAD_RELAY_ID) {
