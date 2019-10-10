@@ -23,11 +23,14 @@ extern QueueHandle_t schedulerCfgQueue;
 extern struct SchedulerCfgMessage schedulerCfg;
 //FIXME end hack until decide if queue+thread really usefull
 
-#define CONFIG_MQTT_SCHEDULER_NB 1
+#define SCHEDULER_TOPICS_NB 1
+#define RELAYS_TOPICS_NB 2 //CMD and CFG
 
 #else //CONFIG_MQTT_RELAYS_NB
 
-#define CONFIG_MQTT_SCHEDULER_NB 0
+#define SCHEDULER_TOPICS_NB 0
+#define RELAYS_TOPICS_NB 0 //CMD and CFG
+
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -35,11 +38,11 @@ extern struct SchedulerCfgMessage schedulerCfg;
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
-#define OTA_NB 1
+#define OTA_TOPICS_NB 1
 
 #else // CONFIG_MQTT_OTA
 
-#define OTA_NB 0
+#define OTA_TOPICS_NB 0
 
 #endif // CONFIG_MQTT_OTA
 
@@ -47,12 +50,12 @@ extern QueueHandle_t otaQueue;
 
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
-#define THERMOSTAT_NB 1
+#define THERMOSTAT_TOPICS_NB 1
 #define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat/cfg"
 
 #else // CONFIG_MQTT_THERMOSTAT
 
-#define THERMOSTAT_NB 0
+#define THERMOSTAT_TOPICS_NB 0
 
 #endif // CONFIG_MQTT_THERMOSTAT
 
@@ -76,11 +79,11 @@ extern QueueHandle_t mqttQueue;
 static const char *TAG = "MQTTS_MQTTS";
 
 
-#define NB_SUBSCRIPTIONS  (OTA_NB + THERMOSTAT_NB + 2 * CONFIG_MQTT_RELAYS_NB + CONFIG_MQTT_SCHEDULER_NB)
+#define NB_SUBSCRIPTIONS  (OTA_TOPICS_NB + THERMOSTAT_TOPICS_NB + RELAYS_TOPICS_NB + SCHEDULER_TOPICS_NB)
 
-#define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay"
+#define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay/"
 
-#define RELAY_CFG_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/relay"
+#define RELAY_CFG_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/relay/"
 
 #define SCHEDULER_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/scheduler"
 
@@ -91,20 +94,8 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #endif //CONFIG_MQTT_OTA
 #if CONFIG_MQTT_RELAYS_NB
     SCHEDULER_CMD_TOPIC,
-    RELAY_CMD_TOPIC"/0",
-    RELAY_CFG_TOPIC"/0",
-#if CONFIG_MQTT_RELAYS_NB > 1
-    RELAY_CMD_TOPIC"/1",
-    RELAY_CFG_TOPIC"/1",
-#if CONFIG_MQTT_RELAYS_NB > 2
-    RELAY_CMD_TOPIC"/2",
-    RELAY_CFG_TOPIC"/2",
-#if CONFIG_MQTT_RELAYS_NB > 3
-    RELAY_CMD_TOPIC"/3",
-    RELAY_CFG_TOPIC"/3",
-#endif //CONFIG_MQTT_RELAYS_NB > 3
-#endif //CONFIG_MQTT_RELAYS_NB > 2
-#endif //CONFIG_MQTT_RELAYS_NB > 1
+    RELAY_CMD_TOPIC "+",
+    RELAY_CFG_TOPIC "+",
 #endif //CONFIG_MQTT_RELAYS_NB
 #ifdef CONFIG_MQTT_THERMOSTAT
     THERMOSTAT_TOPIC
@@ -120,7 +111,7 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
   if (strncmp(event->topic, SCHEDULER_CMD_TOPIC, strlen(SCHEDULER_CMD_TOPIC)) == 0) {
     struct SchedulerCfgMessage s;
 
-    char tmpBuf[64];
+    char tmpBuf[MAX_MQTT_DATA_SCHEDULER];
     memcpy(tmpBuf, event->data, event->data_len);
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
@@ -151,19 +142,7 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId=JSON_BAD_RELAY_ID;
-  if (strncmp(event->topic, RELAY_CFG_TOPIC "/0", strlen(RELAY_CFG_TOPIC "/0")) == 0) {
-    relayId=0;
-  }
-  if (strncmp(event->topic, RELAY_CFG_TOPIC "/1", strlen(RELAY_CFG_TOPIC "/1")) == 0) {
-    relayId=1;
-  }
-  if (strncmp(event->topic, RELAY_CFG_TOPIC "/2", strlen(RELAY_CFG_TOPIC "/2")) == 0) {
-    relayId=2;
-  }
-  if (strncmp(event->topic, RELAY_CFG_TOPIC "/3", strlen(RELAY_CFG_TOPIC "/3")) == 0) {
-    relayId=3;
-  }
+  char relayId = get_relay_id(event, RELAY_CFG_TOPIC);
   if(relayId != JSON_BAD_RELAY_ID) {
     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
       ESP_LOGI(TAG, "unexpected relay cfg payload");
@@ -188,22 +167,32 @@ bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
   return false;
 }
 
+
+char get_relay_id(esp_mqtt_event_handle_t event, const char * relayTopic)
+{
+  char topic[MQTT_MAX_TOPIC_LEN];
+  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+
+  char relayId = 0;
+  bool found = false;
+  while (!found && relayId <= CONFIG_MQTT_RELAYS_NB) {
+    sprintf(topic, "%s%d", relayTopic, relayId);
+    if (strncmp(event->topic, topic, strlen(topic)) == 0) {
+      found = true;
+    } else {
+      relayId++;
+    }
+  }
+  if (!found) {
+    relayId = JSON_BAD_RELAY_ID;
+  }
+  return relayId;
+}
+
 bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId=JSON_BAD_RELAY_ID;
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/0", strlen(RELAY_CMD_TOPIC "/0")) == 0) {
-    relayId=0;
-  }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/1", strlen(RELAY_CMD_TOPIC "/1")) == 0) {
-    relayId=1;
-  }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/2", strlen(RELAY_CMD_TOPIC "/2")) == 0) {
-    relayId=2;
-  }
-  if (strncmp(event->topic, RELAY_CMD_TOPIC "/3", strlen(RELAY_CMD_TOPIC "/3")) == 0) {
-    relayId=3;
-  }
+  char relayId = get_relay_id(event, RELAY_CMD_TOPIC);
   if(relayId != JSON_BAD_RELAY_ID) {
     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
       ESP_LOGI(TAG, "unexpected relay cmd payload");
