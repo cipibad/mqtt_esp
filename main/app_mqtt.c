@@ -108,10 +108,14 @@ extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_r
 bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char schedulerId = get_topic_id(event, MAX_SCHEDULER_NB, SCHEDULER_CFG_TOPIC);
+  unsigned char schedulerId = get_topic_id(event, MAX_SCHEDULER_NB, SCHEDULER_CFG_TOPIC);
 
   if (schedulerId != JSON_BAD_TOPIC_ID) {
-    struct SchedulerCfgMessage s;
+    if (event->data_len >= MAX_MQTT_DATA_SCHEDULER) {
+      ESP_LOGI(TAG, "unexpected scheduler cfg payload length");
+      return true;
+    }
+    struct SchedulerCfgMessage s = {0, 0, 0, 0, {{0}}};
     s.schedulerId = schedulerId;
 
     char tmpBuf[MAX_MQTT_DATA_SCHEDULER];
@@ -123,21 +127,24 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
       if (timestamp) {
         s.timestamp = timestamp->valueint;
       }
-
       cJSON * actionId = cJSON_GetObjectItem(root,"aId");
       if (actionId) {
         s.actionId = actionId->valueint;
+      }
+      cJSON * actionState = cJSON_GetObjectItem(root,"aState");
+      if (actionState) {
+        s.actionState = actionState->valueint;
       }
       cJSON * data = cJSON_GetObjectItem(root,"data");
       if (data) {
         if (s.actionId == RELAY_ACTION) {
           cJSON * relayId = cJSON_GetObjectItem(data,"relayId");
           if (relayId) {
-            s.data.relayData.relayId = relayId->valueint;
+            s.data.relayActionData.relayId = relayId->valueint;
           }
           cJSON * relayValue = cJSON_GetObjectItem(data,"relayValue");
           if (relayValue) {
-            s.data.relayData.relayValue = relayValue->valueint;
+            s.data.relayActionData.relayValue = relayValue->valueint;
           }
         }
       }
@@ -158,10 +165,10 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId = get_topic_id(event, CONFIG_MQTT_RELAYS_NB, RELAY_CFG_TOPIC);
+  unsigned char relayId = get_topic_id(event, CONFIG_MQTT_RELAYS_NB, RELAY_CFG_TOPIC);
   if(relayId != JSON_BAD_TOPIC_ID) {
     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
-      ESP_LOGI(TAG, "unexpected relay cfg payload");
+      ESP_LOGI(TAG, "unexpected relay cfg payload length");
       return true;
     }
     char value = get_relay_json_value("onTimeout", event);
@@ -184,12 +191,12 @@ bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 }
 
 
-char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
+unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
 {
   char fullTopic[MQTT_MAX_TOPIC_LEN];
   memset(fullTopic,0,MQTT_MAX_TOPIC_LEN);
 
-  char topicId = 0;
+  unsigned char topicId = 0;
   bool found = false;
   while (!found && topicId <= maxTopics) {
     sprintf(fullTopic, "%s%d", topic, topicId);
@@ -208,10 +215,10 @@ char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * top
 bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_RELAYS_NB
-  char relayId = get_topic_id(event, CONFIG_MQTT_RELAYS_NB, RELAY_CMD_TOPIC);
+  unsigned char relayId = get_topic_id(event, CONFIG_MQTT_RELAYS_NB, RELAY_CMD_TOPIC);
   if(relayId != JSON_BAD_TOPIC_ID) {
     if (event->data_len >= MAX_MQTT_DATA_LEN_RELAY) {
-      ESP_LOGI(TAG, "unexpected relay cmd payload");
+      ESP_LOGI(TAG, "unexpected relay cmd payload length");
       return true;
     }
     char value = get_relay_json_value("state", event);
@@ -256,7 +263,7 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
   if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) {
     if (event->data_len >= MAX_MQTT_DATA_THERMOSTAT )
       {
-        ESP_LOGI(TAG, "unextected relay cmd payload");
+        ESP_LOGI(TAG, "unexpected thermostat cmd payload length");
         return;
       }
     char tmpBuf[MAX_MQTT_DATA_THERMOSTAT];
@@ -264,20 +271,20 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
+      struct ThermostatMessage t = {0, 0, 0};
       cJSON * cttObject = cJSON_GetObjectItem(root,"columnTargetTemperature");
-      cJSON * ttObject = cJSON_GetObjectItem(root,"targetTemperature");
-      cJSON * ttsObject = cJSON_GetObjectItem(root,"targetTemperatureSensibility");
-      struct ThermostatMessage t = {0,0,0};
       if (cttObject) {
         float columnTargetTemperature = cttObject->valuedouble;
         ESP_LOGI(TAG, "columnTargetTemperature: %f", columnTargetTemperature);
         t.columnTargetTemperature = columnTargetTemperature;
       }
+      cJSON * ttObject = cJSON_GetObjectItem(root,"targetTemperature");
       if (ttObject) {
         float targetTemperature = ttObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature);
         t.targetTemperature = targetTemperature;
       }
+      cJSON * ttsObject = cJSON_GetObjectItem(root,"targetTemperatureSensibility");
       if (ttsObject) {
         float targetTemperatureSensibility = ttsObject->valuedouble;
         ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility);

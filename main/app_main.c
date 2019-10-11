@@ -222,7 +222,6 @@ void app_main(void)
     xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, (void *)client, 5, NULL);
 #endif // CONFIG_MQTT_OPS
 
-    start_scheduler_timer();
     xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
 
   }

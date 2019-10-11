@@ -46,11 +46,12 @@ void vSchedulerCallback( TimerHandle_t xTimer )
 
   char strftime_buf[64];
   strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-  ESP_LOGI(TAG, "Current time after ntp update: %s", strftime_buf);
+  ESP_LOGI(TAG, "Current time is: %s", strftime_buf);
 
   //trigerring
   struct SchedulerCfgMessage s;
   s.actionId = TRIGGER_ACTION;
+  s.data.triggerActionData.now = now;
   if (xQueueSend(schedulerCfgQueue
                  ,( void * )&s
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -62,8 +63,6 @@ void vSchedulerCallback( TimerHandle_t xTimer )
 
 void start_scheduler_timer()
 {
-  ESP_LOGI(TAG, "scheduler_task started");
-
   ESP_LOGI(TAG, "Initializing SNTP");
   sntp_setoperatingmode(SNTP_OPMODE_POLL);
   sntp_setservername(0, "pool.ntp.org");
@@ -83,13 +82,13 @@ void start_scheduler_timer()
       ESP_LOGI(TAG, "timer is active");
     }
   }
-
 }
-
 
 void handle_scheduler(void* pvParameters)
 {
   ESP_LOGI(TAG, "handle_scheduler task started");
+
+  start_scheduler_timer();
 
   struct SchedulerCfgMessage schedulerCfg[MAX_SCHEDULER_NB];
   memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(schedulerCfg));
@@ -98,32 +97,51 @@ void handle_scheduler(void* pvParameters)
     if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg , portMAX_DELAY) )
       {
         if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
+          time_t now = tempSchedulerCfg.data.triggerActionData.now;
+          int nowMinutes = now / 60;
+          ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
           for (int i = 0; i < MAX_SCHEDULER_NB; ++i) {
-            ESP_LOGI(TAG, "id: %d, ts: %d, aId: %d",
+            ESP_LOGI(TAG, "schId: %d, ts: %ld, aId: %d, aState: %d",
                      schedulerCfg[i].schedulerId,
                      schedulerCfg[i].timestamp,
-                     schedulerCfg[i].actionId);
+                     schedulerCfg[i].actionId,
+                     schedulerCfg[i].actionState);
             if (schedulerCfg[i].actionId == RELAY_ACTION) {
               ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
-                       schedulerCfg[i].data.relayData.relayId,
-                       schedulerCfg[i].data.relayData.relayValue);
+                       schedulerCfg[i].data.relayActionData.relayId,
+                       schedulerCfg[i].data.relayActionData.relayValue);
             }
 
-            //FIXME implement solution to make sure it runs only one time
-            //FIXME check timestamp
-            if (schedulerCfg[i].actionId == RELAY_ACTION) {
-              struct RelayCmdMessage r=schedulerCfg[i].data.relayData;
-              if (xQueueSend( relayCmdQueue
-                              ,( void * )&r
-                              ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-                ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+            if (schedulerCfg[i].actionId    == RELAY_ACTION &&
+                schedulerCfg[i].actionState == ACTION_STATE_ENABLED) {
+              int schedulerMinutes = schedulerCfg[i].timestamp / 60;
+              ESP_LOGI(TAG, "schedulerMinutes: %d", schedulerMinutes);
+
+              if (schedulerMinutes == nowMinutes ||
+                  schedulerMinutes == (nowMinutes - 1)) {
+                ESP_LOGI(TAG, "Executing scheduleId: %d",
+                         schedulerCfg[i].schedulerId);
+                struct RelayCmdMessage r=schedulerCfg[i].data.relayActionData;
+                if (xQueueSend( relayCmdQueue,
+                                ( void * )&r,
+                                MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                  ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+                }
+              }
+
+              if (schedulerMinutes <= nowMinutes) {
+                ESP_LOGI(TAG, "Disabling scheduleId: %d",
+                         schedulerCfg[i].schedulerId);
+                schedulerCfg[i].actionState = ACTION_STATE_DISABLED;
               }
             }
           }
         } else {
+          ESP_LOGI(TAG, "Updating schedulerId: %d",
+                   tempSchedulerCfg.schedulerId);
+
           schedulerCfg[tempSchedulerCfg.schedulerId] = tempSchedulerCfg;
         }
       }
   }
-
 }
