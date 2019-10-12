@@ -146,7 +146,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
     }
 
   if (ctemperature_2 && ctemperature_1 && ctemperature) {//three consecutive valid readings with 2 difference
-    if (!heatingEnabled
+    if (thermostatEnabled && !heatingEnabled
         && ((ctemperature_2 + 1) < ctemperature_1
             && ctemperature_1 < (ctemperature - 1))){ //water is heating 1 3 5
       publish_thermostat_state(client);
@@ -167,7 +167,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
 
 
   if (ctemperature_3 && ctemperature_2 && ctemperature_1 && ctemperature) {//four consecutive valid readings
-    if (!heatingEnabled2
+    if (thermostatEnabled && !heatingEnabled2
         && ( ctemperature_3 < ctemperature_2
              && ctemperature_2 < ctemperature_1
              && ctemperature_1 < ctemperature )){ //water is heating 1 2 3 4
