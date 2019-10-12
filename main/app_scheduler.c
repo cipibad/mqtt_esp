@@ -84,6 +84,55 @@ void start_scheduler_timer()
   }
 }
 
+void log_scheduler(const struct SchedulerCfgMessage *msg)
+{
+  ESP_LOGI(TAG, "schId: %d, ts: %ld, aId: %d, aState: %d",
+           msg->schedulerId,
+           msg->timestamp,
+           msg->actionId,
+           msg->actionState);
+  if (msg->actionId == RELAY_ACTION) {
+    ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
+             msg->data.relayActionData.relayId,
+             msg->data.relayActionData.relayValue);
+  }
+}
+
+void handle_relay_action_trigger(struct SchedulerCfgMessage *msg, int nowMinutes) {
+  int schedulerMinutes = msg->timestamp / 60;
+  ESP_LOGI(TAG, "schedulerMinutes: %d", schedulerMinutes);
+
+  if (schedulerMinutes == nowMinutes ||
+      schedulerMinutes == (nowMinutes - 1)) {
+    ESP_LOGI(TAG, "Executing scheduleId: %d",
+             msg->schedulerId);
+    struct RelayCmdMessage r=msg->data.relayActionData;
+    if (xQueueSend( relayCmdQueue,
+                    ( void * )&r,
+                    MQTT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+    }
+  }
+
+  if (schedulerMinutes <= nowMinutes) {
+    ESP_LOGI(TAG, "Disabling scheduleId: %d",
+             msg->schedulerId);
+    msg->actionState = ACTION_STATE_DISABLED;
+  }
+}
+
+
+void handle_action_trigger(struct SchedulerCfgMessage *schedulerCfg, int nowMinutes)
+{
+  for (int i = 0; i < MAX_SCHEDULER_NB; ++i) {
+    log_scheduler(&schedulerCfg[i]);
+    if (schedulerCfg[i].actionId    == RELAY_ACTION &&
+        schedulerCfg[i].actionState == ACTION_STATE_ENABLED) {
+      handle_relay_action_trigger(&schedulerCfg[i], nowMinutes);
+    }
+  }
+}
+
 void handle_scheduler(void* pvParameters)
 {
   ESP_LOGI(TAG, "handle_scheduler task started");
@@ -94,54 +143,24 @@ void handle_scheduler(void* pvParameters)
   memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(schedulerCfg));
   struct SchedulerCfgMessage tempSchedulerCfg;
   while(1) {
-    if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg , portMAX_DELAY) )
-      {
-        if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
-          time_t now = tempSchedulerCfg.data.triggerActionData.now;
-          int nowMinutes = now / 60;
-          ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
-          for (int i = 0; i < MAX_SCHEDULER_NB; ++i) {
-            ESP_LOGI(TAG, "schId: %d, ts: %ld, aId: %d, aState: %d",
-                     schedulerCfg[i].schedulerId,
-                     schedulerCfg[i].timestamp,
-                     schedulerCfg[i].actionId,
-                     schedulerCfg[i].actionState);
-            if (schedulerCfg[i].actionId == RELAY_ACTION) {
-              ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
-                       schedulerCfg[i].data.relayActionData.relayId,
-                       schedulerCfg[i].data.relayActionData.relayValue);
-            }
-
-            if (schedulerCfg[i].actionId    == RELAY_ACTION &&
-                schedulerCfg[i].actionState == ACTION_STATE_ENABLED) {
-              int schedulerMinutes = schedulerCfg[i].timestamp / 60;
-              ESP_LOGI(TAG, "schedulerMinutes: %d", schedulerMinutes);
-
-              if (schedulerMinutes == nowMinutes ||
-                  schedulerMinutes == (nowMinutes - 1)) {
-                ESP_LOGI(TAG, "Executing scheduleId: %d",
-                         schedulerCfg[i].schedulerId);
-                struct RelayCmdMessage r=schedulerCfg[i].data.relayActionData;
-                if (xQueueSend( relayCmdQueue,
-                                ( void * )&r,
-                                MQTT_QUEUE_TIMEOUT) != pdPASS) {
-                  ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
-                }
-              }
-
-              if (schedulerMinutes <= nowMinutes) {
-                ESP_LOGI(TAG, "Disabling scheduleId: %d",
-                         schedulerCfg[i].schedulerId);
-                schedulerCfg[i].actionState = ACTION_STATE_DISABLED;
-              }
-            }
-          }
-        } else {
+    if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg, portMAX_DELAY)) {
+      if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
+        int nowMinutes = tempSchedulerCfg.data.triggerActionData.now / 60;
+        ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
+        handle_action_trigger(schedulerCfg, nowMinutes);
+      } else if (tempSchedulerCfg.actionId == ADD_RELAY_ACTION) {
+        if (tempSchedulerCfg.schedulerId < MAX_SCHEDULER_NB) {
           ESP_LOGI(TAG, "Updating schedulerId: %d",
                    tempSchedulerCfg.schedulerId);
-
           schedulerCfg[tempSchedulerCfg.schedulerId] = tempSchedulerCfg;
+        } else {
+              ESP_LOGE(TAG, "Wrong schedulerId: %d",
+                       tempSchedulerCfg.schedulerId);
         }
+      } else {
+        ESP_LOGE(TAG, "Unknown actionId: %d",
+                 tempSchedulerCfg.actionId);
       }
+    }
   }
 }

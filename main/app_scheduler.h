@@ -7,6 +7,7 @@ void start_scheduler_timer(void);
 void handle_scheduler(void* pvParameters);
 
 #define RELAY_ACTION 1
+#define ADD_RELAY_ACTION 1
 #define TRIGGER_ACTION 255
 #define MAX_SCHEDULER_NB 8
 
