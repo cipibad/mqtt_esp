@@ -3,6 +3,15 @@
 
 #include "mqtt_client.h"
 
+struct Relay
+{
+    unsigned char id;
+    unsigned char status;
+    unsigned char timeout;
+    TimerHandle_t timer;
+};
+
+
 struct RelayCmdMessage
 {
     unsigned char relayId;

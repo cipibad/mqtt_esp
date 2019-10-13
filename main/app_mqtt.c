@@ -479,7 +479,6 @@ void handle_mqtt_sub_pub(void* pvParameters)
         publish_connected_data(client);
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_data(client);
-        publish_all_relays_cfg_data(client);
 #endif//CONFIG_MQTT_RELAYS_NB
 #ifdef CONFIG_MQTT_THERMOSTAT
         publish_thermostat_data(client);

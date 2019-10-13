@@ -17,8 +17,8 @@ extern const int MQTT_PUBLISHED_BIT;
 
 #if CONFIG_MQTT_RELAYS_NB
 
-int relayStatus[CONFIG_MQTT_RELAYS_NB];
-int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
+struct Relay relays[CONFIG_MQTT_RELAYS_NB];
+
 TimerHandle_t relayOnTimer[CONFIG_MQTT_RELAYS_NB];
 
 const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
@@ -42,12 +42,13 @@ extern QueueHandle_t relayCfgQueue;
 void relays_init()
 {
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
-    relayStatus[i] = RELAY_OFF;
+    relays[i].id = i;
+    relays[i].status = RELAY_OFF;
+    relays[i].timeout = 0;
+    relays[i].timer = NULL;
     gpio_pad_select_gpio(relayToGpioMap[i]);
     gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
     gpio_set_level(relayToGpioMap[i], RELAY_OFF);
-    relayOnTimer[i] = NULL;
-    relayOnTimeout[i] = 0;
   }
 }
 
@@ -56,9 +57,11 @@ void publish_relay_data(int id, esp_mqtt_client_handle_t client)
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
       const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
-      char data[32];
-      memset(data,0,32);
-      sprintf(data, "{\"state\":%d}", relayStatus[id] == RELAY_ON);
+      char data[64];
+      memset(data,0,64);
+      sprintf(data, "{\"state\":%d,\"onTimeout\":%d}",
+              relays[id].status == RELAY_ON,
+              relays[id].timeout);
 
       char topic[MQTT_MAX_TOPIC_LEN];
       memset(topic,0,MQTT_MAX_TOPIC_LEN);
@@ -80,48 +83,11 @@ void publish_relay_data(int id, esp_mqtt_client_handle_t client)
     }
 }
 
-void publish_relay_cfg_data(int id, esp_mqtt_client_handle_t client)
-{
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
-      char data[32];
-      memset(data,0,32);
-      sprintf(data, "{\"onTimeout\":%d}", relayOnTimeout[id]);
-
-      char topic[MQTT_MAX_TOPIC_LEN];
-      memset(topic,0,MQTT_MAX_TOPIC_LEN);
-      sprintf(topic, "%s%d/cfg", relays_topic, id);
-
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, topic, data,strlen(data), 1, 1);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish relay cfg successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish relay cfg, msg_id=%d", msg_id);
-      }
-    }
-}
-
 
 void publish_all_relays_data(esp_mqtt_client_handle_t client)
 {
   for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
     publish_relay_data(id, client);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
-  }
-}
-
-void publish_all_relays_cfg_data(esp_mqtt_client_handle_t client)
-{
-  for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
-    publish_relay_cfg_data(id, client);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
@@ -140,42 +106,42 @@ void vTimerCallback( TimerHandle_t xTimer )
 
 void update_timer(int id)
 {
-  ESP_LOGI(TAG, "update_timer for %d, timeout: %d", id, relayOnTimeout[id]);
+  ESP_LOGI(TAG, "update_timer for %d, timeout: %d", id, relays[id].timeout);
 
-  if ((relayStatus[id] == RELAY_OFF)) {
-    if (relayOnTimer[id] != NULL) {
-      if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
+  if ((relays[id].status == RELAY_OFF)) {
+    if (relays[id].timer != NULL) {
+      if (xTimerIsTimerActive(relays[id].timer) != pdFALSE){
         ESP_LOGI(TAG, "found started timer, stopping");
-        xTimerStop( relayOnTimer[id], portMAX_DELAY );
+        xTimerStop( relays[id].timer, portMAX_DELAY );
       }
     }
   }
 
-  if ((relayStatus[id] == RELAY_ON) && relayOnTimeout[id]) {
-    if (relayOnTimer[id] == NULL) {
+  if ((relays[id].status == RELAY_ON) && relays[id].timeout) {
+    if (relays[id].timer == NULL) {
       ESP_LOGI(TAG, "creating timer");
-      relayOnTimer[id] =
+      relays[id].timer =
         xTimerCreate( "relayTimer",           /* Text name. */
-                      pdMS_TO_TICKS(relayOnTimeout[id]*1000),  /* Period. */
+                      pdMS_TO_TICKS(relays[id].timeout*1000),  /* Period. */
                       pdFALSE,                /* Autoreload. */
                       (void *)id,                  /* No ID. */
                       vTimerCallback );  /* Callback function. */
     }
-    if( relayOnTimer[id] != NULL ) {
+    if( relays[id].timer != NULL ) {
       ESP_LOGI(TAG, "timer is created");
-      if (xTimerIsTimerActive(relayOnTimer[id]) != pdFALSE){
+      if (xTimerIsTimerActive(relays[id].timer) != pdFALSE){
         ESP_LOGI(TAG, "timer is active, stopping");
-        xTimerStop( relayOnTimer[id], portMAX_DELAY );
+        xTimerStop( relays[id].timer, portMAX_DELAY );
       }
 
-      TickType_t xTimerPeriod = xTimerGetPeriod(relayOnTimer[id]);
-      if (xTimerPeriod != pdMS_TO_TICKS(relayOnTimeout[id]*1000)) {
+      TickType_t xTimerPeriod = xTimerGetPeriod(relays[id].timer);
+      if (xTimerPeriod != pdMS_TO_TICKS(relays[id].timeout*1000)) {
         ESP_LOGI(TAG, "timer change period, starting also");
-        xTimerChangePeriod(relayOnTimer[id], pdMS_TO_TICKS(relayOnTimeout[id]*1000), portMAX_DELAY ); //FIXME check return value
+        xTimerChangePeriod(relays[id].timer, pdMS_TO_TICKS(relays[id].timeout*1000), portMAX_DELAY ); //FIXME check return value
       }
       else {
         ESP_LOGI(TAG, "timer starting");
-        xTimerStart( relayOnTimer[id], portMAX_DELAY );
+        xTimerStart( relays[id].timer, portMAX_DELAY );
       }
     }
   }
@@ -184,17 +150,17 @@ void update_timer(int id)
 void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
 {
   ESP_LOGI(TAG, "update_relay_state: id: %d, value: %d", id, value);
-  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id]);
-  if (value != (relayStatus[id] == RELAY_ON)) {
+  ESP_LOGI(TAG, "relays[%d].status = %d", id, relays[id].status);
+  if (value != (relays[id].status == RELAY_ON)) {
     if (value == 1) {
-      relayStatus[id] = RELAY_ON;
+      relays[id].status = RELAY_ON;
       ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
     }
     if (value == 0) {
-      relayStatus[id] = RELAY_OFF;
+      relays[id].status = RELAY_OFF;
       ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
-    gpio_set_level(relayToGpioMap[id], relayStatus[id]);
+    gpio_set_level(relayToGpioMap[id], relays[id].status);
     update_timer(id);
   }
   publish_relay_data(id, client);
@@ -203,19 +169,19 @@ void update_relay_state(int id, char value, esp_mqtt_client_handle_t client)
 void update_relay_onTimeout(int id, char onTimeout, esp_mqtt_client_handle_t client)
 {
   ESP_LOGI(TAG, "update_relay_onTimeout: id: %d, value: %d", id, onTimeout);
-  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayOnTimeout[id]);
+  ESP_LOGI(TAG, "relays[%d].timeout = %d", id, relays[id].timeout);
 
-  if (onTimeout != relayOnTimeout[id]) {
-    relayOnTimeout[id] = onTimeout;
+  if (onTimeout != relays[id].timeout) {
+    relays[id].timeout = onTimeout;
     update_timer(id);
 
     //FIXME extract NVS to separate function
     char onTimeoutTag[32]; //FIXME duplication with read function
     snprintf(onTimeoutTag, 32, "relayOnTimeout%d", id); //FIXME should check return value
-    esp_err_t err = write_nvs_integer(onTimeoutTag, relayOnTimeout[id]);
+    esp_err_t err = write_nvs_integer(onTimeoutTag, relays[id].timeout);
     ESP_ERROR_CHECK( err );
   }
-  publish_relay_cfg_data(id, client);
+  publish_relay_data(id, client);
 }
 
 void handle_relay_cmd_task(void* pvParameters)
