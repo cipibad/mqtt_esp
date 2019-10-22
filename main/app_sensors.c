@@ -2,6 +2,7 @@
 #include "esp_log.h"
 
 #include "driver/gpio.h"
+#include "rom/gpio.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -70,6 +71,7 @@ void sensors_read(void* pvParameters)
   while (1)
     {
 #ifdef CONFIG_MQTT_SENSOR_DHT22
+      gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
