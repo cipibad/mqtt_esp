@@ -1,12 +1,13 @@
 /**
  * @file dht.c
  *
- * ESP-IDF driver for DHT11/DHT22
+ * ESP-IDF driver for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321), Itead Si7021
  *
  * Ported from esp-open-rtos
  *
- * Copyright (C) 2016 Jonathan Hartsuiker (https://github.com/jsuiker)
- * Copyright (C) 2018 Ruslan V. Uss (https://github.com/UncleRus)
+ * Copyright (C) 2016 Jonathan Hartsuiker <https://github.com/jsuiker>\n
+ * Copyright (C) 2018 Ruslan V. Uss <https://github.com/UncleRus>\n
+ *
  * BSD Licensed as described in the file LICENSE
  */
 #include "dht.h"
@@ -14,10 +15,12 @@
 #include <freertos/FreeRTOS.h>
 #include <string.h>
 #include <esp_log.h>
+#include <esp_idf_lib_helpers.h>
 
 // DHT timer precision in microseconds
-#define DHT_TIMER_INTERVAL 1
+#define DHT_TIMER_INTERVAL 2
 #define DHT_DATA_BITS 40
+#define DHT_DATA_BYTES (DHT_DATA_BITS / 8)
 
 /*
  *  Note:
@@ -48,10 +51,18 @@
  */
 
 static const char *TAG = "DHTxx";
-#ifdef CONFIG_TARGET_DEVICE_ESP32
+
+#if HELPER_TARGET_IS_ESP32
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-#endif //CONFIG_TARGET_DEVICE_ESP32
-#define CHECK_ARG(VAL) do { if (!VAL) return ESP_ERR_INVALID_ARG; } while (0)
+#define PORT_ENTER_CRITICAL portENTER_CRITICAL(&mux)
+#define PORT_EXIT_CRITICAL portEXIT_CRITICAL(&mux)
+
+#elif HELPER_TARGET_IS_ESP8266
+#define PORT_ENTER_CRITICAL portENTER_CRITICAL()
+#define PORT_EXIT_CRITICAL portEXIT_CRITICAL()
+#endif
+
+#define CHECK_ARG(VAL) do { if (!(VAL)) return ESP_ERR_INVALID_ARG; } while (0)
 
 #define CHECK_LOGE(x, msg, ...) do { \
         esp_err_t __; \
@@ -71,6 +82,11 @@ static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 static esp_err_t dht_await_pin_state(gpio_num_t pin, uint32_t timeout,
        int expected_pin_state, uint32_t *duration)
 {
+    /* XXX dht_await_pin_state() should save pin direction and restore
+     * the direction before return. however, the SDK does not provide
+     * gpio_get_direction().
+     */
+    gpio_set_direction(pin, GPIO_MODE_INPUT);
     for (uint32_t i = 0; i < timeout; i += DHT_TIMER_INTERVAL)
     {
         // need to wait at least a single interval to prevent reading a jitter
@@ -91,37 +107,41 @@ static esp_err_t dht_await_pin_state(gpio_num_t pin, uint32_t timeout,
  * The function call should be protected from task switching.
  * Return false if error occurred.
  */
-static inline esp_err_t dht_fetch_data(gpio_num_t pin, bool bits[DHT_DATA_BITS])
+static inline esp_err_t dht_fetch_data(dht_sensor_type_t sensor_type, gpio_num_t pin, uint8_t data[DHT_DATA_BYTES])
 {
     uint32_t low_duration;
     uint32_t high_duration;
 
     // Phase 'A' pulling signal low to initiate read sequence
-    gpio_set_direction( pin, GPIO_MODE_OUTPUT );
+    gpio_set_direction(pin, GPIO_MODE_OUTPUT_OD);
     gpio_set_level(pin, 0);
-    ets_delay_us(5000);
+    ets_delay_us(sensor_type == DHT_TYPE_SI7021 ? 500 : 20000);
     gpio_set_level(pin, 1);
-    ets_delay_us(30);
 
-    gpio_set_direction( pin, GPIO_MODE_INPUT );
-  
+    // Step through Phase 'B', 40us
+    CHECK_LOGE(dht_await_pin_state(pin, 40, 0, NULL),
+            "Initialization error, problem in phase 'B'");
     // Step through Phase 'C', 88us
-    CHECK_LOGE(dht_await_pin_state(pin, 80, 0, NULL),
-            "Initialization error, problem in phase 'Cucu'");
+    CHECK_LOGE(dht_await_pin_state(pin, 88, 1, NULL),
+            "Initialization error, problem in phase 'C'");
     // Step through Phase 'D', 88us
-    CHECK_LOGE(dht_await_pin_state(pin, 80, 1, NULL),
-            "Initialization error, problem in phase 'Dudu'");
-    CHECK_LOGE(dht_await_pin_state(pin, 80, 0, NULL),
-                "LOW bit 1st timeout");
+    CHECK_LOGE(dht_await_pin_state(pin, 88, 0, NULL),
+            "Initialization error, problem in phase 'D'");
 
     // Read in each of the 40 bits of data...
     for (int i = 0; i < DHT_DATA_BITS; i++)
     {
-        CHECK_LOGE(dht_await_pin_state(pin, 50, 1, &low_duration),
-                "HIGH bit timeout");
-        CHECK_LOGE(dht_await_pin_state(pin, 75, 0, &high_duration),
+        CHECK_LOGE(dht_await_pin_state(pin, 65, 1, &low_duration),
                 "LOW bit timeout");
-        bits[i] = high_duration > low_duration;
+        CHECK_LOGE(dht_await_pin_state(pin, 75, 0, &high_duration),
+                "HIGH bit timeout");
+
+        uint8_t b = i / 8;
+        uint8_t m = i % 8;
+        if (!m)
+            data[b] = 0;
+
+        data[b] |= (high_duration > low_duration) << (7 - m);
     }
 
     return ESP_OK;
@@ -134,7 +154,11 @@ static inline int16_t dht_convert_data(dht_sensor_type_t sensor_type, uint8_t ms
 {
     int16_t data;
 
-    if (sensor_type == DHT_TYPE_DHT22)
+    if (sensor_type == DHT_TYPE_DHT11)
+    {
+        data = msb * 10;
+    }
+    else
     {
         data = msb & 0x7F;
         data <<= 8;
@@ -142,7 +166,6 @@ static inline int16_t dht_convert_data(dht_sensor_type_t sensor_type, uint8_t ms
         if (msb & BIT(7))
             data = -data;       // convert it to negative
     }
-    else data = msb * 10;
 
     return data;
 }
@@ -150,40 +173,24 @@ static inline int16_t dht_convert_data(dht_sensor_type_t sensor_type, uint8_t ms
 esp_err_t dht_read_data(dht_sensor_type_t sensor_type, gpio_num_t pin,
         int16_t *humidity, int16_t *temperature)
 {
-    CHECK_ARG(humidity);
-    CHECK_ARG(temperature);
+    CHECK_ARG(humidity && temperature);
 
-    bool bits[DHT_DATA_BITS];
-    uint8_t data[DHT_DATA_BITS / 8] = { 0 };
+    uint8_t data[DHT_DATA_BYTES] = { 0 };
 
-    gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+    gpio_set_direction(pin, GPIO_MODE_OUTPUT_OD);
     gpio_set_level(pin, 1);
 
-    #ifdef CONFIG_TARGET_DEVICE_ESP32
-    portENTER_CRITICAL(&mux);
-    #else //CONFIG_TARGET_DEVICE_ESP32
-    portENTER_CRITICAL();
-    #endif //CONFIG_TARGET_DEVICE_ESP32
+    PORT_ENTER_CRITICAL;
+    esp_err_t result = dht_fetch_data(sensor_type, pin, data);
+    PORT_EXIT_CRITICAL;
 
-    esp_err_t result = dht_fetch_data(pin, bits);
-
-    #ifdef CONFIG_TARGET_DEVICE_ESP32
-    portEXIT_CRITICAL(&mux);
-    #else //CONFIG_TARGET_DEVICE_ESP32
-    portEXIT_CRITICAL();
-    #endif //CONFIG_TARGET_DEVICE_ESP32
-
+    /* restore GPIO direction because, after calling dht_fetch_data(), the
+     * GPIO direction mode changes */
+    gpio_set_direction(pin, GPIO_MODE_OUTPUT_OD);
     gpio_set_level(pin, 1);
 
     if (result != ESP_OK)
         return result;
-
-    for (uint8_t i = 0; i < DHT_DATA_BITS; i++)
-    {
-        // Read each bit into 'result' byte array...
-        data[i / 8] <<= 1;
-        data[i / 8] |= bits[i];
-    }
 
     if (data[4] != ((data[0] + data[1] + data[2] + data[3]) & 0xFF))
     {
@@ -202,8 +209,7 @@ esp_err_t dht_read_data(dht_sensor_type_t sensor_type, gpio_num_t pin,
 esp_err_t dht_read_float_data(dht_sensor_type_t sensor_type, gpio_num_t pin,
         float *humidity, float *temperature)
 {
-    CHECK_ARG(humidity);
-    CHECK_ARG(temperature);
+    CHECK_ARG(humidity && temperature);
 
     int16_t i_humidity, i_temp;
 
@@ -211,8 +217,8 @@ esp_err_t dht_read_float_data(dht_sensor_type_t sensor_type, gpio_num_t pin,
     if (res != ESP_OK)
         return res;
 
-    *humidity = (float)i_humidity / 10;
-    *temperature = (float)i_temp / 10;
+    *humidity = i_humidity / 10.0;
+    *temperature = i_temp / 10.0;
 
     return ESP_OK;
 }

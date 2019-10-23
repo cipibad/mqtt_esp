@@ -70,7 +70,7 @@ void sensors_read(void* pvParameters)
   while (1)
     {
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      if (dht_read_data(DHT_TYPE_DHT22, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
+      if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
                    dht22_humidity/10, dht22_humidity%10 ,
