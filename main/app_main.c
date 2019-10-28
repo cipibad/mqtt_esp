@@ -27,12 +27,6 @@
 #ifdef CONFIG_MQTT_THERMOSTAT
 #include "app_thermostat.h"
 QueueHandle_t thermostatQueue;
-extern int columnTargetTemperature;
-extern int targetTemperature;
-extern int targetTemperatureSensibility;
-extern const char * columnTargetTemperatureTAG;
-extern const char * targetTemperatureTAG;
-extern const char * targetTemperatureSensibilityTAG;
 #endif // CONFIG_MQTT_THERMOSTAT
 
 #if CONFIG_MQTT_RELAYS_NB
@@ -168,14 +162,7 @@ void app_main(void)
 #endif // CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_THERMOSTAT
-  err=read_nvs_integer(columnTargetTemperatureTAG, &columnTargetTemperature);
-  ESP_ERROR_CHECK( err );
-
-  err=read_nvs_integer(targetTemperatureTAG, &targetTemperature);
-  ESP_ERROR_CHECK( err );
-
-  err=read_nvs_integer(targetTemperatureSensibilityTAG, &targetTemperatureSensibility);
-  ESP_ERROR_CHECK( err );
+  read_nvs_thermostat_data();
 #endif // CONFIG_MQTT_THERMOSTAT
 
 

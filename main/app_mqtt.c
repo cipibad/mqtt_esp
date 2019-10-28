@@ -51,7 +51,7 @@ extern QueueHandle_t otaQueue;
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
 #define THERMOSTAT_TOPICS_NB 1
-#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/thermostat/cfg"
+#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cfg/thermostat"
 
 #else // CONFIG_MQTT_THERMOSTAT
 
@@ -79,7 +79,7 @@ extern QueueHandle_t mqttQueue;
 static const char *TAG = "MQTTS_MQTTS";
 
 
-#define NB_SUBSCRIPTIONS  (OTA_TOPICS_NB + THERMOSTAT_TOPICS_NB + RELAYS_TOPICS_NB + SCHEDULER_TOPICS_NB)
+#define NB_SUBSCRIPTIONS  (OTA_TOPICS_NB + THERMOSTAT_TOPICS_NB + RELAYS_TOPICS_NB + SCHEDULER_TOPICS_NB + CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB)
 
 #define RELAY_CMD_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cmd/relay/"
 
@@ -98,8 +98,20 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     RELAY_CFG_TOPIC "+",
 #endif //CONFIG_MQTT_RELAYS_NB
 #ifdef CONFIG_MQTT_THERMOSTAT
-    THERMOSTAT_TOPIC
+    THERMOSTAT_TOPIC,
 #endif // CONFIG_MQTT_THERMOSTAT
+#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB
+    CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC,
+#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 1
+    CONFIG_MQTT_THERMOSTAT_ROOM_1_SENSORS_TOPIC,
+#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 2
+    CONFIG_MQTT_THERMOSTAT_ROOM_2_SENSORS_TOPIC,
+#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 3
+    CONFIG_MQTT_THERMOSTAT_ROOM_3_SENSORS_TOPIC,
+#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 3
+#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 2
+#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 1
+#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB
   };
 
 
@@ -264,35 +276,64 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
     if (event->data_len >= MAX_MQTT_DATA_THERMOSTAT )
       {
         ESP_LOGI(TAG, "unexpected thermostat cmd payload length");
-        return;
+        return true;
       }
     char tmpBuf[MAX_MQTT_DATA_THERMOSTAT];
     memcpy(tmpBuf, event->data, event->data_len);
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
-      struct ThermostatMessage t = {0, 0, 0};
+      struct ThermostatCfgMessage t;
+      memset(&t, 0, sizeof(struct ThermostatCfgMessage));
       cJSON * cttObject = cJSON_GetObjectItem(root,"columnTargetTemperature");
       if (cttObject) {
-        float columnTargetTemperature = cttObject->valuedouble;
-        ESP_LOGI(TAG, "columnTargetTemperature: %f", columnTargetTemperature);
+        int32_t columnTargetTemperature = cttObject->valuedouble * 10;
+        ESP_LOGI(TAG, "columnTargetTemperature: %d.%01d0",
+                 columnTargetTemperature/10,
+                 columnTargetTemperature%10);
         t.columnTargetTemperature = columnTargetTemperature;
       }
-      cJSON * ttObject = cJSON_GetObjectItem(root,"targetTemperature");
-      if (ttObject) {
-        float targetTemperature = ttObject->valuedouble;
-        ESP_LOGI(TAG, "targetTemperature: %f", targetTemperature);
-        t.targetTemperature = targetTemperature;
+      cJSON * wttObject = cJSON_GetObjectItem(root,"waterTargetTemperature");
+      if (wttObject) {
+        int32_t waterTargetTemperature = wttObject->valuedouble * 10;
+        ESP_LOGI(TAG, "waterTargetTemperature: %d.%01d",
+                 waterTargetTemperature/10,
+                 waterTargetTemperature%10);
+        t.waterTargetTemperature = waterTargetTemperature;
       }
-      cJSON * ttsObject = cJSON_GetObjectItem(root,"targetTemperatureSensibility");
-      if (ttsObject) {
-        float targetTemperatureSensibility = ttsObject->valuedouble;
-        ESP_LOGI(TAG, "targetTemperatureSensibility: %f", targetTemperatureSensibility);
-        t.targetTemperatureSensibility = targetTemperatureSensibility;
+      cJSON * wtsObject = cJSON_GetObjectItem(root,"waterTemperatureSensibility");
+      if (wtsObject) {
+        int32_t waterTemperatureSensibility = wtsObject->valuedouble * 10;
+        ESP_LOGI(TAG, "waterTemperatureSensibility: %d.%01d",
+                 waterTemperatureSensibility/10,
+                 waterTemperatureSensibility%10);
+        t.waterTemperatureSensibility = waterTemperatureSensibility;
       }
-      if (t.targetTemperature || t.targetTemperatureSensibility || t.columnTargetTemperature) {
+      cJSON * r0ttObject = cJSON_GetObjectItem(root,"room0TargetTemperature");
+      if (r0ttObject) {
+        int32_t room0TargetTemperature = r0ttObject->valuedouble * 10;
+        ESP_LOGI(TAG, "room0TargetTemperature: %d.%01d",
+                 room0TargetTemperature/10,
+                 room0TargetTemperature%10);
+        t.room0TargetTemperature = room0TargetTemperature;
+      }
+      cJSON * r0tsObject = cJSON_GetObjectItem(root,"room0TemperatureSensibility");
+      if (r0tsObject) {
+        int32_t room0TemperatureSensibility = r0tsObject->valuedouble * 10;
+        ESP_LOGI(TAG, "room0TemperatureSensibility: %d.%01d",
+                 room0TemperatureSensibility/10,
+                 room0TemperatureSensibility%10);
+        t.room0TemperatureSensibility = room0TemperatureSensibility;
+      }
+      if (t.columnTargetTemperature ||
+          t.waterTargetTemperature || t.waterTemperatureSensibility ||
+          t.room0TargetTemperature || t.room0TemperatureSensibility) {
+        struct ThermostatMessage tm;
+        memset(&tm, 0, sizeof(struct ThermostatMessage));
+        tm.msgType = THERMOSTAT_CFG_MSG;
+        tm.data.cfgData = t;
         if (xQueueSend( thermostatQueue
-                        ,( void * )&t
+                        ,( void * )&tm
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
           ESP_LOGE(TAG, "Cannot send to thermostatQueue");
         }
@@ -305,9 +346,56 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
   return false;
 }
 
+bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
+{
+#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
+  ESP_LOGI(TAG, "got topic");
+  if (strncmp(event->topic, CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC, strlen(CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC)) == 0) {
+    ESP_LOGI(TAG, "got room0 topic");
+
+    if (event->data_len >= MAX_MQTT_DATA_SENSORS )
+      {
+        ESP_LOGI(TAG, "unexpected room sensors cfg payload length");
+        return true;
+      }
+    char tmpBuf[MAX_MQTT_DATA_SENSORS];
+    memcpy(tmpBuf, event->data, event->data_len);
+    tmpBuf[event->data_len] = 0;
+    cJSON * root = cJSON_Parse(tmpBuf);
+    if (root) {
+      ESP_LOGI(TAG, "got root");
+      struct ThermostatRoomMessage t;
+      cJSON * tObject = cJSON_GetObjectItem(root,"temperature");
+      if (tObject) {
+        ESP_LOGI(TAG, "got got temperature");
+        float temperature = tObject->valuedouble;
+        ESP_LOGI(TAG, "temperature: %f", temperature);
+        t.temperature = temperature * 10;
+      }
+      if (t.temperature) {
+        struct ThermostatMessage tm;
+        memset(&tm, 0, sizeof(struct ThermostatMessage));
+        tm.msgType = THERMOSTAT_ROOM_0_MSG;
+        tm.data.roomData = t;
+        if (xQueueSend( thermostatQueue
+                        ,( void * )&tm
+                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+          ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+        }
+      }
+      cJSON_Delete(root);
+    }
+    return true;
+  }
+
+#endif // MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
+  return false;
+}
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
   if (handle_scheduler_mqtt_event(event))
+    return;
+  if (handle_room_sensors_mqtt_event(event))
     return;
   if (handle_relay_cfg_mqtt_event(event))
     return;

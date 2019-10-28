@@ -6,6 +6,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 
 #include "app_main.h"
 #include "app_sensors.h"
@@ -37,6 +38,7 @@ int32_t bme280_humidity;
 
 #ifdef CONFIG_MQTT_THERMOSTAT
 #include "app_thermostat.h"
+extern QueueHandle_t thermostatQueue;
 #endif // CONFIG_MQTT_THERMOSTAT
 
 
@@ -133,7 +135,15 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_BME280
 
 #ifdef CONFIG_MQTT_THERMOSTAT
-      update_thermostat(client);
+      struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
+      struct ThermostatMessage tm;
+      memset(&tm, 0, sizeof(struct ThermostatMessage));
+      tm.data.sensorsData = t;
+      if (xQueueSend( thermostatQueue
+                      ,( void * )&tm
+                      ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+        ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+      }
 #endif // CONFIG_MQTT_THERMOSTAT
       publish_sensors_data(client);
       vTaskDelay(60000 / portTICK_PERIOD_MS);

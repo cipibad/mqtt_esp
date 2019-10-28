@@ -19,15 +19,21 @@ bool heatingEnabled = false;
 bool heatingEnabled2 = false;
 
 int columnTargetTemperature=23*10; //30 degrees
-int targetTemperature=23*10; //30 degrees
-int targetTemperatureSensibility=5; //0.5 degrees
+int waterTargetTemperature=23*10; //30 degrees
+int waterTemperatureSensibility=5; //0.5 degrees
+
+int room0TargetTemperature=22*10;
+int room0TemperatureSensibility=2;
 
 const char * columnTargetTemperatureTAG="ctgtTemp";
-const char * targetTemperatureTAG="targetTemp";
-const char * targetTemperatureSensibilityTAG="tgtTempSens";
+const char * waterTargetTemperatureTAG="wTargetTemp";
+const char * waterTemperatureSensibilityTAG="wTempSens";
+const char * room0TargetTemperatureTAG="r0targetTemp";
+const char * room0TemperatureSensibilityTAG="r0TempSens";
 
-extern int32_t wtemperature;
-extern int32_t ctemperature;
+int32_t room0Temperature = 0;
+int32_t wtemperature = 0;
+int32_t ctemperature = 0;
 int32_t ctemperature_1 = 0;
 int32_t ctemperature_2 = 0;
 int32_t ctemperature_3 = 0;
@@ -43,11 +49,16 @@ void publish_thermostat_cfg(esp_mqtt_client_handle_t client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/cfg";
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
       char data[256];
       memset(data,0,256);
 
-      sprintf(data, "{\"columnTargetTemperature\":%02f, \"targetTemperature\":%02f, \"targetTemperatureSensibility\":%02f}", columnTargetTemperature/10., targetTemperature/10., targetTemperatureSensibility/10.);
+      sprintf(data, "{\"columnTargetTemperature\":%d.%01d, \"waterTargetTemperature\":%d.%01d, \"waterTemperatureSensibility\":%d.%01d, \"room0TargetTemperature\":%d.%01d, \"room0TemperatureSensibility\":%d.%01d}",
+              columnTargetTemperature/10, columnTargetTemperature%10,
+              waterTargetTemperature/10, waterTargetTemperature%10,
+              waterTemperatureSensibility/10, waterTemperatureSensibility%10,
+              room0TargetTemperature/10,room0TargetTemperature%10,
+              room0TemperatureSensibility/10, room0TemperatureSensibility%10);
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
       if (msg_id > 0) {
@@ -128,19 +139,29 @@ void update_thermostat(esp_mqtt_client_handle_t client)
   ESP_LOGI(TAG, "columnTargetTemperature is %d", columnTargetTemperature);
   ESP_LOGI(TAG, "thermostat state is %d", thermostatEnabled);
   ESP_LOGI(TAG, "wtemperature is %d", wtemperature);
-  ESP_LOGI(TAG, "targetTemperature is %d", targetTemperature);
-  ESP_LOGI(TAG, "targetTemperatureSensibility is %d", targetTemperatureSensibility);
-  if ( wtemperature == 0 )
+  ESP_LOGI(TAG, "waterTargetTemperature is %d", waterTargetTemperature);
+  ESP_LOGI(TAG, "waterTemperatureSensibility is %d", waterTemperatureSensibility);
+  ESP_LOGI(TAG, "room0Temperature is %d", room0Temperature);
+  ESP_LOGI(TAG, "room0TargetTemperature is %d", room0TargetTemperature);
+  ESP_LOGI(TAG, "room0TemperatureSensibility is %d", room0TemperatureSensibility);
+  if ( wtemperature == 0 && room0Temperature == 0 )
     {
-      ESP_LOGI(TAG, "sensor is not reporting, no thermostat handling");
+      ESP_LOGI(TAG, "no sensor is reporting => no thermostat handling");
       if (thermostatEnabled==true) {
-        ESP_LOGI(TAG, "stop thermostat as sensor is not reporting");
+        ESP_LOGI(TAG, "stop thermostat as no sensor is reporting");
         disableThermostat(client);
       }
       return;
     }
 
-  if (thermostatEnabled==false && wtemperature < targetTemperature - targetTemperatureSensibility && ctemperature < columnTargetTemperature)
+  if (thermostatEnabled==false &&
+      (
+       (wtemperature > 0 &&
+        wtemperature < waterTargetTemperature - waterTemperatureSensibility) || 
+       (room0Temperature > 0 &&
+        room0Temperature < room0TargetTemperature - room0TemperatureSensibility)
+       )&&
+      ctemperature < columnTargetTemperature)
     {
       enableThermostat(client);
     }
@@ -173,7 +194,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
              && ctemperature_1 < ctemperature )){ //water is heating 1 2 3 4
       publish_thermostat_state(client);
       heatingEnabled2 = true;
-      ESP_LOGI(TAG, "heating enabled");
+      ESP_LOGI(TAG, "heating2 enabled");
       publish_thermostat_state(client);
     }
 
@@ -183,11 +204,10 @@ void update_thermostat(esp_mqtt_client_handle_t client)
              || ctemperature_1 >= ctemperature )) { //heating is disabled   1 3 4
       publish_thermostat_state(client);
       heatingEnabled2 = false;
-      ESP_LOGI(TAG, "heating disabled");
+      ESP_LOGI(TAG, "heating2 disabled");
       publish_thermostat_state(client);
       ESP_LOGI(TAG, "thermostat disabled due to heating2 disabled");
       disableThermostat(client);
-
     }
   }
 
@@ -204,30 +224,71 @@ void handle_thermostat_cmd_task(void* pvParameters)
   while(1) {
     if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) )
       {
-        bool updated = false;
-        if (t.columnTargetTemperature && columnTargetTemperature != t.columnTargetTemperature * 10) {
-          columnTargetTemperature=t.columnTargetTemperature*10;
-          esp_err_t err = write_nvs_integer(columnTargetTemperatureTAG, columnTargetTemperature);
-          ESP_ERROR_CHECK( err );
-          updated = true;
+        if (t.msgType == THERMOSTAT_CFG_MSG) {
+          bool updated = false;
+          if (t.data.cfgData.columnTargetTemperature && columnTargetTemperature != t.data.cfgData.columnTargetTemperature) {
+            columnTargetTemperature=t.data.cfgData.columnTargetTemperature;
+            esp_err_t err = write_nvs_integer(columnTargetTemperatureTAG, columnTargetTemperature);
+            ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+          if (t.data.cfgData.waterTargetTemperature && waterTargetTemperature != t.data.cfgData.waterTargetTemperature) {
+            waterTargetTemperature=t.data.cfgData.waterTargetTemperature;
+            esp_err_t err = write_nvs_integer(waterTargetTemperatureTAG, waterTargetTemperature);
+            ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+          if (t.data.cfgData.waterTemperatureSensibility && waterTemperatureSensibility != t.data.cfgData.waterTemperatureSensibility) {
+            waterTemperatureSensibility=t.data.cfgData.waterTemperatureSensibility;
+            esp_err_t err = write_nvs_integer(waterTemperatureSensibilityTAG, waterTemperatureSensibility);
+            ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+          if (t.data.cfgData.room0TargetTemperature && room0TargetTemperature != t.data.cfgData.room0TargetTemperature) {
+            room0TargetTemperature=t.data.cfgData.room0TargetTemperature;
+            esp_err_t err = write_nvs_integer(room0TargetTemperatureTAG, room0TargetTemperature);
+            ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+          if (t.data.cfgData.room0TemperatureSensibility && room0TemperatureSensibility != t.data.cfgData.room0TemperatureSensibility) {
+            room0TemperatureSensibility=t.data.cfgData.room0TemperatureSensibility;
+            esp_err_t err = write_nvs_integer(room0TemperatureSensibilityTAG, room0TemperatureSensibility);
+            ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+          if (updated) {
+            update_thermostat(client);
+            publish_thermostat_cfg(client);
+          }
         }
-        if (t.targetTemperature && targetTemperature != t.targetTemperature * 10) {
-          targetTemperature=t.targetTemperature*10;
-          esp_err_t err = write_nvs_integer(targetTemperatureTAG, targetTemperature);
-          ESP_ERROR_CHECK( err );
-          updated = true;
-        }
-        if (t.targetTemperatureSensibility && targetTemperatureSensibility != t.targetTemperatureSensibility * 10) {
-          targetTemperatureSensibility=t.targetTemperatureSensibility*10;
-          esp_err_t err = write_nvs_integer(targetTemperatureSensibilityTAG, targetTemperatureSensibility);
-          ESP_ERROR_CHECK( err );
-          updated = true;
-        }
-        if (updated) {
+        if (t.msgType == THERMOSTAT_SENSORS_MSG) {
+          wtemperature = t.data.sensorsData.wtemperature;
+          ctemperature = t.data.sensorsData.ctemperature;
           update_thermostat(client);
-          publish_thermostat_cfg(client);
+        }
+        if (t.msgType == THERMOSTAT_ROOM_0_MSG) {
+          room0Temperature = t.data.roomData.temperature;
+          update_thermostat(client);
         }
       }
   }
+}
+
+void read_nvs_thermostat_data()
+{
+  esp_err_t err=read_nvs_integer(columnTargetTemperatureTAG, &columnTargetTemperature);
+  ESP_ERROR_CHECK( err );
+
+  err=read_nvs_integer(waterTargetTemperatureTAG, &waterTargetTemperature);
+  ESP_ERROR_CHECK( err );
+
+  err=read_nvs_integer(waterTemperatureSensibilityTAG, &waterTemperatureSensibility);
+  ESP_ERROR_CHECK( err );
+
+  err=read_nvs_integer(room0TargetTemperatureTAG, &room0TargetTemperature);
+  ESP_ERROR_CHECK( err );
+
+  err=read_nvs_integer(room0TemperatureSensibilityTAG, &room0TemperatureSensibility);
+  ESP_ERROR_CHECK( err );
 }
 #endif // CONFIG_MQTT_THERMOSTAT
