@@ -228,5 +228,41 @@ config MQTT_THERMOSTAT_RELAY_ID
     help
         Thermostat relay id
 
+config MQTT_THERMOSTAT_ROOMS_SENSORS_NB
+    int "number of room sensors"
+    default 0
+    range 0 4
+    help
+        number of room sensors (available via mqtt)
+
+config MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC
+    string "room 0 sensor topic"
+    depends on MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
+    default ""
+    help
+        room 0 sensor topic
+
+config MQTT_THERMOSTAT_ROOM_1_SENSORS_TOPIC
+    string "room 1 sensor topic"
+    depends on MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 1
+    default ""
+    help
+        room 1 sensor topic
+
+config MQTT_THERMOSTAT_ROOM_2_SENSORS_TOPIC
+    string "room 2 sensor topic"
+    depends on MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 2
+    default ""
+    help
+        room 2 sensor topic
+
+config MQTT_THERMOSTAT_ROOM_3_SENSORS_TOPIC
+    string "room 3 sensor topic"
+    depends on MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 3
+    default ""
+    help
+        room 3 sensor topic
+
+
 
 endmenu

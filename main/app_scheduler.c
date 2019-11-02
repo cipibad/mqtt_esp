@@ -140,7 +140,7 @@ void handle_scheduler(void* pvParameters)
   start_scheduler_timer();
 
   struct SchedulerCfgMessage schedulerCfg[MAX_SCHEDULER_NB];
-  memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(schedulerCfg));
+  memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(struct SchedulerCfgMessage));
   struct SchedulerCfgMessage tempSchedulerCfg;
   while(1) {
     if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg, portMAX_DELAY)) {
