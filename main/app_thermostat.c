@@ -49,7 +49,7 @@ void publish_thermostat_cfg(esp_mqtt_client_handle_t client)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
     {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat";
+      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/cfg";
       char data[256];
       memset(data,0,256);
 
@@ -201,7 +201,7 @@ void update_thermostat(esp_mqtt_client_handle_t client)
     if (heatingEnabled2
         && ( ctemperature_3 >= ctemperature_2
              || ctemperature_2 >= ctemperature_1
-             || ctemperature_1 >= ctemperature )) { //heating is disabled   1 3 4
+             || ctemperature_1 >= ctemperature )) { //heating is disabled   5 4 3 2
       publish_thermostat_state(client);
       heatingEnabled2 = false;
       ESP_LOGI(TAG, "heating2 disabled");

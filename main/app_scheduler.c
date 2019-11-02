@@ -142,11 +142,8 @@ void handle_scheduler(void* pvParameters)
   struct SchedulerCfgMessage schedulerCfg[MAX_SCHEDULER_NB];
   memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(struct SchedulerCfgMessage));
   struct SchedulerCfgMessage tempSchedulerCfg;
-  ESP_LOGI(TAG, "entering while loop");
   while(1) {
-    ESP_LOGI(TAG, "waiting message");
     if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg, portMAX_DELAY)) {
-      ESP_LOGI(TAG, "message received");
       if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
         int nowMinutes = tempSchedulerCfg.data.triggerActionData.now / 60;
         ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
