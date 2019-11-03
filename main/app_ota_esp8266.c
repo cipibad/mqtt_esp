@@ -472,8 +472,8 @@ void publish_ota_data(int status)
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
 
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   sprintf(m.publishData.topic, "%s", topic);

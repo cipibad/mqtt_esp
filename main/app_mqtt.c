@@ -37,6 +37,11 @@ extern QueueHandle_t sensorQueue;
 
 #include "cJSON.h"
 
+#ifndef CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB
+#define CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB 0
+#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB
+
+
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 extern QueueHandle_t relayCmdQueue;

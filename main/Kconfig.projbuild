@@ -232,6 +232,7 @@ config MQTT_THERMOSTAT_RELAY_ID
 config MQTT_THERMOSTAT_ROOMS_SENSORS_NB
     int "number of room sensors"
     default 0
+    depends on MQTT_THERMOSTAT
     range 0 4
     help
         number of room sensors (available via mqtt)
