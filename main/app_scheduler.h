@@ -30,5 +30,8 @@ struct SchedulerCfgMessage
   union Data data;
 };
 
+#define SCHEDULE_TIMEOUT 30
+#define SCHEDULE_QUEUE_TIMEOUT (SCHEDULE_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+
 
 #endif /* APP_SCHEDULER_H */

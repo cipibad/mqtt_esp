@@ -42,4 +42,9 @@ struct MqttMessage {
   struct MqttPublishData publishData;
 };
 
+#define MQTT_TIMEOUT 30
+#define MQTT_FLAG_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+#define MQTT_QUEUE_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+#define MQTT_MAX_TOPIC_LEN 64
+
 #endif /* APP_MQTT_H */

@@ -43,4 +43,8 @@ void handle_relay_cmd_task(void* pvParameters);
 void handle_relay_cfg_task(void* pvParameters);
 void update_relay_state(int id, char value);
 
+#define RELAY_TIMEOUT 30
+#define RELAY_QUEUE_TIMEOUT (RELAY_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+
+
 #endif /* APP_RELAY_H */
