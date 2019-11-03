@@ -1,14 +1,39 @@
 #include "esp_log.h"
 #include "esp_wifi.h"
+#include "mqtt_client.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
 
 #include "app_main.h"
-
-#include "app_sensors.h"
 #include "app_mqtt.h"
+
+
+//forward declaration start
+
+/**
+ * returns the value of a specific Json request
+ * @param: tag - the json event, i.e: "state" or "onTimeout"
+ * @param: event - mqtt event handler instance
+ */
+char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event);
+
+unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic);
+
+bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event);
+bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event);
+bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event);
+bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event);
+bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event);
+
+//forward declaration end
+
+#ifdef CONFIG_MQTT_SENSOR
+#include "app_sensors.h"
+extern QueueHandle_t sensorQueue;
+#endif //CONFIG_MQTT_SENSOR
+
 
 #include "cJSON.h"
 
@@ -63,6 +88,8 @@ extern QueueHandle_t thermostatQueue;
 int16_t connect_reason;
 const int mqtt_disconnect = 33; //32+1
 const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connection";
+esp_mqtt_client_handle_t client;
+
 
 EventGroupHandle_t mqtt_event_group;
 const int MQTT_CONNECTED_BIT = BIT0;
@@ -186,7 +213,10 @@ bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
     char value = get_relay_json_value("onTimeout", event);
     if (value != JSON_BAD_RELAY_VALUE) {
       ESP_LOGI(TAG, "relayId: %d, onTimeout: %d", relayId, value);
-      struct RelayCfgMessage r={relayId, value};
+      struct RelayCMessage r;
+      r.msgType = RELAY_CFG;
+      r.relayCfg.relayId = relayId;
+      r.relayCfg.onTimeout = value;
       if (xQueueSend( relayCfgQueue
                       ,( void * )&r
                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -236,7 +266,11 @@ bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event)
     char value = get_relay_json_value("state", event);
     if (value != JSON_BAD_RELAY_VALUE) {
       ESP_LOGI(TAG, "relayId: %d, value: %d", relayId, value);
-      struct RelayCmdMessage r={relayId, value};
+      struct RelayMessage r;
+      r.msgType = RELAY_CMD;
+      r.relayData.relayId = relayId;
+      r.relayData.relayValue = value;
+
       if (xQueueSend( relayCmdQueue
                       ,( void * )&r
                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -256,9 +290,12 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #ifdef CONFIG_MQTT_OTA
   if (strncmp(event->topic, OTA_TOPIC, strlen(OTA_TOPIC)) == 0) {
-    struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
+    struct OtaMessage m = {
+      OTA_MQTT_UPGRADE,
+      {"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"}
+    };
     if (xQueueSend( otaQueue
-                    ,( void * )&o
+                    ,( void * )&m
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to otaQueue");
 
@@ -427,28 +464,37 @@ char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
   return ret;
 }
 
-void publish_connected_data(esp_mqtt_client_handle_t client)
-{
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      char data[256];
-      memset(data,0,256);
 
-      sprintf(data, "{\"state\":\"connected\", \"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish connected data, msg_id=%d", msg_id);
-      }
+void mqtt_publish(const char* connect_topic, const char* data, int qos, int retain)
+{
+  xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
+  int msg_id = esp_mqtt_client_publish(client, connect_topic,
+                                       data, strlen(data), qos, retain);
+  if (msg_id > 0) {
+    ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id);
+    EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+    if (bits & MQTT_PUBLISHED_BIT) {
+      ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+    } else {
+      ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
     }
+  } else {
+    ESP_LOGW(TAG, "failed to publish connected data, msg_id=%d", msg_id);
+  }
+}
+
+inline void mqtt_publish_msg(const struct MqttPublishData* msg)
+{
+  mqtt_publish(msg->topic, msg->data, msg->qos, msg->retain);
+}
+
+void publish_connected_data()
+{
+  char data[256];
+  memset(data,0,256);
+  sprintf(data, "{\"state\":\"connected\", \"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
+
+  mqtt_publish(connect_topic, data, QOS_1, RETAIN);
 }
 
 
@@ -505,7 +551,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   return ESP_OK;
 }
 
-static void mqtt_subscribe(esp_mqtt_client_handle_t client)
+static void mqtt_subscribe()
 {
   int msg_id;
 
@@ -526,7 +572,7 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
   }
 }
 
-esp_mqtt_client_handle_t mqtt_init()
+void mqtt_init_and_start()
 {
   const char * lwtmsg = "{\"state\":\"disconnected\"}";
   const esp_mqtt_client_config_t mqtt_cfg = {
@@ -543,41 +589,101 @@ esp_mqtt_client_handle_t mqtt_init()
   };
 
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-  esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-  return client;
-}
-
-void mqtt_start(esp_mqtt_client_handle_t client)
-{
+  client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_start(client);
   xEventGroupWaitBits(mqtt_event_group, MQTT_CONNECTED_BIT, false, true, portMAX_DELAY);
 }
 
-void handle_mqtt_sub_pub(void* pvParameters)
+void notify_relay_mqtt_connected()
 {
-  connect_reason=esp_reset_reason();
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
-  void * unused;
-  while(1) {
-    if( xQueueReceive( mqttQueue, &unused , portMAX_DELAY) )
-      {
-        xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-        mqtt_subscribe(client);
-        xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-        publish_connected_data(client);
-#if CONFIG_MQTT_RELAYS_NB
-        publish_all_relays_data(client);
-        publish_all_relays_cfg_data(client);
-#endif//CONFIG_MQTT_RELAYS_NB
+  struct RelayMessage r;
+  r.msgType = RELAY_MQTT_CONNECTED;
+  if (xQueueSend(relayCmdQueue
+                  ,(void *)&r
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+  }
+}
+
+void notify_relay_cfg_mqtt_connected()
+{
+  struct RelayCMessage r;
+  r.msgType = RELAY_CFG_MQTT_CONNECTED;
+  if (xQueueSend(relayCfgQueue
+                  ,(void *)&r
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to relayCfgQueue");
+  }
+}
+
 #ifdef CONFIG_MQTT_THERMOSTAT
-        publish_thermostat_data(client);
+void notify_thermostat_mqtt_connected()
+{
+  struct ThermostatMessage m;
+  m.msgType = THERMOSTAT_MQTT_CONNECTED;
+  if (xQueueSend(thermostatQueue
+                  ,(void *)&m
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
 #endif // CONFIG_MQTT_THERMOSTAT
 #ifdef CONFIG_MQTT_OTA
-        publish_ota_data(client, OTA_READY);
+void notify_ota_mqtt_connected()
+{
+  struct OtaMessage m;
+  m.msgType = OTA_MQTT_CONNECTED;
+  if (xQueueSend(otaQueue
+                  ,(void *)&m
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to otaQueue");
+  }
+}
+#endif //CONFIG_MQTT_OTA
+
+#ifdef CONFIG_MQTT_SENSOR
+void notify_sensor_mqtt_connected()
+{
+  struct SensorMessage m;
+  m.msgType = SENSOR_MQTT_CONNECTED;
+  if (xQueueSend(sensorQueue
+                  ,(void *)&m
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to sensorQueue");
+  }
+}
+#endif//CONFIG_MQTT_SENSOR
+
+
+void handle_mqtt_sub_pub(void* pvPrameters)
+{
+  connect_reason=esp_reset_reason();
+  struct MqttMsg msg;
+  while(1) {
+    if(xQueueReceive(mqttQueue, &msg, portMAX_DELAY))
+      {
+        if (msg.msgType == MQTT_CONNECTED) {
+          mqtt_subscribe();
+          xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
+          publish_connected_data();
+
+          //FIXME ongoing broadcast connect
+          notify_relay_mqtt_connected();
+          notify_relay_cfg_mqtt_connected();
+#ifdef CONFIG_MQTT_THERMOSTAT
+          //FIXME this code if not practically enabled ...
+          notify_thermostat_mqtt_connected();
+#endif // CONFIG_MQTT_THERMOSTAT
+#ifdef CONFIG_MQTT_OTA
+          notify_ota_mqtt_connected();
 #endif //CONFIG_MQTT_OTA
 #ifdef CONFIG_MQTT_SENSOR
-        publish_sensors_data(client);
+          notify_sensor_mqtt_connected();
 #endif//
+        }
+        if (msg.msgType == MQTT_PUBLISH) {
+          mqtt_publish_msg(&msg.publishData);
+        }
       }
   }
 }

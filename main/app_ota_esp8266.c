@@ -21,6 +21,7 @@
 #include "freertos/queue.h"
 
 extern QueueHandle_t otaQueue;
+extern QueueHandle_t mqttQueue;
 
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
@@ -31,6 +32,7 @@ extern QueueHandle_t otaQueue;
 #include "nvs_flash.h"
 
 #include "app_main.h"
+#include "app_mqtt.h"
 
 #define EXAMPLE_SERVER_IP "sw.iot.cipex.ro"
 #define EXAMPLE_SERVER_PORT "8910"
@@ -308,16 +310,136 @@ static void esp_ota_firm_init(esp_ota_firm_t *ota_firm, const esp_partition_t *u
 
 }
 
-
-void handle_ota_update_task(void *pvParameters)
+void perform_ota_upgrade()
 {
-
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
-
   esp_err_t err;
   /* update handle : set by esp_ota_begin(), must be freed via esp_ota_end() */
   esp_ota_handle_t update_handle = 0 ;
   const esp_partition_t *update_partition = NULL;
+
+
+  ESP_LOGI(TAG, "OTA cmd received....");
+  publish_ota_data(OTA_ONGOING);
+
+  /*connect to http server*/
+  if (connect_to_http_server()) {
+    ESP_LOGI(TAG, "Connected to http server");
+  } else {
+    ESP_LOGE(TAG, "Connect to http server failed!");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+
+  /*send GET request to http server*/
+  const char *GET_FORMAT =
+    "GET %s HTTP/1.0\r\n"
+    "Host: %s:%s\r\n"
+    "User-Agent: esp-idf/1.0 esp32\r\n\r\n";
+
+  char *http_request = NULL;
+  int get_len = asprintf(&http_request, GET_FORMAT, EXAMPLE_FILENAME, EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
+  if (get_len < 0) {
+    ESP_LOGE(TAG, "Failed to allocate memory for GET request buffer");
+    close(socket_id);
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  int res = send(socket_id, http_request, get_len, 0);
+  free(http_request);
+
+  if (res < 0) {
+    ESP_LOGE(TAG, "Send GET request to server failed");
+    close(socket_id);
+    publish_ota_data(OTA_FAILED);
+    return;
+  } else {
+    ESP_LOGI(TAG, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
+  }
+
+  update_partition = esp_ota_get_next_update_partition(NULL);
+  ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
+           update_partition->subtype, update_partition->address);
+  assert(update_partition != NULL);
+
+  err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_ota_begin failed, error=%d", err);
+    close(socket_id);
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  ESP_LOGI(TAG, "esp_ota_begin succeeded");
+
+  bool flag = true;
+  esp_ota_firm_t ota_firm;
+
+  esp_ota_firm_init(&ota_firm, update_partition);
+
+  while (flag) {
+    memset(text, 0, TEXT_BUFFSIZE);
+    memset(ota_write_data, 0, BUFFSIZE);
+    int buff_len = recv(socket_id, text, TEXT_BUFFSIZE, 0);
+    if (buff_len < 0) { /*receive error*/
+      ESP_LOGE(TAG, "Error: receive data error! errno=%d", errno);
+      close(socket_id);
+      publish_ota_data(OTA_FAILED);
+      flag=false;
+      continue;
+    } else if (buff_len > 0) { /*deal with response body*/
+      esp_ota_firm_parse_msg(&ota_firm, text, buff_len);
+
+      if (!esp_ota_firm_can_write(&ota_firm))
+        continue;
+
+      memcpy(ota_write_data, esp_ota_firm_get_write_buf(&ota_firm), esp_ota_firm_get_write_bytes(&ota_firm));
+      buff_len = esp_ota_firm_get_write_bytes(&ota_firm);
+
+      err = esp_ota_write( update_handle, (const void *)ota_write_data, buff_len);
+      if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error: esp_ota_write failed! err=0x%x", err);
+        close(socket_id);
+        publish_ota_data(OTA_FAILED);
+        flag=false;
+        continue;
+      }
+      binary_file_length += buff_len;
+      ESP_LOGI(TAG, "Have written image length %d", binary_file_length);
+    } else if (buff_len == 0) {  /*packet over*/
+      flag = false;
+      ESP_LOGI(TAG, "Connection closed, all packets received");
+      close(socket_id);
+    } else {
+      ESP_LOGE(TAG, "Unexpected recv result");
+    }
+
+    if (esp_ota_firm_is_finished(&ota_firm))
+      break;
+  }
+
+  ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
+
+  if (esp_ota_end(update_handle) != ESP_OK) {
+    ESP_LOGE(TAG, "esp_ota_end failed!");
+    close(socket_id);
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  err = esp_ota_set_boot_partition(update_partition);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_ota_set_boot_partition failed! err=0x%x", err);
+    close(socket_id);
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+  publish_ota_data(OTA_SUCCESFULL);
+  vTaskDelay(10000 / portTICK_PERIOD_MS);
+  esp_restart();
+
+}
+
+void handle_ota_update_task(void *pvParameters)
+{
 
   ESP_LOGI(TAG, "Starting OTA update task... @ %p flash %s", handle_ota_update_task, CONFIG_ESPTOOLPY_FLASHSIZE);
 
@@ -333,154 +455,35 @@ void handle_ota_update_task(void *pvParameters)
            running->type, running->subtype, running->address);
   struct OtaMessage o;
   while(1) {
-
     if( xQueueReceive( otaQueue, &o , portMAX_DELAY) )
       {
-        ESP_LOGI(TAG, "OTA cmd received....");
-        publish_ota_data(client, OTA_ONGOING);
-
-        /*connect to http server*/
-        if (connect_to_http_server()) {
-          ESP_LOGI(TAG, "Connected to http server");
-        } else {
-          ESP_LOGE(TAG, "Connect to http server failed!");
-          publish_ota_data(client, OTA_FAILED);
-          continue;
-        }
-
-        /*send GET request to http server*/
-        const char *GET_FORMAT =
-          "GET %s HTTP/1.0\r\n"
-          "Host: %s:%s\r\n"
-          "User-Agent: esp-idf/1.0 esp32\r\n\r\n";
-
-        char *http_request = NULL;
-        int get_len = asprintf(&http_request, GET_FORMAT, EXAMPLE_FILENAME, EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
-        if (get_len < 0) {
-          ESP_LOGE(TAG, "Failed to allocate memory for GET request buffer");
-          close(socket_id);
-          publish_ota_data(client, OTA_FAILED);
-          continue;
-        }
-        int res = send(socket_id, http_request, get_len, 0);
-        free(http_request);
-
-        if (res < 0) {
-          ESP_LOGE(TAG, "Send GET request to server failed");
-          close(socket_id);
-          publish_ota_data(client, OTA_FAILED);
-          continue;
-        } else {
-          ESP_LOGI(TAG, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
-        }
-
-        update_partition = esp_ota_get_next_update_partition(NULL);
-        ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
-                 update_partition->subtype, update_partition->address);
-        assert(update_partition != NULL);
-
-        err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
-        if (err != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_begin failed, error=%d", err);
-          close(socket_id);
-          publish_ota_data(client, OTA_FAILED);
-          continue;
-        }
-        ESP_LOGI(TAG, "esp_ota_begin succeeded");
-
-        bool flag = true;
-        esp_ota_firm_t ota_firm;
-
-        esp_ota_firm_init(&ota_firm, update_partition);
-
-
-        while (flag) {
-          memset(text, 0, TEXT_BUFFSIZE);
-          memset(ota_write_data, 0, BUFFSIZE);
-          int buff_len = recv(socket_id, text, TEXT_BUFFSIZE, 0);
-          if (buff_len < 0) { /*receive error*/
-            ESP_LOGE(TAG, "Error: receive data error! errno=%d", errno);
-            close(socket_id);
-            publish_ota_data(client, OTA_FAILED);
-            flag=false;
-            continue;
-          } else if (buff_len > 0) { /*deal with response body*/
-            esp_ota_firm_parse_msg(&ota_firm, text, buff_len);
-
-            if (!esp_ota_firm_can_write(&ota_firm))
-              continue;
-
-            memcpy(ota_write_data, esp_ota_firm_get_write_buf(&ota_firm), esp_ota_firm_get_write_bytes(&ota_firm));
-            buff_len = esp_ota_firm_get_write_bytes(&ota_firm);
-
-            err = esp_ota_write( update_handle, (const void *)ota_write_data, buff_len);
-            if (err != ESP_OK) {
-              ESP_LOGE(TAG, "Error: esp_ota_write failed! err=0x%x", err);
-              close(socket_id);
-              publish_ota_data(client, OTA_FAILED);
-              flag=false;
-              continue;
-            }
-            binary_file_length += buff_len;
-            ESP_LOGI(TAG, "Have written image length %d", binary_file_length);
-          } else if (buff_len == 0) {  /*packet over*/
-            flag = false;
-            ESP_LOGI(TAG, "Connection closed, all packets received");
-            close(socket_id);
-          } else {
-            ESP_LOGE(TAG, "Unexpected recv result");
+        if (o.msgType == OTA_MQTT_CONNECTED) {
+            publish_ota_data(OTA_READY);
           }
-
-          if (esp_ota_firm_is_finished(&ota_firm))
-            break;
+        if (o.msgType == OTA_MQTT_UPGRADE) {
+          perform_ota_upgrade();
         }
-
-        ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
-
-        if (esp_ota_end(update_handle) != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_end failed!");
-          close(socket_id);
-          publish_ota_data(client, OTA_FAILED);
-          continue;
-        }
-        err = esp_ota_set_boot_partition(update_partition);
-        if (err != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_set_boot_partition failed! err=0x%x", err);
-          close(socket_id);
-          publish_ota_data(client, OTA_FAILED);
-          continue;
-        }
-        ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
-        publish_ota_data(client, OTA_SUCCESFULL);
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
-        esp_restart();
       }
   }
 }
 
 
-void publish_ota_data(esp_mqtt_client_handle_t client, int status)
+void publish_ota_data(int status)
 {
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
-      char data[256];
-      memset(data,0,256);
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
 
-      sprintf(data, "{\"status\":%d}", status);
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish ota data successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish ota data, msg_id=%d", msg_id);
-      }
-    }
+  struct MqttMsg m;
+  memset(&m, 0, sizeof(struct MqttMsg));
+  m.msgType = MQTT_PUBLISH;
+
+  sprintf(m.publishData.topic, "%s", topic);
+  sprintf(m.publishData.data, "{\"status\":%d}", status);
+
+  if (xQueueSend(mqttQueue
+                 ,( void * )&m
+                 ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send otaData to mqttQueue");
+  }
+  ESP_LOGE(TAG, "Sent otaData to mqttQueue");
 }
 #endif //CONFIG_TARGET_DEVICE_ESP8266

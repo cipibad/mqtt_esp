@@ -5,15 +5,24 @@
 #define OTA_SUCCESFULL 0
 #define OTA_ONGOING 1
 #define OTA_READY 2
-#include "mqtt_client.h"
 
-struct OtaMessage
-{
+enum OtaMsgType {
+  OTA_MQTT_CONNECTED=1,
+  OTA_MQTT_UPGRADE
+};
+
+struct OtaUpgradeData {
   char url[64];
 };
 
+struct OtaMessage
+{
+  enum OtaMsgType msgType;
+  struct OtaUpgradeData upgradeData;
+};
+
 void handle_ota_update_task(void *pvParameters);
-void publish_ota_data(esp_mqtt_client_handle_t client, int status);
+void publish_ota_data(int status);
 
 
 

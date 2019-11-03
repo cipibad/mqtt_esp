@@ -7,6 +7,8 @@
 #include "freertos/timers.h"
 #include "lwip/apps/sntp.h"
 
+#include "string.h"
+
 #include "app_main.h"
 #include "app_scheduler.h"
 

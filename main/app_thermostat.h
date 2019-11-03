@@ -25,18 +25,21 @@ union ThermostatData {
   struct ThermostatRoomMessage roomData;
 };
 
-#define THERMOSTAT_CFG_MSG 1
-#define THERMOSTAT_SENSORS_MSG 2
-#define THERMOSTAT_ROOM_0_MSG 3
+enum ThermostatMsgType {
+  THERMOSTAT_MQTT_CONNECTED=1,
+  THERMOSTAT_CFG_MSG,
+  THERMOSTAT_SENSORS_MSG,
+  THERMOSTAT_ROOM_0_MSG,
+};
+
 
 struct ThermostatMessage {
-  unsigned char msgType;
+  enum ThermostatMsgType msgType;
   union ThermostatData data;
 };
 
-#include "mqtt_client.h"
-void publish_thermostat_data(esp_mqtt_client_handle_t client);
-void update_thermostat(esp_mqtt_client_handle_t client);
+void publish_thermostat_data();
+void update_thermostat();
 
 esp_err_t read_thermostat_nvs(const char * tag, int * value);
 

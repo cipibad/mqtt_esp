@@ -211,6 +211,7 @@ config MQTT_THERMOSTAT
     boolean "enable thermostat control"
     default n
     depends on MQTT_SENSOR
+    depends on MQTT_SENSOR_DS18X20
     help
         Enable thermostat control
 

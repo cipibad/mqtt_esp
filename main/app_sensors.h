@@ -1,9 +1,17 @@
 #ifndef APP_SENSORS_H
 #define APP_SENSORS_H
 
-#include "mqtt_client.h"
+void sensors_task(void* pvParameters);
+void publish_sensors_data();
 
-void sensors_read(void* pvParameters);
-void publish_sensors_data(esp_mqtt_client_handle_t client);
+enum SensorMsgType {
+  SENSOR_MQTT_CONNECTED=1,
+  SENSOR_READ
+};
+
+struct SensorMessage
+{
+  enum SensorMsgType msgType;
+};
 
 #endif /* APP_SENSORS_H */

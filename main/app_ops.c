@@ -2,17 +2,18 @@
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/event_groups.h"
+
+#include "string.h"
 
 #include "app_main.h"
 #include "app_ops.h"
 
+#include "app_mqtt.h"
+
 static const char *TAG = "MQTTS_OPS";
-
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_PUBLISHED_BIT;
-extern const int MQTT_INIT_FINISHED_BIT;
-
+extern QueueHandle_t mqttQueue;
 
 void vTaskGetRunTimeStatsAsJson( char *pcWriteBuffer )
 {
@@ -97,35 +98,38 @@ void vTaskGetRunTimeStatsAsJson( char *pcWriteBuffer )
 }
 
 
-void publish_ops_data(esp_mqtt_client_handle_t client)
+void publish_ops_data()
 {
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ops";
-      char data[512];
-      memset(data,0,512);
+  struct MqttMsg m;
+  memset(&m, 0, sizeof(struct MqttMsg));
+  m.msgType = MQTT_PUBLISH;
 
-      char tasks_info[512-64];
-      memset(tasks_info,0,512-64);
-      vTaskGetRunTimeStatsAsJson(tasks_info );
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ops";
+  sprintf(m.publishData.topic, "%s", topic);
+  char tasks_info[512-64];
+  memset(tasks_info,0,512-64);
+  vTaskGetRunTimeStatsAsJson(tasks_info );
 
-      sprintf(data, "{\"free_heap\":%d, \"min_free_heap\":%d, \"tasks_stats\":%s}",
-              esp_get_free_heap_size(),
-              esp_get_minimum_free_heap_size(),
-              tasks_info
-              );
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 0, 0);
-      ESP_LOGI(TAG, "sent publish ops data, msg_id=%d", msg_id);
-    }
+  sprintf(m.publishData.data,
+          "{\"free_heap\":%d, \"min_free_heap\":%d, \"tasks_stats\":%s}",
+          esp_get_free_heap_size(),
+          esp_get_minimum_free_heap_size(),
+          tasks_info
+          );
+
+  if (xQueueSend(mqttQueue
+                 ,( void * )&m
+                 ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send otaData to mqttQueue");
+  }
+  ESP_LOGE(TAG, "Sent otaData to mqttQueue");
 }
 
 
 void ops_pub_task(void* pvParameters)
 {
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
   while (1) {
-    publish_ops_data(client);
+    publish_ops_data();
     vTaskDelay(60000 / portTICK_PERIOD_MS);
   }
 }
