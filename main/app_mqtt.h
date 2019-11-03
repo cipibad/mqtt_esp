@@ -6,7 +6,7 @@
 #define MQTT_QUEUE_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
 
 #define MQTT_MAX_TOPIC_LEN 64
-#define MAX_MQTT_PUBLISH_DATA 256
+#define MAX_MQTT_PUBLISH_DATA 512
 
 //FIXME removed others MAX data or rename to receive
 #define MAX_MQTT_DATA_LEN_RELAY 32
