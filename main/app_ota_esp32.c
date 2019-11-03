@@ -25,10 +25,6 @@ static const char *TAG = "MQTTS_OTA";
 extern QueueHandle_t otaQueue;
 extern QueueHandle_t mqttQueue;
 
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_PUBLISHED_BIT;
-extern const int MQTT_INIT_FINISHED_BIT;
-
 extern const uint8_t server_cert_pem_start[] asm("_binary_sw_iot_cipex_ro_pem_start");
 
 
@@ -40,19 +36,22 @@ void publish_ota_data(int status)
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
 
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   sprintf(m.publishData.topic, "%s", topic);
   sprintf(m.publishData.data, "{\"status\":%d}", status);
+
+  m.publishData.qos = QOS_1;
+  m.publishData.retain = RETAIN;
 
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send otaData to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent otaData to mqttQueue");
+  ESP_LOGI(TAG, "Sent otaData to mqttQueue");
 }
 
 static void http_cleanup(esp_http_client_handle_t client)
@@ -61,13 +60,115 @@ static void http_cleanup(esp_http_client_handle_t client)
     esp_http_client_cleanup(client);
 }
 
-void handle_ota_update_task(void* pvParameters)
+void perform_ota_upgrade()
 {
-
+  char * url = "https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin";
   esp_err_t err;
   /* update handle : set by esp_ota_begin(), must be freed via esp_ota_end() */
   esp_ota_handle_t update_handle = 0 ;
   const esp_partition_t *update_partition = NULL;
+
+  publish_ota_data(OTA_ONGOING);
+
+  esp_http_client_config_t config = {
+    .url = url,
+    .cert_pem = (char *)server_cert_pem_start,
+  };
+  esp_http_client_handle_t client = esp_http_client_init(&config);
+  if (client == NULL) {
+    ESP_LOGE(TAG, "Failed to initialise HTTP connection");
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  err = esp_http_client_open(client, 0);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+    esp_http_client_cleanup(client);
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  esp_http_client_fetch_headers(client);
+
+  update_partition = esp_ota_get_next_update_partition(NULL);
+  ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
+           update_partition->subtype, update_partition->address);
+  assert(update_partition != NULL);
+
+  err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_ota_begin failed (%s)", esp_err_to_name(err));
+    http_cleanup(client);
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+  ESP_LOGI(TAG, "esp_ota_begin succeeded");
+
+  int binary_file_length = 0;
+  /*deal with all receive packet*/
+  int failed=false;
+  while (!failed) {
+    int data_read = esp_http_client_read(client, ota_write_data, BUFFSIZE);
+    if (data_read < 0) {
+      ESP_LOGE(TAG, "Error: SSL data read error");
+      failed=true;
+      break;
+    } else if (data_read > 0) {
+      err = esp_ota_write( update_handle, (const void *)ota_write_data, data_read);
+      if (err != ESP_OK) {
+        failed=true;
+        break;
+      }
+      binary_file_length += data_read;
+      ESP_LOGD(TAG, "Written image length %d", binary_file_length);
+    } else if (data_read == 0) {
+      ESP_LOGI(TAG, "Connection closed,all data received");
+      break;
+    }
+  }
+  if(failed) {
+    http_cleanup(client);
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+
+  ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
+
+  if (esp_ota_end(update_handle) != ESP_OK) {
+    ESP_LOGE(TAG, "esp_ota_end failed!");
+    http_cleanup(client);
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+
+  if (esp_partition_check_identity(esp_ota_get_running_partition(), update_partition) == true) {
+    ESP_LOGI(TAG, "The current running firmware is same as the firmware just downloaded");
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+
+  err = esp_ota_set_boot_partition(update_partition);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(err));
+    http_cleanup(client);
+    ESP_LOGE(TAG, "Firmware Upgrade Failed");
+    publish_ota_data(OTA_FAILED);
+    return;
+  }
+
+  ESP_LOGI(TAG, "Firmware Upgrade Success, will restart in 10 seconds");
+  publish_ota_data(OTA_SUCCESFULL);
+  vTaskDelay(10000 / portTICK_PERIOD_MS);
+  esp_restart();
+}
+
+void handle_ota_update_task(void* pvParameters)
+{
 
   ESP_LOGI(TAG, "Starting OTA example...");
 
@@ -82,8 +183,6 @@ void handle_ota_update_task(void* pvParameters)
   ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
            running->type, running->subtype, running->address);
   struct OtaMessage o;
-  char * url = "https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin";
-
   while(1) {
     if( xQueueReceive( otaQueue, &o , portMAX_DELAY) )
       {
@@ -92,103 +191,12 @@ void handle_ota_update_task(void* pvParameters)
         /* vTaskDelay(60000 / portTICK_PERIOD_MS); */
         /* esp_wifi_start(); */
         /* xEventGroupWaitBits(mqtt_event_group, CONNECTED_BIT, false, true, portMAX_DELAY) */;
-        publish_ota_data(OTA_ONGOING);
-
-        esp_http_client_config_t config = {
-          .url = url,
-          .cert_pem = (char *)server_cert_pem_start,
-        };
-        esp_http_client_handle_t client = esp_http_client_init(&config);
-        if (client == NULL) {
-          ESP_LOGE(TAG, "Failed to initialise HTTP connection");
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
+        if (o.msgType == OTA_MQTT_CONNECTED) {
+          publish_ota_data(OTA_READY);
         }
-        err = esp_http_client_open(client, 0);
-        if (err != ESP_OK) {
-          ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-          esp_http_client_cleanup(client);
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
+        if (o.msgType == OTA_MQTT_UPGRADE) {
+          perform_ota_upgrade();
         }
-        esp_http_client_fetch_headers(client);
-
-        update_partition = esp_ota_get_next_update_partition(NULL);
-        ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
-                 update_partition->subtype, update_partition->address);
-        assert(update_partition != NULL);
-
-        err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
-        if (err != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_begin failed (%s)", esp_err_to_name(err));
-          http_cleanup(client);
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
-        }
-        ESP_LOGI(TAG, "esp_ota_begin succeeded");
-
-        int binary_file_length = 0;
-        /*deal with all receive packet*/
-        int failed=false;
-        while (!failed) {
-          int data_read = esp_http_client_read(client, ota_write_data, BUFFSIZE);
-          if (data_read < 0) {
-            ESP_LOGE(TAG, "Error: SSL data read error");
-            failed=true;
-            break;
-          } else if (data_read > 0) {
-            err = esp_ota_write( update_handle, (const void *)ota_write_data, data_read);
-            if (err != ESP_OK) {
-              failed=true;
-              break;
-            }
-            binary_file_length += data_read;
-            ESP_LOGD(TAG, "Written image length %d", binary_file_length);
-          } else if (data_read == 0) {
-            ESP_LOGI(TAG, "Connection closed,all data received");
-            break;
-          }
-        }
-        if(failed) {
-          http_cleanup(client);
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
-        }
-
-        ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
-
-        if (esp_ota_end(update_handle) != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_end failed!");
-          http_cleanup(client);
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
-        }
-
-        if (esp_partition_check_identity(esp_ota_get_running_partition(), update_partition) == true) {
-          ESP_LOGI(TAG, "The current running firmware is same as the firmware just downloaded");
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
-        }
-
-        err = esp_ota_set_boot_partition(update_partition);
-        if (err != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(err));
-          http_cleanup(client);
-          ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(OTA_FAILED);
-          continue;
-        }
-
-        ESP_LOGI(TAG, "Firmware Upgrade Success, will restart in 10 seconds");
-        publish_ota_data(OTA_SUCCESFULL);
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
-        esp_restart();
       }
   }
 }

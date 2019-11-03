@@ -124,24 +124,24 @@ void app_main(void)
   wifi_event_group = xEventGroupCreate();
 
 #ifdef CONFIG_MQTT_THERMOSTAT
-  thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
+  thermostatQueue = xQueueCreate(2, sizeof(struct ThermostatMessage) );
 #endif // CONFIG_MQTT_THERMOSTAT
 #if CONFIG_MQTT_RELAYS_NB
-  relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
-  relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCfgMessage) );
+  relayCmdQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
+  relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCMessage) );
 
-  schedulerCfgQueue = xQueueCreate(8, sizeof(struct SchedulerCfgMessage) );
+  schedulerCfgQueue = xQueueCreate(16, sizeof(struct SchedulerCfgMessage) );
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_SENSOR
-  sensorQueue = xQueueCreate(1, sizeof(struct SensorMessage) );
+  sensorQueue = xQueueCreate(2, sizeof(struct SensorMessage) );
 #endif //CONFIG_MQTT_SENSOR
 
 
 #ifdef CONFIG_MQTT_OTA
-  otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
+  otaQueue = xQueueCreate(2, sizeof(struct OtaMessage) );
 #endif //CONFIG_MQTT_OTA
-  mqttQueue = xQueueCreate(1, sizeof(void *) );
+  mqttQueue = xQueueCreate(16, sizeof(struct MqttMessage) );
 
   xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
 

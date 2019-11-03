@@ -53,8 +53,8 @@ void relays_init()
 
 void publish_relay_data(int id)
 {
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
@@ -62,18 +62,21 @@ void publish_relay_data(int id)
 
   sprintf(m.publishData.data, "{\"state\":%d}", relayStatus[id] == RELAY_ON);
 
+  m.publishData.qos = QOS_1;
+  m.publishData.retain = RETAIN;
+
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send publishRelay to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent publishRelay to mqttQueue");
+  ESP_LOGI(TAG, "Sent publishRelay to mqttQueue");
 }
 
 void publish_relay_cfg_data(int id)
 {
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/relay/";
@@ -81,12 +84,15 @@ void publish_relay_cfg_data(int id)
 
   sprintf(m.publishData.data, "{\"onTimeout\":%d}", relayOnTimeout[id]);
 
+  m.publishData.qos = QOS_1;
+  m.publishData.retain = RETAIN;
+
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send publishCfgRelay to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent publishCfgRelay to mqttQueue");
+  ESP_LOGI(TAG, "Sent publishCfgRelay to mqttQueue");
 }
 
 

@@ -190,8 +190,8 @@ void sensors_task(void* pvParameters)
 
 void publish_sensors_data()
 {
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/sensors";
@@ -233,6 +233,6 @@ void publish_sensors_data()
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send sensorsData to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent sensorsData to mqttQueue");
+  ESP_LOGI(TAG, "Sent sensorsData to mqttQueue");
 }
 

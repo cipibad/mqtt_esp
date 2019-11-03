@@ -100,8 +100,8 @@ void vTaskGetRunTimeStatsAsJson( char *pcWriteBuffer )
 
 void publish_ops_data()
 {
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ops";
@@ -120,9 +120,9 @@ void publish_ops_data()
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot send otaData to mqttQueue");
+    ESP_LOGE(TAG, "Cannot send opsData to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent otaData to mqttQueue");
+  ESP_LOGI(TAG, "Sent opsData to mqttQueue");
 }
 
 

@@ -88,7 +88,7 @@ extern QueueHandle_t thermostatQueue;
 int16_t connect_reason;
 const int mqtt_disconnect = 33; //32+1
 const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connection";
-esp_mqtt_client_handle_t client;
+esp_mqtt_client_handle_t client = NULL;
 
 
 EventGroupHandle_t mqtt_event_group;
@@ -465,25 +465,30 @@ char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
 }
 
 
-void mqtt_publish(const char* connect_topic, const char* data, int qos, int retain)
+void mqtt_publish(const char* topic, const char* data, int qos, int retain)
 {
-  xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-  int msg_id = esp_mqtt_client_publish(client, connect_topic,
-                                       data, strlen(data), qos, retain);
-  if (msg_id > 0) {
-    ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id);
-    EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-    if (bits & MQTT_PUBLISHED_BIT) {
-      ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT) {
+    xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
+    int msg_id = esp_mqtt_client_publish(client, topic,
+                                         data, strlen(data), qos, retain);
+
+    if (qos == QOS_0) {
+      ESP_LOGI(TAG, "sent QOS==0 publish data, msg_id=%d", msg_id);
+    } else if (msg_id > 0) {
+      ESP_LOGI(TAG, "sent QOS!=0 publish data successful, msg_id=%d", msg_id);
+      EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+      if (bits & MQTT_PUBLISHED_BIT) {
+        ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+      } else {
+        ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+      }
     } else {
-      ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+      ESP_LOGW(TAG, "failed to publish QOS!=0 data, msg_id=%d", msg_id);
     }
-  } else {
-    ESP_LOGW(TAG, "failed to publish connected data, msg_id=%d", msg_id);
   }
 }
 
-inline void mqtt_publish_msg(const struct MqttPublishData* msg)
+void mqtt_publish_msg(const struct MqttPublishData* msg)
 {
   mqtt_publish(msg->topic, msg->data, msg->qos, msg->retain);
 }
@@ -503,13 +508,15 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   switch (event->event_id) {
   case MQTT_EVENT_CONNECTED:
     xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
-    void * unused;
+    struct MqttMessage m;
+    memset(&m, 0, sizeof(struct MqttMessage));
+    m.msgType = MQTT_CONNECTED;
     if (xQueueSend( mqttQueue
-                    ,( void * )&unused
+                    ,( void * )&m
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to mqttQueue");
+      ESP_LOGE(TAG, "Cannot send MQTT_EVENT_CONNECTED to mqttQueue");
     }
-    ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+    ESP_LOGI(TAG, "Sent MQTT_EVENT_CONNECTED to mqttQueue");
     mqtt_reconnect_counter=0;
     break;
   case MQTT_EVENT_DISCONNECTED:
@@ -658,7 +665,7 @@ void notify_sensor_mqtt_connected()
 void handle_mqtt_sub_pub(void* pvPrameters)
 {
   connect_reason=esp_reset_reason();
-  struct MqttMsg msg;
+  struct MqttMessage msg;
   while(1) {
     if(xQueueReceive(mqttQueue, &msg, portMAX_DELAY))
       {

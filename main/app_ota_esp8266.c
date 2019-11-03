@@ -479,11 +479,14 @@ void publish_ota_data(int status)
   sprintf(m.publishData.topic, "%s", topic);
   sprintf(m.publishData.data, "{\"status\":%d}", status);
 
+  m.publishData.qos = QOS_1;
+  m.publishData.retain = RETAIN;
+
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send otaData to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent otaData to mqttQueue");
+  ESP_LOGI(TAG, "Sent otaData to mqttQueue");
 }
 #endif //CONFIG_TARGET_DEVICE_ESP8266

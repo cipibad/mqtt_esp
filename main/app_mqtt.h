@@ -21,6 +21,7 @@
 void mqtt_init_and_start();
 void handle_mqtt_sub_pub(void* pvParameters);
 
+#define QOS_0 0
 #define QOS_1 1
 #define RETAIN 1
 
@@ -36,7 +37,7 @@ struct MqttPublishData {
   int retain;
 };
 
-struct MqttMsg {
+struct MqttMessage {
   enum MqttMsgType msgType;
   struct MqttPublishData publishData;
 };

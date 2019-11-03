@@ -48,8 +48,8 @@ static const char *TAG = "APP_THERMOSTAT";
 
 void publish_thermostat_cfg()
 {
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/cfg";
@@ -62,32 +62,38 @@ void publish_thermostat_cfg()
           room0TargetTemperature/10,room0TargetTemperature%10,
           room0TemperatureSensibility/10, room0TemperatureSensibility%10);
 
+  m.publishData.qos = QOS_1;
+  m.publishData.retain = RETAIN;
+
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send publishThermostatData to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent publishThermostatData to mqttQueue");
+  ESP_LOGI(TAG, "Sent publishThermostatData to mqttQueue");
 }
 
 void publish_thermostat_state()
 {
-  struct MqttMsg m;
-  memset(&m, 0, sizeof(struct MqttMsg));
+  struct MqttMessage m;
+  memset(&m, 0, sizeof(struct MqttMessage));
   m.msgType = MQTT_PUBLISH;
 
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/state";
+  const char* topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/state";
   sprintf(m.publishData.topic, "%s", topic);
 
   sprintf(m.publishData.data, "{\"thermostatState\":%d, \"heatingState\":%d, \"heatingState2\":%d}",
           thermostatEnabled, heatingEnabled, heatingEnabled2);
+
+  m.publishData.qos = QOS_1;
+  m.publishData.retain = RETAIN;
 
   if (xQueueSend(mqttQueue
                  ,( void * )&m
                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send publishThermostatState to mqttQueue");
   }
-  ESP_LOGE(TAG, "Sent publishThermostatState to mqttQueue");
+  ESP_LOGI(TAG, "Sent publishThermostatState to mqttQueue");
 }
 
 void publish_thermostat_data()
