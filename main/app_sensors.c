@@ -170,6 +170,7 @@ void sensors_task(void* pvParameters)
       ESP_LOGI(TAG, "timer is active");
     }
   }
+  read_sensors();
 
   while (1)
     {
