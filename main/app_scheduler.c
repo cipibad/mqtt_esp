@@ -7,6 +7,8 @@
 #include "freertos/timers.h"
 #include "lwip/apps/sntp.h"
 
+#include "string.h"
+
 #include "app_main.h"
 #include "app_scheduler.h"
 
@@ -54,7 +56,7 @@ void vSchedulerCallback( TimerHandle_t xTimer )
   s.data.triggerActionData.now = now;
   if (xQueueSend(schedulerCfgQueue
                  ,( void * )&s
-                 ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                 ,SCHEDULE_QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue");
   }
 
@@ -109,7 +111,7 @@ void handle_relay_action_trigger(struct SchedulerCfgMessage *msg, int nowMinutes
     struct RelayCmdMessage r=msg->data.relayActionData;
     if (xQueueSend( relayCmdQueue,
                     ( void * )&r,
-                    MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                    RELAY_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
     }
   }

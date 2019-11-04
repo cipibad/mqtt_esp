@@ -34,9 +34,8 @@ struct ThermostatMessage {
   union ThermostatData data;
 };
 
-#include "mqtt_client.h"
-void publish_thermostat_data(esp_mqtt_client_handle_t client);
-void update_thermostat(esp_mqtt_client_handle_t client);
+void publish_thermostat_data();
+void update_thermostat();
 
 esp_err_t read_thermostat_nvs(const char * tag, int * value);
 

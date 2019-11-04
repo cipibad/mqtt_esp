@@ -11,6 +11,8 @@
 #include "app_main.h"
 #include "app_sensors.h"
 
+#include "app_mqtt.h"
+
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
 int16_t dht22_temperature;
@@ -50,8 +52,6 @@ static const char *TAG = "app_sensors";
 
 void sensors_read(void* pvParameters)
 {
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
-
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
   //Don't forget to connect SDO to Vio too
@@ -145,57 +145,49 @@ void sensors_read(void* pvParameters)
         ESP_LOGE(TAG, "Cannot send to thermostatQueue");
       }
 #endif // CONFIG_MQTT_THERMOSTAT
-      publish_sensors_data(client);
+      publish_sensors_data();
       vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }
 
-void publish_sensors_data(esp_mqtt_client_handle_t client)
+void publish_sensors_data()
 {
-    if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      const char * sensors_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/sensors";
-      ESP_LOGI(TAG, "starting mqtt_publish_sensor_data");
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/sensors";
+  ESP_LOGI(TAG, "starting mqtt_publish_sensor_data");
 
-      char data[256];
-      memset(data,0,256);
-      char tstr[64];
-      strcat(data, "{");
+  char data[256];
+  memset(data,0,256);
+  char tstr[64];
+  strcat(data, "{");
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,",
-              dht22_humidity / 10, dht22_humidity % 10,
-              dht22_temperature / 10, dht22_temperature % 10
-              );
-        strcat(data, tstr);
+  sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,",
+          dht22_humidity / 10, dht22_humidity % 10,
+          dht22_temperature / 10, dht22_temperature % 10
+          );
+  strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
-      sprintf(tstr, "\"wtemperature\":%d.%d,\"ctemperature\":%d.%d,",
-              wtemperature / 10, wtemperature % 10,
-              ctemperature / 10, ctemperature % 10);
-      strcat(data, tstr);
+  sprintf(tstr, "\"wtemperature\":%d.%d,\"ctemperature\":%d.%d,",
+          wtemperature / 10, wtemperature % 10,
+          ctemperature / 10, ctemperature % 10);
+  strcat(data, tstr);
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
-
-          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ", bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
-
-      sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,\"pressure\":%d,",
-              bme280_humidity/1000, bme280_humidity%1000,
-              bme280_temperature/100,bme280_temperature%100,
-              (int)(bme280_pressure*0.750061683)
-              );
-      strcat(data, tstr);
+  ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ", bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
+  sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,\"pressure\":%d,",
+          bme280_humidity/1000, bme280_humidity%1000,
+          bme280_temperature/100,bme280_temperature%100,
+          (int)(bme280_pressure*0.750061683)
+          );
+  strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_BME280
-      data[strlen(data)-1] = 0;
-      strcat(data, "}");
+  data[strlen(data)-1] = 0;
+  strcat(data, "}");
 
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, sensors_topic, data,strlen(data), 0, 0);
-      ESP_LOGI(TAG, "sent publish temp, msg_id=%d", msg_id);
-    } else {
-      ESP_LOGW(TAG, "skip publish sensor data as mqtt init not finished");
-    }
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+
 }
 

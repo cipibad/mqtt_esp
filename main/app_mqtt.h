@@ -9,28 +9,24 @@
 #define JSON_BAD_RELAY_VALUE 255
 #define JSON_BAD_TOPIC_ID 255
 
-#include "mqtt_client.h"
-
-esp_mqtt_client_handle_t mqtt_init();
-void mqtt_start(esp_mqtt_client_handle_t client);
+void mqtt_init_and_start();
 void handle_mqtt_sub_pub(void* pvParameters);
 
-/**
- * returns the value of a specific Json request
- * @param: tag - the json event, i.e: "state" or "onTimeout"
- * @param: event - mqtt event handler instance
- */
-char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event);
+
+#define MQTT_TIMEOUT 10
+#define MQTT_FLAG_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+#define MQTT_QUEUE_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+#define MQTT_MAX_TOPIC_LEN 64
 
 
-unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic);
+#define QOS_0 0
+#define QOS_1 1
+#define NO_RETAIN 0
+#define RETAIN 1
 
-bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event);
-bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event);
-bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event);
-bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event);
-bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event);
-
+void mqtt_publish_data(const char * topic,
+                       const char * data,
+                       int qos, int retain);
 
 
 

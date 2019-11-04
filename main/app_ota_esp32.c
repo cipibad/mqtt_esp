@@ -6,6 +6,7 @@
 #include "esp_flash_partitions.h"
 #include "esp_partition.h"
 
+#include <string.h>
 
 #include "esp_wifi.h"
 
@@ -17,6 +18,7 @@
 
 #include "app_main.h"
 #include "app_ota.h"
+#include "app_mqtt.h"
 
 static const char *TAG = "MQTTS_OTA";
 
@@ -33,29 +35,16 @@ extern const uint8_t server_cert_pem_start[] asm("_binary_sw_iot_cipex_ro_pem_st
 /*an ota data write buffer ready to write to the flash*/
 static char ota_write_data[BUFFSIZE + 1] = { 0 };
 
-void publish_ota_data(esp_mqtt_client_handle_t client, int status)
+void publish_ota_data(int status)
 {
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
-      char data[256];
-      memset(data,0,256);
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
+  char data[256];
+  memset(data,0,256);
 
-      sprintf(data, "{\"status\":%d}", status);
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish ota data successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish ota data, msg_id=%d", msg_id);
-      }
-    }
+  sprintf(data, "{\"status\":%d}", status);
+
+  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+
 }
 
 static void http_cleanup(esp_http_client_handle_t client)
@@ -67,7 +56,6 @@ static void http_cleanup(esp_http_client_handle_t client)
 void handle_ota_update_task(void* pvParameters)
 {
 
-  esp_mqtt_client_handle_t mqtt_client = (esp_mqtt_client_handle_t) pvParameters;
   esp_err_t err;
   /* update handle : set by esp_ota_begin(), must be freed via esp_ota_end() */
   esp_ota_handle_t update_handle = 0 ;
@@ -96,7 +84,7 @@ void handle_ota_update_task(void* pvParameters)
         /* vTaskDelay(60000 / portTICK_PERIOD_MS); */
         /* esp_wifi_start(); */
         /* xEventGroupWaitBits(mqtt_event_group, CONNECTED_BIT, false, true, portMAX_DELAY) */;
-        publish_ota_data(mqtt_client, OTA_ONGOING);
+        publish_ota_data(OTA_ONGOING);
 
         esp_http_client_config_t config = {
           .url = url,
@@ -106,7 +94,7 @@ void handle_ota_update_task(void* pvParameters)
         if (client == NULL) {
           ESP_LOGE(TAG, "Failed to initialise HTTP connection");
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
         err = esp_http_client_open(client, 0);
@@ -114,7 +102,7 @@ void handle_ota_update_task(void* pvParameters)
           ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
           esp_http_client_cleanup(client);
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
         esp_http_client_fetch_headers(client);
@@ -129,7 +117,7 @@ void handle_ota_update_task(void* pvParameters)
           ESP_LOGE(TAG, "esp_ota_begin failed (%s)", esp_err_to_name(err));
           http_cleanup(client);
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
         ESP_LOGI(TAG, "esp_ota_begin succeeded");
@@ -159,7 +147,7 @@ void handle_ota_update_task(void* pvParameters)
         if(failed) {
           http_cleanup(client);
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
 
@@ -169,14 +157,14 @@ void handle_ota_update_task(void* pvParameters)
           ESP_LOGE(TAG, "esp_ota_end failed!");
           http_cleanup(client);
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
 
         if (esp_partition_check_identity(esp_ota_get_running_partition(), update_partition) == true) {
           ESP_LOGI(TAG, "The current running firmware is same as the firmware just downloaded");
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
 
@@ -185,12 +173,12 @@ void handle_ota_update_task(void* pvParameters)
           ESP_LOGE(TAG, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(err));
           http_cleanup(client);
           ESP_LOGE(TAG, "Firmware Upgrade Failed");
-          publish_ota_data(mqtt_client, OTA_FAILED);
+          publish_ota_data(OTA_FAILED);
           continue;
         }
 
         ESP_LOGI(TAG, "Firmware Upgrade Success, will restart in 10 seconds");
-        publish_ota_data(mqtt_client, OTA_SUCCESFULL);
+        publish_ota_data(OTA_SUCCESFULL);
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         esp_restart();
       }
