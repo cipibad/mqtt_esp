@@ -75,11 +75,6 @@ static int binary_file_length = 0;
 /*socket id*/
 static int socket_id = -1;
 
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_PUBLISHED_BIT;
-extern const int MQTT_INIT_FINISHED_BIT;
-
-
 int hostname_to_ip(char * hostname , char* ip)
 {
 	struct hostent *he;

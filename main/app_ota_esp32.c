@@ -24,12 +24,7 @@ static const char *TAG = "MQTTS_OTA";
 
 extern QueueHandle_t otaQueue;
 
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_PUBLISHED_BIT;
-extern const int MQTT_INIT_FINISHED_BIT;
-
 extern const uint8_t server_cert_pem_start[] asm("_binary_sw_iot_cipex_ro_pem_start");
-
 
 #define BUFFSIZE 1024
 /*an ota data write buffer ready to write to the flash*/
@@ -83,7 +78,7 @@ void handle_ota_update_task(void* pvParameters)
         /* esp_wifi_stop(); */
         /* vTaskDelay(60000 / portTICK_PERIOD_MS); */
         /* esp_wifi_start(); */
-        /* xEventGroupWaitBits(mqtt_event_group, CONNECTED_BIT, false, true, portMAX_DELAY) */;
+        /* xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY) */;
         publish_ota_data(OTA_ONGOING);
 
         esp_http_client_config_t config = {

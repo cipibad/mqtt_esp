@@ -15,10 +15,6 @@
 
 #include "app_mqtt.h"
 
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_INIT_FINISHED_BIT;
-extern const int MQTT_PUBLISHED_BIT;
-
 #if CONFIG_MQTT_RELAYS_NB
 
 int relayStatus[CONFIG_MQTT_RELAYS_NB];

@@ -17,7 +17,6 @@
 
 bool thermostatEnabled = false;
 bool heatingEnabled = false;
-bool heatingEnabled2 = false;
 
 int columnTargetTemperature=23*10; //30 degrees
 int waterTargetTemperature=23*10; //30 degrees
@@ -35,12 +34,15 @@ const char * room0TemperatureSensibilityTAG="r0TempSens";
 int32_t room0Temperature = 0;
 int32_t wtemperature = 0;
 int32_t ctemperature = 0;
+
+unsigned int room0TemperatureFlag = SENSOR_LIFETIME;
+unsigned int wtemperatureFlag = SENSOR_LIFETIME;
+unsigned int ctemperatureFlag = SENSOR_LIFETIME;
+
 int32_t ctemperature_1 = 0;
 int32_t ctemperature_2 = 0;
 int32_t ctemperature_3 = 0;
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_INIT_FINISHED_BIT;
-extern const int MQTT_PUBLISHED_BIT;
+
 extern QueueHandle_t thermostatQueue;
 
 
@@ -60,8 +62,6 @@ void publish_thermostat_cfg()
           waterTemperatureSensibility/10, waterTemperatureSensibility%10,
           room0TargetTemperature/10,room0TargetTemperature%10,
           room0TemperatureSensibility/10, room0TemperatureSensibility%10);
-  xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
@@ -71,8 +71,8 @@ void publish_thermostat_state()
   char data[256];
   memset(data,0,256);
 
-  sprintf(data, "{\"thermostatState\":%d, \"heatingState\":%d, \"heatingState2\":%d}",
-          thermostatEnabled, heatingEnabled, heatingEnabled2);
+  sprintf(data, "{\"thermostatState\":%d, \"heatingState\":%d}",
+          thermostatEnabled, heatingEnabled);
 
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 
@@ -106,8 +106,8 @@ void enableThermostat()
 
 void update_thermostat()
 {
+  bool heatingToggledOff = false;
   ESP_LOGI(TAG, "heatingEnabled state is %d", heatingEnabled);
-  ESP_LOGI(TAG, "heatingEnabled2 state is %d", heatingEnabled2);
   ESP_LOGI(TAG, "ctemperature_n is %d", ctemperature);
   ESP_LOGI(TAG, "ctemperature_n_1 is %d", ctemperature_1);
   ESP_LOGI(TAG, "ctemperature_n_2 is %d", ctemperature_2);
@@ -120,32 +120,21 @@ void update_thermostat()
   ESP_LOGI(TAG, "room0Temperature is %d", room0Temperature);
   ESP_LOGI(TAG, "room0TargetTemperature is %d", room0TargetTemperature);
   ESP_LOGI(TAG, "room0TemperatureSensibility is %d", room0TemperatureSensibility);
-  if ( wtemperature == 0 && room0Temperature == 0 )
-    {
-      ESP_LOGI(TAG, "no sensor is reporting => no thermostat handling");
-      if (thermostatEnabled==true) {
-        ESP_LOGI(TAG, "stop thermostat as no sensor is reporting");
-        disableThermostat();
-      }
-      return;
-    }
 
-  if (thermostatEnabled==false &&
-      (
-       (wtemperature > 0 &&
-        wtemperature < waterTargetTemperature - waterTemperatureSensibility) ||
-       (room0Temperature > 0 &&
-        room0Temperature < room0TargetTemperature - room0TemperatureSensibility)
-       )&&
-      ctemperature < columnTargetTemperature)
-    {
-      enableThermostat();
+  if ( wtemperatureFlag == 0 && room0TemperatureFlag == 0 ) {
+    ESP_LOGI(TAG, "no live sensor is reporting => no thermostat handling");
+    if (thermostatEnabled==true) {
+      ESP_LOGI(TAG, "stop thermostat as no live sensor is reporting");
+      disableThermostat();
     }
+    return;
+  }
 
-  if (ctemperature_2 && ctemperature_1 && ctemperature) {//three consecutive valid readings with 2 difference
-    if (thermostatEnabled && !heatingEnabled
-        && ((ctemperature_2 + 1) < ctemperature_1
-            && ctemperature_1 < (ctemperature - 1))){ //water is heating 1 3 5
+  if (ctemperature_3 && ctemperature_2 && ctemperature_1 && ctemperature) {//four consecutive valid readings
+    if (!heatingEnabled
+        && ( ctemperature_3 < ctemperature_2
+             && ctemperature_2 < ctemperature_1
+             && ctemperature_1 < ctemperature )){ //water is heating 1 2 3 4
       publish_thermostat_state();
       heatingEnabled = true;
       ESP_LOGI(TAG, "heating enabled");
@@ -153,48 +142,76 @@ void update_thermostat()
     }
 
     if (heatingEnabled
-        && ( (ctemperature_2 + 1) >= ctemperature_1
-             || ctemperature_1 >= (ctemperature - 1 ))) { //heating is disabled   1 3 4
-      publish_thermostat_state();
-      heatingEnabled = false;
-      ESP_LOGI(TAG, "heating disabled");
-      publish_thermostat_state();
-    }
-  }
-
-
-  if (ctemperature_3 && ctemperature_2 && ctemperature_1 && ctemperature) {//four consecutive valid readings
-    if (thermostatEnabled && !heatingEnabled2
-        && ( ctemperature_3 < ctemperature_2
-             && ctemperature_2 < ctemperature_1
-             && ctemperature_1 < ctemperature )){ //water is heating 1 2 3 4
-      publish_thermostat_state();
-      heatingEnabled2 = true;
-      ESP_LOGI(TAG, "heating2 enabled");
-      publish_thermostat_state();
-    }
-
-    if (heatingEnabled2
         && ( ctemperature_3 >= ctemperature_2
              || ctemperature_2 >= ctemperature_1
              || ctemperature_1 >= ctemperature )) { //heating is disabled   5 4 3 2
       publish_thermostat_state();
-      heatingEnabled2 = false;
+      heatingEnabled = false;
       ESP_LOGI(TAG, "heating2 disabled");
       publish_thermostat_state();
-      ESP_LOGI(TAG, "thermostat disabled due to heating2 disabled");
-      disableThermostat();
+      heatingToggledOff = true;
     }
   }
 
+  bool waterTooHot = (wtemperatureFlag > 0) &&
+    (wtemperature > (waterTargetTemperature + waterTemperatureSensibility));
 
+  bool roomTooHot = (room0TemperatureFlag > 0) &&
+    (room0Temperature > (room0TargetTemperature + room0TemperatureSensibility));
+
+  bool waterTooCold = (wtemperatureFlag > 0) &&
+    (wtemperature < (waterTargetTemperature - waterTemperatureSensibility));
+
+  bool roomTooCold = (room0TemperatureFlag > 0) &&
+    (room0Temperature < (room0TargetTemperature - room0TemperatureSensibility));
+
+  bool circuitColdEnough = (wtemperatureFlag > 0) ? (ctemperature < columnTargetTemperature) : true;
+
+  if (thermostatEnabled &&
+      (heatingToggledOff || (roomTooHot && waterTooHot))) {
+    ESP_LOGI(TAG, "thermostat disabled, %s", heatingToggledOff ?
+             ((roomTooHot && waterTooHot) ? "heating stopped and rooms are too hot" : "heating stopped") :
+             ((roomTooHot && waterTooHot) ? "rooms are too hot" : "should never print" ));
+    disableThermostat();
+  }
+
+  if (!thermostatEnabled && ( waterTooCold || roomTooCold) && circuitColdEnough )
+    {
+      ESP_LOGI(TAG, "thermostat enabled, %s", waterTooCold ? (waterTooCold ? "water and room are too cold" : "room is too cold") : (waterTooCold ? "water is too cold" : "should never print"));
+      enableThermostat();
+    }
   ctemperature_3 = ctemperature_2;
   ctemperature_2 = ctemperature_1;
   ctemperature_1 = ctemperature;
 }
 
+void vThermostatTimerCallback( TimerHandle_t xTimer )
+{
+  ESP_LOGI(TAG, "Thermostat timer expired");
+  struct ThermostatMessage t;
+  t.msgType = THERMOSTAT_LIFE_TICK;
+  if (xQueueSend( thermostatQueue,
+                  ( void * )&t,
+                  MQTT_QUEUE_TIMEOUT) != pdPASS) {
+  }
+}
+
 void handle_thermostat_cmd_task(void* pvParameters)
 {
+
+  //create period read timer
+  TimerHandle_t th =
+    xTimerCreate( "thermostatSensorsTimer",           /* Text name. */
+                  pdMS_TO_TICKS(60000),  /* Period. */
+                  pdTRUE,                /* Autoreload. */
+                  (void *)0,                  /* No ID. */
+                  vThermostatTimerCallback );  /* Callback function. */
+  if( th != NULL ) {
+    ESP_LOGI(TAG, "timer is created");
+    if (xTimerStart(th, portMAX_DELAY) != pdFALSE){
+      ESP_LOGI(TAG, "timer is active");
+    }
+  }
   struct ThermostatMessage t;
   while(1) {
     if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) )
@@ -232,19 +249,37 @@ void handle_thermostat_cmd_task(void* pvParameters)
             updated = true;
           }
           if (updated) {
-            update_thermostat();
             publish_thermostat_cfg();
           }
         }
         if (t.msgType == THERMOSTAT_SENSORS_MSG) {
           wtemperature = t.data.sensorsData.wtemperature;
           ctemperature = t.data.sensorsData.ctemperature;
-          update_thermostat();
+          if (wtemperature > 0) {
+            wtemperatureFlag = SENSOR_LIFETIME;
+          }
+          ctemperature = t.data.sensorsData.ctemperature;
+          if (ctemperature > 0) {
+            ctemperatureFlag = SENSOR_LIFETIME;
+          }
         }
         if (t.msgType == THERMOSTAT_ROOM_0_MSG) {
           room0Temperature = t.data.roomData.temperature;
-          update_thermostat();
+          if (room0Temperature > 0) {
+            room0TemperatureFlag = SENSOR_LIFETIME;
+          }
         }
+        if (t.msgType == THERMOSTAT_LIFE_TICK) {
+          if (room0TemperatureFlag > 0)
+            room0TemperatureFlag -= 1;
+          if (wtemperatureFlag > 0)
+            wtemperatureFlag -= 1;
+          if (ctemperatureFlag > 0)
+            ctemperatureFlag -= 1;
+          ESP_LOGI(TAG, "room0TemperatureFlag: %d, wtemperatureFlag: %d, ctemperatureFlag: %d",
+                   room0TemperatureFlag, wtemperatureFlag, ctemperatureFlag);
+        }
+        update_thermostat();
       }
   }
 }
