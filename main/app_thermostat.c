@@ -17,6 +17,8 @@
 
 bool thermostatEnabled = false;
 bool heatingEnabled = false;
+unsigned int thermostatDuration = 0;
+unsigned int heatingDuration = 0;
 
 int columnTargetTemperature=23*10; //30 degrees
 int waterTargetTemperature=23*10; //30 degrees
@@ -65,14 +67,17 @@ void publish_thermostat_cfg()
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
-void publish_thermostat_state()
+void publish_thermostat_state(const char* reason, unsigned int duration)
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/state";
   char data[256];
   memset(data,0,256);
 
-  sprintf(data, "{\"thermostatState\":%d, \"heatingState\":%d}",
-          thermostatEnabled, heatingEnabled);
+  if(!reason) {
+    reason = "";
+  }
+  sprintf(data, "{\"thermostatState\":%d, \"heatingState\":%d, \"reason\":%s, \"duration\":%u}",
+          thermostatEnabled, heatingEnabled, reason, duration);
 
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 
@@ -80,29 +85,47 @@ void publish_thermostat_state()
 
 void publish_thermostat_data()
 {
-  publish_thermostat_state();
+  publish_thermostat_state(NULL, 0);
   publish_thermostat_cfg();
 }
 
 
-void disableThermostat()
+void disableThermostat(const char * reason)
 {
-  publish_thermostat_state();
+  publish_thermostat_state(NULL, 0);
   thermostatEnabled=false;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 0);
-  publish_thermostat_state();
+  publish_thermostat_state(reason, thermostatDuration);
+  thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat disabled");
 }
 
-void enableThermostat()
+void enableThermostat(const char * reason)
 {
-  publish_thermostat_state();
+  publish_thermostat_state(NULL, 0);
   thermostatEnabled=true;
   update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1);
-  publish_thermostat_state();
+  publish_thermostat_state(reason, thermostatDuration);
+  thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat enabled");
 }
 
+void enableHeating()
+{
+  publish_thermostat_state(NULL, 0);
+  heatingEnabled = true;
+  ESP_LOGI(TAG, "heating enabled");
+  publish_thermostat_state("Heating was enabled", heatingDuration);
+  heatingDuration = 0;
+}
+void disableHeating()
+{
+  publish_thermostat_state(NULL, 0);
+  heatingEnabled = false;
+  ESP_LOGI(TAG, "heating2 disabled");
+  publish_thermostat_state("Heating was disabled", heatingDuration);
+  heatingDuration = 0;
+}
 
 void update_thermostat()
 {
@@ -125,7 +148,7 @@ void update_thermostat()
     ESP_LOGI(TAG, "no live sensor is reporting => no thermostat handling");
     if (thermostatEnabled==true) {
       ESP_LOGI(TAG, "stop thermostat as no live sensor is reporting");
-      disableThermostat();
+      disableThermostat("Thermostat was disabled as no live sensor is reporting");
     }
     return;
   }
@@ -135,20 +158,14 @@ void update_thermostat()
         && ( ctemperature_3 < ctemperature_2
              && ctemperature_2 < ctemperature_1
              && ctemperature_1 < ctemperature )){ //water is heating 1 2 3 4
-      publish_thermostat_state();
-      heatingEnabled = true;
-      ESP_LOGI(TAG, "heating enabled");
-      publish_thermostat_state();
+      enableHeating();
     }
 
     if (heatingEnabled
         && ( ctemperature_3 >= ctemperature_2
              || ctemperature_2 >= ctemperature_1
              || ctemperature_1 >= ctemperature )) { //heating is disabled   5 4 3 2
-      publish_thermostat_state();
-      heatingEnabled = false;
-      ESP_LOGI(TAG, "heating2 disabled");
-      publish_thermostat_state();
+      disableHeating();
       heatingToggledOff = true;
     }
   }
@@ -169,16 +186,18 @@ void update_thermostat()
 
   if (thermostatEnabled &&
       (heatingToggledOff || (roomTooHot && waterTooHot))) {
-    ESP_LOGI(TAG, "thermostat disabled, %s", heatingToggledOff ?
-             ((roomTooHot && waterTooHot) ? "heating stopped and rooms are too hot" : "heating stopped") :
-             ((roomTooHot && waterTooHot) ? "rooms are too hot" : "should never print" ));
-    disableThermostat();
+    const char * reason = heatingToggledOff ?
+      ((roomTooHot && waterTooHot) ? "Thermostat was disabled due to heating stopped and rooms are too hot" : "Thermostat was disabled due to heating stopped") :
+      ((roomTooHot && waterTooHot) ? "Thermostat was disabled due to rooms are too hot" : "should never print" );
+    ESP_LOGI(TAG, "%s", reason);
+    disableThermostat(reason);
   }
 
-  if (!thermostatEnabled && ( waterTooCold || roomTooCold) && circuitColdEnough )
-    {
-      ESP_LOGI(TAG, "thermostat enabled, %s", waterTooCold ? (waterTooCold ? "water and room are too cold" : "room is too cold") : (waterTooCold ? "water is too cold" : "should never print"));
-      enableThermostat();
+  if (!thermostatEnabled &&
+      (waterTooCold || roomTooCold) && circuitColdEnough) {
+    const char * reason = waterTooCold ? (waterTooCold ? "Thermostat enabled because water and room are too cold" : "Thermostat enabled because room is too cold") : (waterTooCold ? "Thermostat enabled because water is too cold" : "should never print");
+    ESP_LOGI(TAG, "%s", reason);
+    enableThermostat(reason);
     }
   ctemperature_3 = ctemperature_2;
   ctemperature_2 = ctemperature_1;
@@ -270,6 +289,9 @@ void handle_thermostat_cmd_task(void* pvParameters)
           }
         }
         if (t.msgType == THERMOSTAT_LIFE_TICK) {
+          thermostatDuration += 1;
+          heatingDuration += 1;
+
           if (room0TemperatureFlag > 0)
             room0TemperatureFlag -= 1;
           if (wtemperatureFlag > 0)
