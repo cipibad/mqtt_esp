@@ -36,7 +36,6 @@ struct ThermostatMessage {
 };
 
 void publish_thermostat_data();
-void update_thermostat();
 
 esp_err_t read_thermostat_nvs(const char * tag, int * value);
 

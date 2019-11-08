@@ -74,7 +74,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12c"
+#define FW_VERSION "0.02.12g"
 
 extern QueueHandle_t mqttQueue;
 
@@ -372,10 +372,7 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
 bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-  ESP_LOGI(TAG, "got topic");
   if (strncmp(event->topic, CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC, strlen(CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC)) == 0) {
-    ESP_LOGI(TAG, "got room0 topic");
-
     if (event->data_len >= MAX_MQTT_DATA_SENSORS )
       {
         ESP_LOGI(TAG, "unexpected room sensors cfg payload length");
@@ -386,11 +383,9 @@ bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
     tmpBuf[event->data_len] = 0;
     cJSON * root = cJSON_Parse(tmpBuf);
     if (root) {
-      ESP_LOGI(TAG, "got root");
       struct ThermostatRoomMessage t;
       cJSON * tObject = cJSON_GetObjectItem(root,"temperature");
       if (tObject) {
-        ESP_LOGI(TAG, "got got temperature");
         float temperature = tObject->valuedouble;
         ESP_LOGI(TAG, "temperature: %f", temperature);
         t.temperature = temperature * 10;

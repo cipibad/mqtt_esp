@@ -41,19 +41,11 @@ void vSchedulerCallback( TimerHandle_t xTimer )
 
   ESP_LOGI(TAG, "timer scheduler expired, checking scheduled actions");
 
-  time_t now = 0;
-  struct tm timeinfo = { 0 };
-  time(&now);
-  localtime_r(&now, &timeinfo);
-
-  char strftime_buf[64];
-  strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-  ESP_LOGI(TAG, "Current time is: %s", strftime_buf);
 
   //trigerring
   struct SchedulerCfgMessage s;
   s.actionId = TRIGGER_ACTION;
-  s.data.triggerActionData.now = now;
+  time(&s.data.triggerActionData.now);
   if (xQueueSend(schedulerCfgQueue
                  ,( void * )&s
                  ,SCHEDULE_QUEUE_TIMEOUT) != pdPASS) {
@@ -147,7 +139,14 @@ void handle_scheduler(void* pvParameters)
   while(1) {
     if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg, portMAX_DELAY)) {
       if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
-        int nowMinutes = tempSchedulerCfg.data.triggerActionData.now / 60;
+        struct tm timeinfo = { 0 };
+        localtime_r(&tempSchedulerCfg.data.triggerActionData.now, &timeinfo);
+
+        char strftime_buf[64];
+        strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+        ESP_LOGI(TAG, "Current time is: %s", strftime_buf);
+
+        int nowMinutes =  tempSchedulerCfg.data.triggerActionData.now/ 60;
         ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
         handle_action_trigger(schedulerCfg, nowMinutes);
       } else if (tempSchedulerCfg.actionId == ADD_RELAY_ACTION) {

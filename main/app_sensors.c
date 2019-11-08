@@ -133,6 +133,7 @@ void sensors_read(void* pvParameters)
       struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
       struct ThermostatMessage tm;
       memset(&tm, 0, sizeof(struct ThermostatMessage));
+      tm.msgType = THERMOSTAT_SENSORS_MSG;
       tm.data.sensorsData = t;
       if (xQueueSend( thermostatQueue
                       ,( void * )&tm
