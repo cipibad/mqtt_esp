@@ -27,11 +27,14 @@ int waterTemperatureSensibility=5; //0.5 degrees
 int room0TargetTemperature=22*10;
 int room0TemperatureSensibility=2;
 
+enum ThermostatMode thermostatMode=TERMOSTAT_MODE_OFF;
+
 const char * circuitTargetTemperatureTAG="ctgtTemp";
 const char * waterTargetTemperatureTAG="wTargetTemp";
 const char * waterTemperatureSensibilityTAG="wTempSens";
 const char * room0TargetTemperatureTAG="r0targetTemp";
 const char * room0TemperatureSensibilityTAG="r0TempSens";
+const char * thermostatModeTAG="thermMode";
 
 int32_t room0Temperature = 0;
 int32_t waterTemperature = 0;
@@ -58,12 +61,13 @@ void publish_thermostat_cfg()
   char data[256];
   memset(data,0,256);
 
-  sprintf(data, "{\"circuitTargetTemperature\":%d.%01d, \"waterTargetTemperature\":%d.%01d, \"waterTemperatureSensibility\":%d.%01d, \"room0TargetTemperature\":%d.%01d, \"room0TemperatureSensibility\":%d.%01d}",
+  sprintf(data, "{\"circuitTargetTemperature\":%d.%01d, \"waterTargetTemperature\":%d.%01d, \"waterTemperatureSensibility\":%d.%01d, \"room0TargetTemperature\":%d.%01d, \"room0TemperatureSensibility\":%d.%01d, \"thermostatMode\":%d}",
           circuitTargetTemperature/10, circuitTargetTemperature%10,
           waterTargetTemperature/10, waterTargetTemperature%10,
           waterTemperatureSensibility/10, waterTemperatureSensibility%10,
           room0TargetTemperature/10,room0TargetTemperature%10,
-          room0TemperatureSensibility/10, room0TemperatureSensibility%10);
+          room0TemperatureSensibility/10, room0TemperatureSensibility%10,
+          thermostatMode);
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
@@ -136,6 +140,7 @@ void update_thermostat()
   ESP_LOGI(TAG, "circuitTemperature_n_2 is %d", circuitTemperature_2);
   ESP_LOGI(TAG, "circuitTemperature_n_3 is %d", circuitTemperature_3);
   ESP_LOGI(TAG, "circuitTargetTemperature is %d", circuitTargetTemperature);
+  ESP_LOGI(TAG, "thermostatMode is %d", thermostatMode);
   ESP_LOGI(TAG, "thermostat state is %d", thermostatEnabled);
   ESP_LOGI(TAG, "waterTemperature is %d", waterTemperature);
   ESP_LOGI(TAG, "waterTargetTemperature is %d", waterTargetTemperature);
@@ -170,16 +175,16 @@ void update_thermostat()
     }
   }
 
-  bool waterTooHot = (waterTemperatureFlag > 0) ?
+  bool waterTooHot = ((waterTemperatureFlag > 0) && thermostatMode & BIT_WATER_SENSOR) ?
     (waterTemperature > (waterTargetTemperature + waterTemperatureSensibility)) : true;
 
-  bool roomTooHot = (room0TemperatureFlag > 0) ?
+  bool roomTooHot = ((room0TemperatureFlag > 0) && thermostatMode & BIT_ROOM_SENSOR) ?
     (room0Temperature > (room0TargetTemperature + room0TemperatureSensibility)) : true;
 
-  bool waterTooCold = (waterTemperatureFlag > 0) ?
+  bool waterTooCold = ((waterTemperatureFlag > 0) && thermostatMode & BIT_WATER_SENSOR)?
     (waterTemperature < (waterTargetTemperature - waterTemperatureSensibility)) : false;
 
-  bool roomTooCold = (room0TemperatureFlag > 0) ?
+  bool roomTooCold = ((room0TemperatureFlag > 0) && thermostatMode & BIT_ROOM_SENSOR) ?
     (room0Temperature < (room0TargetTemperature - room0TemperatureSensibility)) : false;
 
   bool circuitColdEnough = (circuitTemperatureFlag > 0) ? (circuitTemperature < circuitTargetTemperature) : true;
@@ -236,8 +241,8 @@ void handle_thermostat_cmd_task(void* pvParameters)
       {
         if (t.msgType == THERMOSTAT_CFG_MSG) {
           bool updated = false;
-          if (t.data.cfgData.columnTargetTemperature && circuitTargetTemperature != t.data.cfgData.columnTargetTemperature) {
-            circuitTargetTemperature=t.data.cfgData.columnTargetTemperature;
+          if (t.data.cfgData.circuitTargetTemperature && circuitTargetTemperature != t.data.cfgData.circuitTargetTemperature) {
+            circuitTargetTemperature=t.data.cfgData.circuitTargetTemperature;
             esp_err_t err = write_nvs_integer(circuitTargetTemperatureTAG, circuitTargetTemperature);
             ESP_ERROR_CHECK( err );
             updated = true;
@@ -266,6 +271,13 @@ void handle_thermostat_cmd_task(void* pvParameters)
             ESP_ERROR_CHECK( err );
             updated = true;
           }
+          if (t.data.cfgData.thermostatMode && thermostatMode != t.data.cfgData.thermostatMode) {
+            thermostatMode=t.data.cfgData.thermostatMode;
+            esp_err_t err = write_nvs_integer(thermostatModeTAG, thermostatMode);
+            ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+
           if (updated) {
             publish_thermostat_cfg();
           }
@@ -322,6 +334,9 @@ void read_nvs_thermostat_data()
   ESP_ERROR_CHECK( err );
 
   err=read_nvs_integer(room0TemperatureSensibilityTAG, &room0TemperatureSensibility);
+  ESP_ERROR_CHECK( err );
+
+  err=read_nvs_integer(thermostatModeTAG, (int*) &thermostatMode);
   ESP_ERROR_CHECK( err );
 }
 #endif // CONFIG_MQTT_THERMOSTAT

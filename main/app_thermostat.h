@@ -2,12 +2,25 @@
 #define APP_THERMOSTAT_H
 
 
+
+#define BIT_WATER_SENSOR = 1;
+#define BIT_ROOM_SENSOR = 1 << 1;
+
+
+enum ThermostatMode {
+  TERMOSTAT_MODE_OFF = 0, 
+  TERMOSTAT_MODE_SUMMER = BIT_WATER_SENSOR, //1
+  TERMOSTAT_MODE_SPRING_AUTUMN = BIT_WATER_SENSOR | BIT_ROOM_SENSOR, //3
+  TERMOSTAT_MODE_WINTER = BIT_ROOM_SENSOR, //2
+};
+
 struct ThermostatCfgMessage {
-  int32_t columnTargetTemperature;
+  int32_t circuitTargetTemperature;
   int32_t waterTargetTemperature;
   int32_t waterTemperatureSensibility;
   int32_t room0TargetTemperature;
   int32_t room0TemperatureSensibility;
+  enum ThermostatMode thermostatMode;
 };
 
 struct ThermostatSensorsMessage {

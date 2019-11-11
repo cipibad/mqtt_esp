@@ -74,7 +74,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12g"
+#define FW_VERSION "0.02.12h"
 
 extern QueueHandle_t mqttQueue;
 
@@ -292,6 +292,17 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
   return false;
 }
 
+bool getTemperatureValue(int* value, const cJSON* root, const char* tag)
+{
+  cJSON * object = cJSON_GetObjectItem(root,tag);
+  if (object) {
+    *value = object->valuedouble * 10;
+    ESP_LOGI(TAG, "%s: %d.%01d", tag, (*value)/10, (*value)%10);
+    return true;
+  }
+  return false;
+}
+
 bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #ifdef CONFIG_MQTT_THERMOSTAT
@@ -306,55 +317,39 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
-      struct ThermostatCfgMessage t;
-      memset(&t, 0, sizeof(struct ThermostatCfgMessage));
-      cJSON * cttObject = cJSON_GetObjectItem(root,"columnTargetTemperature");
-      if (cttObject) {
-        int32_t columnTargetTemperature = cttObject->valuedouble * 10;
-        ESP_LOGI(TAG, "columnTargetTemperature: %d.%01d0",
-                 columnTargetTemperature/10,
-                 columnTargetTemperature%10);
-        t.columnTargetTemperature = columnTargetTemperature;
+      struct ThermostatMessage tm;
+      memset(&tm, 0, sizeof(struct ThermostatMessage));
+      tm.msgType = THERMOSTAT_CFG_MSG;
+      bool updated = false;
+      if (getTemperatureValue(&tm.data.cfgData.circuitTargetTemperature,
+                              root, "circuitTargetTemperature")) {
+        updated = true;
       }
-      cJSON * wttObject = cJSON_GetObjectItem(root,"waterTargetTemperature");
-      if (wttObject) {
-        int32_t waterTargetTemperature = wttObject->valuedouble * 10;
-        ESP_LOGI(TAG, "waterTargetTemperature: %d.%01d",
-                 waterTargetTemperature/10,
-                 waterTargetTemperature%10);
-        t.waterTargetTemperature = waterTargetTemperature;
+      if (getTemperatureValue(&tm.data.cfgData.waterTargetTemperature,
+                              root, "waterTargetTemperature")) {
+        updated = true;
       }
-      cJSON * wtsObject = cJSON_GetObjectItem(root,"waterTemperatureSensibility");
-      if (wtsObject) {
-        int32_t waterTemperatureSensibility = wtsObject->valuedouble * 10;
-        ESP_LOGI(TAG, "waterTemperatureSensibility: %d.%01d",
-                 waterTemperatureSensibility/10,
-                 waterTemperatureSensibility%10);
-        t.waterTemperatureSensibility = waterTemperatureSensibility;
+      if (getTemperatureValue(&tm.data.cfgData.waterTemperatureSensibility,
+                              root, "waterTemperatureSensibility")) {
+        updated = true;
       }
-      cJSON * r0ttObject = cJSON_GetObjectItem(root,"room0TargetTemperature");
-      if (r0ttObject) {
-        int32_t room0TargetTemperature = r0ttObject->valuedouble * 10;
-        ESP_LOGI(TAG, "room0TargetTemperature: %d.%01d",
-                 room0TargetTemperature/10,
-                 room0TargetTemperature%10);
-        t.room0TargetTemperature = room0TargetTemperature;
+      if (getTemperatureValue(&tm.data.cfgData.room0TargetTemperature,
+                              root, "room0TargetTemperature")) {
+        updated = true;
       }
-      cJSON * r0tsObject = cJSON_GetObjectItem(root,"room0TemperatureSensibility");
-      if (r0tsObject) {
-        int32_t room0TemperatureSensibility = r0tsObject->valuedouble * 10;
-        ESP_LOGI(TAG, "room0TemperatureSensibility: %d.%01d",
-                 room0TemperatureSensibility/10,
-                 room0TemperatureSensibility%10);
-        t.room0TemperatureSensibility = room0TemperatureSensibility;
+      if (getTemperatureValue(&tm.data.cfgData.room0TemperatureSensibility,
+                              root, "room0TemperatureSensibility")) {
+        updated = true;
       }
-      if (t.columnTargetTemperature ||
-          t.waterTargetTemperature || t.waterTemperatureSensibility ||
-          t.room0TargetTemperature || t.room0TemperatureSensibility) {
-        struct ThermostatMessage tm;
-        memset(&tm, 0, sizeof(struct ThermostatMessage));
-        tm.msgType = THERMOSTAT_CFG_MSG;
-        tm.data.cfgData = t;
+
+      cJSON * tmMode = cJSON_GetObjectItem(root,"thermostatMode");
+      if (tmMode) {
+        tm.data.cfgData.thermostatMode = tmMode->valueint;
+        ESP_LOGI(TAG, "thermostatMode: %d", tm.data.cfgData.thermostatMode);
+        updated = true;
+      }
+
+      if (updated) {
         if (xQueueSend( thermostatQueue
                         ,( void * )&tm
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -384,13 +379,8 @@ bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
     cJSON * root = cJSON_Parse(tmpBuf);
     if (root) {
       struct ThermostatRoomMessage t;
-      cJSON * tObject = cJSON_GetObjectItem(root,"temperature");
-      if (tObject) {
-        float temperature = tObject->valuedouble;
-        ESP_LOGI(TAG, "temperature: %f", temperature);
-        t.temperature = temperature * 10;
-      }
-      if (t.temperature) {
+      getTemperatureValue(&t.temperature, root, "temperature");
+      if (getTemperatureValue(&t.temperature, root, "temperature")) {
         struct ThermostatMessage tm;
         memset(&tm, 0, sizeof(struct ThermostatMessage));
         tm.msgType = THERMOSTAT_ROOM_0_MSG;
