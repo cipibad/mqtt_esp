@@ -379,7 +379,6 @@ bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
     cJSON * root = cJSON_Parse(tmpBuf);
     if (root) {
       struct ThermostatRoomMessage t;
-      getTemperatureValue(&t.temperature, root, "temperature");
       if (getTemperatureValue(&t.temperature, root, "temperature")) {
         struct ThermostatMessage tm;
         memset(&tm, 0, sizeof(struct ThermostatMessage));

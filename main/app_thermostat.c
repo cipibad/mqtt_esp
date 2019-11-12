@@ -199,7 +199,7 @@ void update_thermostat()
   }
 
   if (!thermostatEnabled &&
-      (waterTooCold || roomTooCold) && circuitColdEnough) {
+      (waterTooCold || roomTooCold) && circuitColdEnough && !(thermostatMode & BIT_HOLD_OFF)) {
     const char * reason = waterTooCold ?
       (roomTooCold ? "Thermostat was enabled because water and room are too cold" : "Thermostat was enabled because water is too cold") :
       (roomTooCold ? "Thermostat was enabled because room is too cold" : "should never print");
