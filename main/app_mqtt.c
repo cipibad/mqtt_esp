@@ -5,6 +5,8 @@
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
 
+#include "mqtt_client.h"
+
 #include "app_main.h"
 
 #include "app_sensors.h"
@@ -59,7 +61,7 @@ extern QueueHandle_t thermostatQueue;
 
 #endif // CONFIG_MQTT_THERMOSTAT
 
-
+esp_mqtt_client_handle_t client = NULL;
 int16_t connect_reason;
 const int mqtt_disconnect = 33; //32+1
 const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connection";
@@ -72,7 +74,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12a"
+#define FW_VERSION "0.02.12h"
 
 extern QueueHandle_t mqttQueue;
 
@@ -116,6 +118,47 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 
 
 extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_ro_pem_start");
+
+unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
+{
+  char fullTopic[MQTT_MAX_TOPIC_LEN];
+  memset(fullTopic,0,MQTT_MAX_TOPIC_LEN);
+
+  unsigned char topicId = 0;
+  bool found = false;
+  while (!found && topicId <= maxTopics) {
+    sprintf(fullTopic, "%s%d", topic, topicId);
+    if (strncmp(event->topic, fullTopic, strlen(fullTopic)) == 0) {
+      found = true;
+    } else {
+      topicId++;
+    }
+  }
+  if (!found) {
+    topicId = JSON_BAD_TOPIC_ID;
+  }
+  return topicId;
+}
+
+char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
+{
+  char ret = JSON_BAD_RELAY_VALUE;
+  char tmpBuf[MAX_MQTT_DATA_LEN_RELAY];
+  memcpy(tmpBuf, event->data, event->data_len);
+  tmpBuf[event->data_len] = 0;
+  cJSON * root   = cJSON_Parse(tmpBuf);
+  if (root)
+    {
+      cJSON * state = cJSON_GetObjectItem(root, tag);
+      if (state)
+        {
+          char value = state->valueint;
+          ret= value;
+        }
+      cJSON_Delete(root);
+    }
+  return ret;
+}
 
 bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 {
@@ -203,26 +246,6 @@ bool handle_relay_cfg_mqtt_event(esp_mqtt_event_handle_t event)
 }
 
 
-unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
-{
-  char fullTopic[MQTT_MAX_TOPIC_LEN];
-  memset(fullTopic,0,MQTT_MAX_TOPIC_LEN);
-
-  unsigned char topicId = 0;
-  bool found = false;
-  while (!found && topicId <= maxTopics) {
-    sprintf(fullTopic, "%s%d", topic, topicId);
-    if (strncmp(event->topic, fullTopic, strlen(fullTopic)) == 0) {
-      found = true;
-    } else {
-      topicId++;
-    }
-  }
-  if (!found) {
-    topicId = JSON_BAD_TOPIC_ID;
-  }
-  return topicId;
-}
 
 bool handle_relay_cmd_mqtt_event(esp_mqtt_event_handle_t event)
 {
@@ -269,6 +292,17 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
   return false;
 }
 
+bool getTemperatureValue(int* value, const cJSON* root, const char* tag)
+{
+  cJSON * object = cJSON_GetObjectItem(root,tag);
+  if (object) {
+    *value = object->valuedouble * 10;
+    ESP_LOGI(TAG, "%s: %d.%01d", tag, (*value)/10, (*value)%10);
+    return true;
+  }
+  return false;
+}
+
 bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #ifdef CONFIG_MQTT_THERMOSTAT
@@ -283,55 +317,39 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
     tmpBuf[event->data_len] = 0;
     cJSON * root   = cJSON_Parse(tmpBuf);
     if (root) {
-      struct ThermostatCfgMessage t;
-      memset(&t, 0, sizeof(struct ThermostatCfgMessage));
-      cJSON * cttObject = cJSON_GetObjectItem(root,"columnTargetTemperature");
-      if (cttObject) {
-        int32_t columnTargetTemperature = cttObject->valuedouble * 10;
-        ESP_LOGI(TAG, "columnTargetTemperature: %d.%01d0",
-                 columnTargetTemperature/10,
-                 columnTargetTemperature%10);
-        t.columnTargetTemperature = columnTargetTemperature;
+      struct ThermostatMessage tm;
+      memset(&tm, 0, sizeof(struct ThermostatMessage));
+      tm.msgType = THERMOSTAT_CFG_MSG;
+      bool updated = false;
+      if (getTemperatureValue(&tm.data.cfgData.circuitTargetTemperature,
+                              root, "circuitTargetTemperature")) {
+        updated = true;
       }
-      cJSON * wttObject = cJSON_GetObjectItem(root,"waterTargetTemperature");
-      if (wttObject) {
-        int32_t waterTargetTemperature = wttObject->valuedouble * 10;
-        ESP_LOGI(TAG, "waterTargetTemperature: %d.%01d",
-                 waterTargetTemperature/10,
-                 waterTargetTemperature%10);
-        t.waterTargetTemperature = waterTargetTemperature;
+      if (getTemperatureValue(&tm.data.cfgData.waterTargetTemperature,
+                              root, "waterTargetTemperature")) {
+        updated = true;
       }
-      cJSON * wtsObject = cJSON_GetObjectItem(root,"waterTemperatureSensibility");
-      if (wtsObject) {
-        int32_t waterTemperatureSensibility = wtsObject->valuedouble * 10;
-        ESP_LOGI(TAG, "waterTemperatureSensibility: %d.%01d",
-                 waterTemperatureSensibility/10,
-                 waterTemperatureSensibility%10);
-        t.waterTemperatureSensibility = waterTemperatureSensibility;
+      if (getTemperatureValue(&tm.data.cfgData.waterTemperatureSensibility,
+                              root, "waterTemperatureSensibility")) {
+        updated = true;
       }
-      cJSON * r0ttObject = cJSON_GetObjectItem(root,"room0TargetTemperature");
-      if (r0ttObject) {
-        int32_t room0TargetTemperature = r0ttObject->valuedouble * 10;
-        ESP_LOGI(TAG, "room0TargetTemperature: %d.%01d",
-                 room0TargetTemperature/10,
-                 room0TargetTemperature%10);
-        t.room0TargetTemperature = room0TargetTemperature;
+      if (getTemperatureValue(&tm.data.cfgData.room0TargetTemperature,
+                              root, "room0TargetTemperature")) {
+        updated = true;
       }
-      cJSON * r0tsObject = cJSON_GetObjectItem(root,"room0TemperatureSensibility");
-      if (r0tsObject) {
-        int32_t room0TemperatureSensibility = r0tsObject->valuedouble * 10;
-        ESP_LOGI(TAG, "room0TemperatureSensibility: %d.%01d",
-                 room0TemperatureSensibility/10,
-                 room0TemperatureSensibility%10);
-        t.room0TemperatureSensibility = room0TemperatureSensibility;
+      if (getTemperatureValue(&tm.data.cfgData.room0TemperatureSensibility,
+                              root, "room0TemperatureSensibility")) {
+        updated = true;
       }
-      if (t.columnTargetTemperature ||
-          t.waterTargetTemperature || t.waterTemperatureSensibility ||
-          t.room0TargetTemperature || t.room0TemperatureSensibility) {
-        struct ThermostatMessage tm;
-        memset(&tm, 0, sizeof(struct ThermostatMessage));
-        tm.msgType = THERMOSTAT_CFG_MSG;
-        tm.data.cfgData = t;
+
+      cJSON * tmMode = cJSON_GetObjectItem(root,"thermostatMode");
+      if (tmMode) {
+        tm.data.cfgData.thermostatMode = tmMode->valueint;
+        ESP_LOGI(TAG, "thermostatMode: %d", tm.data.cfgData.thermostatMode);
+        updated = true;
+      }
+
+      if (updated) {
         if (xQueueSend( thermostatQueue
                         ,( void * )&tm
                         ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -349,10 +367,7 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
 bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-  ESP_LOGI(TAG, "got topic");
   if (strncmp(event->topic, CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC, strlen(CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC)) == 0) {
-    ESP_LOGI(TAG, "got room0 topic");
-
     if (event->data_len >= MAX_MQTT_DATA_SENSORS )
       {
         ESP_LOGI(TAG, "unexpected room sensors cfg payload length");
@@ -363,16 +378,8 @@ bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
     tmpBuf[event->data_len] = 0;
     cJSON * root = cJSON_Parse(tmpBuf);
     if (root) {
-      ESP_LOGI(TAG, "got root");
       struct ThermostatRoomMessage t;
-      cJSON * tObject = cJSON_GetObjectItem(root,"temperature");
-      if (tObject) {
-        ESP_LOGI(TAG, "got got temperature");
-        float temperature = tObject->valuedouble;
-        ESP_LOGI(TAG, "temperature: %f", temperature);
-        t.temperature = temperature * 10;
-      }
-      if (t.temperature) {
+      if (getTemperatureValue(&t.temperature, root, "temperature")) {
         struct ThermostatMessage tm;
         memset(&tm, 0, sizeof(struct ThermostatMessage));
         tm.msgType = THERMOSTAT_ROOM_0_MSG;
@@ -407,48 +414,37 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     return;
 }
 
-char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
+void mqtt_publish_data(const char * topic,
+                       const char * data,
+                       int qos, int retain)
 {
-  char ret = JSON_BAD_RELAY_VALUE;
-  char tmpBuf[MAX_MQTT_DATA_LEN_RELAY];
-  memcpy(tmpBuf, event->data, event->data_len);
-  tmpBuf[event->data_len] = 0;
-  cJSON * root   = cJSON_Parse(tmpBuf);
-  if (root)
-    {
-      cJSON * state = cJSON_GetObjectItem(root, tag);
-      if (state)
-        {
-          char value = state->valueint;
-          ret= value;
-        }
-      cJSON_Delete(root);
+  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT) {
+    xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
+    int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
+    if (qos == QOS_0) {
+      ESP_LOGI(TAG, "published qos0 data");
+    } else if (msg_id > 0) {
+      ESP_LOGI(TAG, "sent publish data successful, msg_id=%d", msg_id);
+      EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+      if (bits & MQTT_PUBLISHED_BIT) {
+        ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+      } else {
+        ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+      }
+    } else {
+      ESP_LOGW(TAG, "failed to publish qos1, msg_id=%d", msg_id);
     }
-  return ret;
+  }
 }
 
-void publish_connected_data(esp_mqtt_client_handle_t client)
+void publish_connected_data()
 {
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      char data[256];
-      memset(data,0,256);
+  char data[256];
+  memset(data,0,256);
 
-      sprintf(data, "{\"state\":\"connected\", \"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 1, 1);
-      if (msg_id > 0) {
-        ESP_LOGI(TAG, "sent publish connected data successful, msg_id=%d", msg_id);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish connected data, msg_id=%d", msg_id);
-      }
-    }
+  sprintf(data, "{\"state\":\"connected\", \"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
+
+  mqtt_publish_data(connect_topic, data, QOS_1, RETAIN);
 }
 
 
@@ -526,7 +522,7 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
   }
 }
 
-esp_mqtt_client_handle_t mqtt_init()
+void mqtt_init_and_start()
 {
   const char * lwtmsg = "{\"state\":\"disconnected\"}";
   const esp_mqtt_client_config_t mqtt_cfg = {
@@ -543,12 +539,7 @@ esp_mqtt_client_handle_t mqtt_init()
   };
 
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-  esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-  return client;
-}
-
-void mqtt_start(esp_mqtt_client_handle_t client)
-{
+  client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_start(client);
   xEventGroupWaitBits(mqtt_event_group, MQTT_CONNECTED_BIT, false, true, portMAX_DELAY);
 }
@@ -556,7 +547,6 @@ void mqtt_start(esp_mqtt_client_handle_t client)
 void handle_mqtt_sub_pub(void* pvParameters)
 {
   connect_reason=esp_reset_reason();
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
   void * unused;
   while(1) {
     if( xQueueReceive( mqttQueue, &unused , portMAX_DELAY) )
@@ -564,20 +554,22 @@ void handle_mqtt_sub_pub(void* pvParameters)
         xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
         mqtt_subscribe(client);
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-        publish_connected_data(client);
+        publish_connected_data();
 #if CONFIG_MQTT_RELAYS_NB
-        publish_all_relays_data(client);
-        publish_all_relays_cfg_data(client);
+        publish_all_relays_data();
+        publish_all_relays_cfg_data();
 #endif//CONFIG_MQTT_RELAYS_NB
 #ifdef CONFIG_MQTT_THERMOSTAT
-        publish_thermostat_data(client);
+        publish_thermostat_data();
 #endif // CONFIG_MQTT_THERMOSTAT
 #ifdef CONFIG_MQTT_OTA
-        publish_ota_data(client, OTA_READY);
+        publish_ota_data(OTA_READY);
 #endif //CONFIG_MQTT_OTA
 #ifdef CONFIG_MQTT_SENSOR
-        publish_sensors_data(client);
+        publish_sensors_data();
 #endif//
       }
   }
 }
+
+

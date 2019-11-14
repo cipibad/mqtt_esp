@@ -4,15 +4,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
+#include <string.h>
+
 #include "app_main.h"
 #include "app_ops.h"
 
-static const char *TAG = "MQTTS_OPS";
+#include "app_mqtt.h"
 
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_PUBLISHED_BIT;
-extern const int MQTT_INIT_FINISHED_BIT;
-
+/* static const char *TAG = "MQTTS_OPS"; */
 
 void vTaskGetRunTimeStatsAsJson( char *pcWriteBuffer )
 {
@@ -97,35 +96,30 @@ void vTaskGetRunTimeStatsAsJson( char *pcWriteBuffer )
 }
 
 
-void publish_ops_data(esp_mqtt_client_handle_t client)
+void publish_ops_data()
 {
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT)
-    {
-      const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ops";
-      char data[512];
-      memset(data,0,512);
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ops";
+  char data[512];
+  memset(data,0,512);
 
-      char tasks_info[512-64];
-      memset(tasks_info,0,512-64);
-      vTaskGetRunTimeStatsAsJson(tasks_info );
+  char tasks_info[512-64];
+  memset(tasks_info,0,512-64);
+  vTaskGetRunTimeStatsAsJson(tasks_info );
 
-      sprintf(data, "{\"free_heap\":%d, \"min_free_heap\":%d, \"tasks_stats\":%s}",
-              esp_get_free_heap_size(),
-              esp_get_minimum_free_heap_size(),
-              tasks_info
-              );
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, connect_topic, data,strlen(data), 0, 0);
-      ESP_LOGI(TAG, "sent publish ops data, msg_id=%d", msg_id);
-    }
+  sprintf(data, "{\"free_heap\":%d, \"min_free_heap\":%d, \"tasks_stats\":%s}",
+          esp_get_free_heap_size(),
+          esp_get_minimum_free_heap_size(),
+          tasks_info
+          );
+
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
 }
 
 
 void ops_pub_task(void* pvParameters)
 {
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t) pvParameters;
   while (1) {
-    publish_ops_data(client);
+    publish_ops_data();
     vTaskDelay(60000 / portTICK_PERIOD_MS);
   }
 }

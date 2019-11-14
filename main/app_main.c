@@ -177,16 +177,14 @@ void app_main(void)
     ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
   } else {
 
-    esp_mqtt_client_handle_t client = mqtt_init();
-
 #ifdef CONFIG_MQTT_SENSOR
-    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, (void *)client, 10, NULL);
+    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, NULL, 10, NULL);
 #endif //CONFIG_MQTT_SENSOR
 
 
 #if CONFIG_MQTT_RELAYS_NB
-    xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
-    xTaskCreate(handle_relay_cfg_task, "handle_relay_cfg_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+    xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    xTaskCreate(handle_relay_cfg_task, "handle_relay_cfg_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #if CONFIG_MQTT_SWITCHES_NB
@@ -194,22 +192,22 @@ void app_main(void)
 #endif //CONFIG_MQTT_SWITCHES_NB
 
 #ifdef CONFIG_MQTT_OTA
-   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, (void *)client, 5, NULL);
+   xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, NULL, 5, NULL);
 #endif //CONFIG_MQTT_OTA
 
 #ifdef CONFIG_MQTT_THERMOSTAT
-  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTAT
-    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 
     wifi_init();
-    mqtt_start(client);
+    mqtt_init_and_start();
 
 #ifdef CONFIG_MQTT_OPS
-    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, (void *)client, 5, NULL);
+    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
 
-    xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, (void *)client, 5, NULL);
+    xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 
   }
 }

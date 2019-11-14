@@ -176,9 +176,9 @@ void smartconfig_cmd_task(void* pvParameters)
             if ((scm.ticks - pushTick ) < ticksToWait) {
 #if CONFIG_MQTT_RELAYS_NB
               struct RelayCmdMessage r={scm.relayId, !(relayStatus[(int)scm.relayId] == RELAY_ON)}; //FIXME for two switches
-              xQueueSend(relayCmdQueue
-                         ,( void * )&r
-                         ,MQTT_QUEUE_TIMEOUT);
+              xQueueSend(relayCmdQueue,
+                         ( void * )&r,
+                         RELAY_QUEUE_TIMEOUT);
 #endif //CONFIG_MQTT_RELAYS_NB
             }
             else {
