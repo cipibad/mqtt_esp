@@ -36,17 +36,17 @@ const char * room0TargetTemperatureTAG="r0targetTemp";
 const char * room0TemperatureSensibilityTAG="r0TempSens";
 const char * thermostatModeTAG="thermMode";
 
-int32_t room0Temperature = 0;
-int32_t waterTemperature = 0;
-int32_t circuitTemperature = 0;
+long room0Temperature = 0;
+long waterTemperature = 0;
+long circuitTemperature = 0;
 
 unsigned int room0TemperatureFlag = SENSOR_LIFETIME;
 unsigned int waterTemperatureFlag = SENSOR_LIFETIME;
 unsigned int circuitTemperatureFlag = SENSOR_LIFETIME;
 
-int32_t circuitTemperature_1 = 0;
-int32_t circuitTemperature_2 = 0;
-int32_t circuitTemperature_3 = 0;
+long circuitTemperature_1 = 0;
+long circuitTemperature_2 = 0;
+long circuitTemperature_3 = 0;
 
 extern QueueHandle_t thermostatQueue;
 
@@ -55,7 +55,6 @@ static const char *TAG = "APP_THERMOSTAT";
 
 void publish_thermostat_cfg()
 {
-
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/cfg";
 
   char data[256];
