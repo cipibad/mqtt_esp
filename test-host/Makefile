@@ -47,7 +47,7 @@ coverage_report: coverage.info
 	@echo "Coverage report is in coverage_report/index.html"
 
 clean:
-	rm -f $(OBJ_FILES) $(TEST_PROGRAM)
+	rm -f $(OBJ_FILES) $(TEST_OBJ_FILES) $(TEST_PROGRAM)
 	rm -f $(COVERAGE_FILES) *.gcov
 	rm -rf coverage_report/
 	rm -f coverage.info

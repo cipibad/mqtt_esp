@@ -1,5 +1,6 @@
 #include "esp_log.h"
 #include <stdarg.h>
+#include <stdio.h>
 
 void stdout_log(const char* level, const char* tag, const char* format, ...)
 {
