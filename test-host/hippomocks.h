@@ -379,6 +379,13 @@ public:
 	}
 };
 
+class CString
+{
+public:
+  explicit CString(const char* argument) : arg(argument) {}
+  const char* arg;
+};
+
 template <typename T>
 class ByRef
 {
@@ -469,6 +476,11 @@ inline std::ostream &operator<<(std::ostream &os, ByRef<T> &ref) {
   return os;
 }
 
+inline std::ostream &operator<<(std::ostream &os, CString a) {
+  os << a.arg;
+  return os;
+}
+
 template <typename T>
 struct printArg
 {
@@ -532,6 +544,10 @@ struct comparer
   static inline bool compare(const ByRef<U> &a, typename with_const<T>::type b)
   {
 	return &a.arg == &b;
+  }
+  static inline bool compare(const CString a, const char *b)
+  {
+    return strcmp(a.arg,b) == 0;
   }
 };
 
