@@ -36,17 +36,17 @@ const char * room0TargetTemperatureTAG="r0targetTemp";
 const char * room0TemperatureSensibilityTAG="r0TempSens";
 const char * thermostatModeTAG="thermMode";
 
-long room0Temperature = 0;
-long waterTemperature = 0;
-long circuitTemperature = 0;
+unsigned int room0Temperature = 0;
+unsigned int waterTemperature = 0;
+unsigned int circuitTemperature = 0;
 
 unsigned int room0TemperatureFlag = SENSOR_LIFETIME;
 unsigned int waterTemperatureFlag = SENSOR_LIFETIME;
 unsigned int circuitTemperatureFlag = SENSOR_LIFETIME;
 
-long circuitTemperature_1 = 0;
-long circuitTemperature_2 = 0;
-long circuitTemperature_3 = 0;
+unsigned int circuitTemperature_1 = 0;
+unsigned int circuitTemperature_2 = 0;
+unsigned int circuitTemperature_3 = 0;
 
 extern QueueHandle_t thermostatQueue;
 
