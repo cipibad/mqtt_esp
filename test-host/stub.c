@@ -1,4 +1,5 @@
 #include "esp_system.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
 void mqtt_publish_data(const char * topic,

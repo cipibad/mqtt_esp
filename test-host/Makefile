@@ -5,8 +5,8 @@ SOURCE_FILES = \
 	$(addprefix ../main/, \
 		app_thermostat.c \
 	) \
-	mock.c \
-        esp_log.c
+	stub.c \
+  esp_log.c
 
 TEST_SOURCE_FILES = \
 	main.cc \
