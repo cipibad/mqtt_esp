@@ -17,21 +17,21 @@ enum ThermostatMode {
 };
 
 struct ThermostatCfgMessage {
-  int32_t circuitTargetTemperature;
-  int32_t waterTargetTemperature;
-  int32_t waterTemperatureSensibility;
-  int32_t room0TargetTemperature;
-  int32_t room0TemperatureSensibility;
+  unsigned int circuitTargetTemperature;
+  unsigned int waterTargetTemperature;
+  unsigned int waterTemperatureSensibility;
+  unsigned int room0TargetTemperature;
+  unsigned int room0TemperatureSensibility;
   enum ThermostatMode thermostatMode;
 };
 
 struct ThermostatSensorsMessage {
-  int32_t wtemperature;
-  int32_t ctemperature;
+  unsigned int wtemperature;
+  unsigned int ctemperature;
 };
 
 struct ThermostatRoomMessage {
-  int32_t temperature;
+  unsigned int temperature;
 };
 
 union ThermostatData {

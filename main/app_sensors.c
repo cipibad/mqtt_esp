@@ -25,8 +25,8 @@ int16_t dht22_humidity;
 static const gpio_num_t SENSOR_GPIO = CONFIG_MQTT_SENSOR_DS18X20_GPIO;
 ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
-int32_t wtemperature;
-int32_t ctemperature;
+unsigned int wtemperature;
+unsigned int ctemperature;
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 
@@ -99,7 +99,7 @@ void sensors_read(void* pvParameters)
             char addr[8+8+1];
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
-            int temp_c = (int)(temps[j] * 10);
+            unsigned int temp_c = (unsigned int)(temps[j] * 10);
             ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, temp_c%10 );
 
 #ifdef CONFIG_MQTT_THERMOSTAT
