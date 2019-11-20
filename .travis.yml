@@ -1,0 +1,3 @@
+language: cpp
+script:
+- make -j $((`nproc`-1)) -C test-host test
