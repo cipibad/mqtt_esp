@@ -74,7 +74,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int16_t mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12h"
+#define FW_VERSION "0.02.12i"
 
 extern QueueHandle_t mqttQueue;
 
@@ -346,6 +346,13 @@ bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
       if (tmMode) {
         tm.data.cfgData.thermostatMode = tmMode->valueint;
         ESP_LOGI(TAG, "thermostatMode: %d", tm.data.cfgData.thermostatMode);
+        updated = true;
+      }
+
+      cJSON * holdOffMode = cJSON_GetObjectItem(root,"holdOffMode");
+      if (holdOffMode) {
+        tm.data.cfgData.holdOffMode = holdOffMode->valueint;
+        ESP_LOGI(TAG, "holdOffMode: %d", tm.data.cfgData.holdOffMode);
         updated = true;
       }
 
