@@ -1,9 +1,12 @@
+#include "esp_system.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
+
+#include "string.h"
 
 #include "mqtt_client.h"
 
@@ -62,7 +65,7 @@ extern QueueHandle_t thermostatQueue;
 #endif // CONFIG_MQTT_THERMOSTAT
 
 esp_mqtt_client_handle_t client = NULL;
-int16_t connect_reason;
+int connect_reason;
 const int mqtt_disconnect = 33; //32+1
 const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connection";
 
@@ -72,9 +75,9 @@ const int MQTT_SUBSCRIBED_BIT = BIT1;
 const int MQTT_PUBLISHED_BIT = BIT2;
 const int MQTT_INIT_FINISHED_BIT = BIT3;
 
-int16_t mqtt_reconnect_counter;
+int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12i"
+#define FW_VERSION "0.02.12j"
 
 extern QueueHandle_t mqttQueue;
 
@@ -117,7 +120,7 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   };
 
 
-extern const uint8_t mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_ro_pem_start");
+extern const char mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_ro_pem_start");
 
 unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
 {
@@ -296,7 +299,7 @@ bool getTemperatureValue(unsigned int* value, const cJSON* root, const char* tag
 {
   cJSON * object = cJSON_GetObjectItem(root,tag);
   if (object) {
-    *value = (unsigned int) object->valuedouble * 10;
+    *value = (unsigned int) (object->valuedouble * 10);
     ESP_LOGI(TAG, "%s: %d.%01d", tag, (*value)/10, (*value)%10);
     return true;
   }
