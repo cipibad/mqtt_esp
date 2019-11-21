@@ -20,6 +20,7 @@ bool heatingEnabled = false;
 unsigned int thermostatDuration = 0;
 unsigned int heatingDuration = 0;
 
+enum HoldOffMode holdOffMode=HOLD_OFF_DISABLED;
 int circuitTargetTemperature=23*10; //30 degrees
 int waterTargetTemperature=23*10; //30 degrees
 int waterTemperatureSensibility=5; //0.5 degrees
@@ -60,13 +61,13 @@ void publish_thermostat_cfg()
   char data[256];
   memset(data,0,256);
 
-  sprintf(data, "{\"circuitTargetTemperature\":%d.%01d, \"waterTargetTemperature\":%d.%01d, \"waterTemperatureSensibility\":%d.%01d, \"room0TargetTemperature\":%d.%01d, \"room0TemperatureSensibility\":%d.%01d, \"thermostatMode\":%d}",
+  sprintf(data, "{\"circuitTargetTemperature\":%d.%01d, \"waterTargetTemperature\":%d.%01d, \"waterTemperatureSensibility\":%d.%01d, \"room0TargetTemperature\":%d.%01d, \"room0TemperatureSensibility\":%d.%01d, \"thermostatMode\":%d, \"holdOffMode\":%d}",
           circuitTargetTemperature/10, circuitTargetTemperature%10,
           waterTargetTemperature/10, waterTargetTemperature%10,
           waterTemperatureSensibility/10, waterTemperatureSensibility%10,
           room0TargetTemperature/10,room0TargetTemperature%10,
           room0TemperatureSensibility/10, room0TemperatureSensibility%10,
-          thermostatMode);
+          thermostatMode, holdOffMode);
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
@@ -198,7 +199,7 @@ void update_thermostat()
   }
 
   if (!thermostatEnabled &&
-      (waterTooCold || roomTooCold) && circuitColdEnough && !(thermostatMode & BIT_HOLD_OFF)) {
+      (waterTooCold || roomTooCold) && circuitColdEnough && (holdOffMode != HOLD_OFF_ENABLED)) {
     const char * reason = waterTooCold ?
       (roomTooCold ? "Thermostat was enabled because water and room are too cold" : "Thermostat was enabled because water is too cold") :
       (roomTooCold ? "Thermostat was enabled because room is too cold" : "should never print");
@@ -274,6 +275,10 @@ void handle_thermostat_cmd_task(void* pvParameters)
             thermostatMode=t.data.cfgData.thermostatMode;
             esp_err_t err = write_nvs_integer(thermostatModeTAG, thermostatMode);
             ESP_ERROR_CHECK( err );
+            updated = true;
+          }
+          if (t.data.cfgData.holdOffMode && holdOffMode != t.data.cfgData.holdOffMode) {
+            holdOffMode=t.data.cfgData.holdOffMode;
             updated = true;
           }
 

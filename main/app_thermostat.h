@@ -4,16 +4,17 @@
 #define BIT_THERMOSTAT 1
 #define BIT_WATER_SENSOR (1 << 1)
 #define BIT_ROOM_SENSOR (1 << 2)
-#define BIT_HOLD_OFF (1 << 3)
 
 enum ThermostatMode {
   TERMOSTAT_MODE_OFF = BIT_THERMOSTAT, //1
   TERMOSTAT_MODE_SUMMER = BIT_WATER_SENSOR | BIT_THERMOSTAT, //3
   TERMOSTAT_MODE_SPRING_AUTUMN = BIT_WATER_SENSOR | BIT_ROOM_SENSOR | BIT_THERMOSTAT, //7
   TERMOSTAT_MODE_WINTER = BIT_ROOM_SENSOR | BIT_THERMOSTAT, //5
-  TERMOSTAT_MODE_SUMMER_HOLD_OFF = BIT_HOLD_OFF | BIT_WATER_SENSOR | BIT_THERMOSTAT, //11
-  TERMOSTAT_MODE_SPRING_AUTUMN_HOLD_OFF = BIT_HOLD_OFF | BIT_WATER_SENSOR | BIT_ROOM_SENSOR | BIT_THERMOSTAT, //15
-  TERMOSTAT_MODE_WINTER_HOLD_OFF = BIT_HOLD_OFF | BIT_ROOM_SENSOR | BIT_THERMOSTAT, //13
+};
+
+enum HoldOffMode {
+  HOLD_OFF_DISABLED = 1,
+  HOLD_OFF_ENABLED,
 };
 
 struct ThermostatCfgMessage {
@@ -23,6 +24,7 @@ struct ThermostatCfgMessage {
   unsigned int room0TargetTemperature;
   unsigned int room0TemperatureSensibility;
   enum ThermostatMode thermostatMode;
+  enum HoldOffMode holdOffMode;
 };
 
 struct ThermostatSensorsMessage {
