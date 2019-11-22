@@ -4,13 +4,16 @@ all: $(TEST_PROGRAM)
 SOURCE_FILES = \
 	$(addprefix ../main/, \
 		app_thermostat.c \
+		app_mqtt.c \
 	) \
 	stub.c \
-  esp_log.c
+  esp_log.c \
+	cJSON.c
 
 TEST_SOURCE_FILES = \
 	main.cc \
-	test_app_thermostat.cc
+	test_app_thermostat.cc \
+	test_app_mqtt.cc
 
 CPPFLAGS += -fprofile-arcs -ftest-coverage -I. -I../main
 CFLAGS += -fprofile-arcs -ftest-coverage -I. -I../main
@@ -22,6 +25,8 @@ OBJ_FILES = $(SOURCE_FILES:.c=.o)
 TEST_OBJ_FILES = $(TEST_SOURCE_FILES:.cc=.o)
 
 COVERAGE_FILES = $(OBJ_FILES:.o=.gc*)
+
+TEST_COVERAGE_FILES = $(TEST_OBJ_FILES:.o=.gc*)
 
 $(OBJ_FILES): %.o: %.c
 
@@ -48,7 +53,7 @@ coverage_report: coverage.info
 
 clean:
 	rm -f $(OBJ_FILES) $(TEST_OBJ_FILES) $(TEST_PROGRAM)
-	rm -f $(COVERAGE_FILES) *.gcov
+	rm -f $(COVERAGE_FILES) $(TEST_COVERAGE_FILES) *.gcov
 	rm -rf coverage_report/
 	rm -f coverage.info
 

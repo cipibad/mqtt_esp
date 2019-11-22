@@ -41,9 +41,9 @@ unsigned int room0Temperature = 0;
 unsigned int waterTemperature = 0;
 unsigned int circuitTemperature = 0;
 
-unsigned int room0TemperatureFlag = SENSOR_LIFETIME;
-unsigned int waterTemperatureFlag = SENSOR_LIFETIME;
-unsigned int circuitTemperatureFlag = SENSOR_LIFETIME;
+unsigned int room0TemperatureFlag = 0;
+unsigned int waterTemperatureFlag = 0;
+unsigned int circuitTemperatureFlag = 0;
 
 unsigned int circuitTemperature_1 = 0;
 unsigned int circuitTemperature_2 = 0;
