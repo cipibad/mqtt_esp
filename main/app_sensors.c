@@ -64,11 +64,15 @@ void sensors_read(void* pvParameters)
     ESP_LOGE(TAG, "Cannot init bme280 sensor");
   }
 #endif //CONFIG_MQTT_SENSOR_BME280
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+      gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
+#endif //CONFIG_MQTT_SENSOR_DHT22
 
   while (1)
     {
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
+      dht22_temperature = 0;
+      dht22_humidity = 0;
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
