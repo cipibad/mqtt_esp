@@ -1,4 +1,7 @@
 #include "esp_system.h"
+#include <limits.h>
+#include <string.h>
+
 #ifdef CONFIG_MQTT_THERMOSTAT
 
 #include "esp_log.h"
@@ -6,8 +9,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
-
-#include <string.h>
 
 #include "app_main.h"
 #include "app_relay.h"
@@ -21,12 +22,12 @@ unsigned int thermostatDuration = 0;
 unsigned int heatingDuration = 0;
 
 enum HoldOffMode holdOffMode=HOLD_OFF_DISABLED;
-int circuitTargetTemperature=23*10; //30 degrees
-int waterTargetTemperature=23*10; //30 degrees
-int waterTemperatureSensibility=5; //0.5 degrees
+short circuitTargetTemperature=23*10; //30 degrees
+short waterTargetTemperature=23*10; //30 degrees
+short waterTemperatureSensibility=5; //0.5 degrees
 
-int room0TargetTemperature=22*10;
-int room0TemperatureSensibility=2;
+short room0TargetTemperature=22*10;
+short room0TemperatureSensibility=2;
 
 enum ThermostatMode thermostatMode=TERMOSTAT_MODE_OFF;
 
@@ -37,11 +38,12 @@ const char * room0TargetTemperatureTAG="r0targetTemp";
 const char * room0TemperatureSensibilityTAG="r0TempSens";
 const char * thermostatModeTAG="thermMode";
 
-unsigned int room0Temperature = 0;
+short room0Temperature = SHRT_MIN;
+unsigned char room0TemperatureFlag = 0;
+
 unsigned int waterTemperature = 0;
 unsigned int circuitTemperature = 0;
 
-unsigned int room0TemperatureFlag = 0;
 unsigned int waterTemperatureFlag = 0;
 unsigned int circuitTemperatureFlag = 0;
 
@@ -219,6 +221,34 @@ void vThermostatTimerCallback( TimerHandle_t xTimer )
   }
 }
 
+void handle_room_temperature_msg(short newRoomTemperature)
+{
+  if (newRoomTemperature != SHRT_MIN) {
+    if (room0Temperature != newRoomTemperature) {
+      room0Temperature = newRoomTemperature;
+    }
+    room0TemperatureFlag = SENSOR_LIFETIME;
+  }
+}
+
+void handle_sensors_msg(short newWaterTemperature, short newCircuitTemperature)
+{
+  if (newWaterTemperature != SHRT_MIN) {
+    if (newWaterTemperature != waterTemperature) {
+      waterTemperature = newWaterTemperature;
+    }
+    waterTemperatureFlag = SENSOR_LIFETIME;
+  }
+
+  if (circuitTemperature != SHRT_MIN) {
+    circuitTemperature_3 = circuitTemperature_2;
+    circuitTemperature_2 = circuitTemperature_1;
+    circuitTemperature_1 = circuitTemperature;
+    circuitTemperature = newCircuitTemperature;
+    circuitTemperatureFlag = SENSOR_LIFETIME;
+  }
+}
+
 void handle_thermostat_cmd_task(void* pvParameters)
 {
 
@@ -243,37 +273,37 @@ void handle_thermostat_cmd_task(void* pvParameters)
           bool updated = false;
           if (t.data.cfgData.circuitTargetTemperature && circuitTargetTemperature != t.data.cfgData.circuitTargetTemperature) {
             circuitTargetTemperature=t.data.cfgData.circuitTargetTemperature;
-            esp_err_t err = write_nvs_integer(circuitTargetTemperatureTAG, circuitTargetTemperature);
+            esp_err_t err = write_nvs_short(circuitTargetTemperatureTAG, circuitTargetTemperature);
             ESP_ERROR_CHECK( err );
             updated = true;
           }
           if (t.data.cfgData.waterTargetTemperature && waterTargetTemperature != t.data.cfgData.waterTargetTemperature) {
             waterTargetTemperature=t.data.cfgData.waterTargetTemperature;
-            esp_err_t err = write_nvs_integer(waterTargetTemperatureTAG, waterTargetTemperature);
+            esp_err_t err = write_nvs_short(waterTargetTemperatureTAG, waterTargetTemperature);
             ESP_ERROR_CHECK( err );
             updated = true;
           }
           if (t.data.cfgData.waterTemperatureSensibility && waterTemperatureSensibility != t.data.cfgData.waterTemperatureSensibility) {
             waterTemperatureSensibility=t.data.cfgData.waterTemperatureSensibility;
-            esp_err_t err = write_nvs_integer(waterTemperatureSensibilityTAG, waterTemperatureSensibility);
+            esp_err_t err = write_nvs_short(waterTemperatureSensibilityTAG, waterTemperatureSensibility);
             ESP_ERROR_CHECK( err );
             updated = true;
           }
           if (t.data.cfgData.room0TargetTemperature && room0TargetTemperature != t.data.cfgData.room0TargetTemperature) {
             room0TargetTemperature=t.data.cfgData.room0TargetTemperature;
-            esp_err_t err = write_nvs_integer(room0TargetTemperatureTAG, room0TargetTemperature);
+            esp_err_t err = write_nvs_short(room0TargetTemperatureTAG, room0TargetTemperature);
             ESP_ERROR_CHECK( err );
             updated = true;
           }
           if (t.data.cfgData.room0TemperatureSensibility && room0TemperatureSensibility != t.data.cfgData.room0TemperatureSensibility) {
             room0TemperatureSensibility=t.data.cfgData.room0TemperatureSensibility;
-            esp_err_t err = write_nvs_integer(room0TemperatureSensibilityTAG, room0TemperatureSensibility);
+            esp_err_t err = write_nvs_short(room0TemperatureSensibilityTAG, room0TemperatureSensibility);
             ESP_ERROR_CHECK( err );
             updated = true;
           }
           if (t.data.cfgData.thermostatMode && thermostatMode != t.data.cfgData.thermostatMode) {
             thermostatMode=t.data.cfgData.thermostatMode;
-            esp_err_t err = write_nvs_integer(thermostatModeTAG, thermostatMode);
+            esp_err_t err = write_nvs_short(thermostatModeTAG, thermostatMode);
             ESP_ERROR_CHECK( err );
             updated = true;
           }
@@ -287,23 +317,10 @@ void handle_thermostat_cmd_task(void* pvParameters)
           }
         }
         if (t.msgType == THERMOSTAT_SENSORS_MSG) {
-          waterTemperature = t.data.sensorsData.wtemperature;
-          if (waterTemperature > 0) {
-            waterTemperatureFlag = SENSOR_LIFETIME;
-          }
-          circuitTemperature_3 = circuitTemperature_2;
-          circuitTemperature_2 = circuitTemperature_1;
-          circuitTemperature_1 = circuitTemperature;
-          circuitTemperature = t.data.sensorsData.ctemperature;
-          if (circuitTemperature > 0) {
-            circuitTemperatureFlag = SENSOR_LIFETIME;
-          }
+          handle_sensors_msg(t.data.sensorsData.wtemperature, t.data.sensorsData.ctemperature);
         }
         if (t.msgType == THERMOSTAT_ROOM_0_MSG) {
-          room0Temperature = t.data.roomData.temperature;
-          if (room0Temperature > 0) {
-            room0TemperatureFlag = SENSOR_LIFETIME;
-          }
+          handle_room_temperature_msg(t.data.roomData.temperature);
         }
         if (t.msgType == THERMOSTAT_LIFE_TICK) {
           thermostatDuration += 1;
@@ -325,22 +342,22 @@ void handle_thermostat_cmd_task(void* pvParameters)
 
 void read_nvs_thermostat_data()
 {
-  esp_err_t err=read_nvs_integer(circuitTargetTemperatureTAG, &circuitTargetTemperature);
+  esp_err_t err=read_nvs_short(circuitTargetTemperatureTAG, &circuitTargetTemperature);
   ESP_ERROR_CHECK( err );
 
-  err=read_nvs_integer(waterTargetTemperatureTAG, &waterTargetTemperature);
+  err=read_nvs_short(waterTargetTemperatureTAG, &waterTargetTemperature);
   ESP_ERROR_CHECK( err );
 
-  err=read_nvs_integer(waterTemperatureSensibilityTAG, &waterTemperatureSensibility);
+  err=read_nvs_short(waterTemperatureSensibilityTAG, &waterTemperatureSensibility);
   ESP_ERROR_CHECK( err );
 
-  err=read_nvs_integer(room0TargetTemperatureTAG, &room0TargetTemperature);
+  err=read_nvs_short(room0TargetTemperatureTAG, &room0TargetTemperature);
   ESP_ERROR_CHECK( err );
 
-  err=read_nvs_integer(room0TemperatureSensibilityTAG, &room0TemperatureSensibility);
+  err=read_nvs_short(room0TemperatureSensibilityTAG, &room0TemperatureSensibility);
   ESP_ERROR_CHECK( err );
 
-  err=read_nvs_integer(thermostatModeTAG, (int*) &thermostatMode);
+  err=read_nvs_short(thermostatModeTAG, (short*) &thermostatMode);
   ESP_ERROR_CHECK( err );
 }
 #endif // CONFIG_MQTT_THERMOSTAT

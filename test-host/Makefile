@@ -15,10 +15,10 @@ TEST_SOURCE_FILES = \
 	test_app_thermostat.cc \
 	test_app_mqtt.cc
 
-CPPFLAGS += -fprofile-arcs -ftest-coverage -I. -I../main
-CFLAGS += -fprofile-arcs -ftest-coverage -I. -I../main
-CXXFLAGS += -std=c++11 -Wall -Werror
-LDFLAGS += -lstdc++ -Wall -fprofile-arcs -ftest-coverage
+CPPFLAGS += -g -fprofile-arcs -ftest-coverage -I. -I../main
+CFLAGS += -g -fprofile-arcs -ftest-coverage -I. -I../main
+CXXFLAGS += -g -std=c++11 -Wall -Werror
+LDFLAGS += -g -lstdc++ -Wall -fprofile-arcs -ftest-coverage
 
 OBJ_FILES = $(SOURCE_FILES:.c=.o)
 

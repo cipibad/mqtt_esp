@@ -2,6 +2,8 @@
 #define APP_NVS_H
 
 
+esp_err_t write_nvs_short(const char * tag, short value);
+esp_err_t read_nvs_short(const char * tag, short * value);
 esp_err_t write_nvs_integer(const char * tag, int value);
 esp_err_t read_nvs_integer(const char * tag, int * value);
 esp_err_t write_nvs_str(const char * tag, char * value);

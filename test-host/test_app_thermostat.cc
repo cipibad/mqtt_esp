@@ -1,6 +1,10 @@
-#include "esp_system.h"
+#include <limits.h>
+
 #include "catch.hpp"
 #include "hippomocks.h"
+
+#include "app_thermostat.h"
+
 using HippoMocks::CString;
 
 extern "C" {
@@ -9,9 +13,10 @@ extern "C" {
 
 extern "C" {
   void publish_thermostat_cfg();
+  void handle_room_temperature_msg(short);
 }
 
-TEST_CASE("test 1", "[tag]" ) {
+TEST_CASE("publish_thermostat_cfg", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/thermostat/cfg";
   const char* mqtt_data = "\
@@ -25,6 +30,35 @@ TEST_CASE("test 1", "[tag]" ) {
   REQUIRE(true);
 }
 
-TEST_CASE("test 2", "[tag]" ) {
-  REQUIRE(true);
+TEST_CASE("handle_room_update", "[tag]" ) {
+  extern short room0Temperature;
+  extern unsigned char room0TemperatureFlag;
+
+  REQUIRE(room0Temperature == SHRT_MIN);
+  REQUIRE(room0TemperatureFlag == 0);
+
+  handle_room_temperature_msg(SHRT_MIN);
+  REQUIRE(room0Temperature == SHRT_MIN);
+  REQUIRE(room0TemperatureFlag == 0);
+
+  handle_room_temperature_msg(100); //10.0 degrees
+  REQUIRE(room0Temperature == 100);
+  REQUIRE(room0TemperatureFlag == SENSOR_LIFETIME);
+
+  handle_room_temperature_msg(100); //10.0 degrees
+  REQUIRE(room0Temperature == 100);
+  REQUIRE(room0TemperatureFlag == SENSOR_LIFETIME);
+
+  handle_room_temperature_msg(110); //11.0 degrees
+  REQUIRE(room0Temperature == 110);
+  REQUIRE(room0TemperatureFlag == SENSOR_LIFETIME);
+
+  handle_room_temperature_msg(SHRT_MIN); //11.0 degrees
+  REQUIRE(room0Temperature == 110);
+  REQUIRE(room0TemperatureFlag == SENSOR_LIFETIME);
+
+  room0TemperatureFlag=1;
+  handle_room_temperature_msg(SHRT_MIN); //11.0 degrees
+  REQUIRE(room0Temperature == 110);
+  REQUIRE(room0TemperatureFlag == 1);
 }

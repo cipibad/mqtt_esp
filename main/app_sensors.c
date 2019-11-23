@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <string.h>
 #include "esp_log.h"
 
@@ -15,8 +16,8 @@
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
-int16_t dht22_temperature;
-int16_t dht22_humidity;
+short dht22_temperature = SHRT_MIN;
+short dht22_humidity = SHRT_MIN;
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
@@ -25,8 +26,8 @@ int16_t dht22_humidity;
 static const gpio_num_t SENSOR_GPIO = CONFIG_MQTT_SENSOR_DS18X20_GPIO;
 ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
-unsigned int wtemperature;
-unsigned int ctemperature;
+short wtemperature = SHRT_MIN;
+short ctemperature = SHRT_MIN;
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 
@@ -64,11 +65,22 @@ void sensors_read(void* pvParameters)
     ESP_LOGE(TAG, "Cannot init bme280 sensor");
   }
 #endif //CONFIG_MQTT_SENSOR_BME280
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+  gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
+
+  gpio_config_t io_conf;
+  memset(&io_conf, 0, sizeof(gpio_config_t));
+  io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_SENSOR_DHT22_GPIO);
+  /* io_conf.mode = GPIO_MODE_OUTPUT_OD; */
+  /* io_conf.pull_up_en = GPIO_PULLUP_ENABLE; */
+#endif //CONFIG_MQTT_SENSOR_DHT22
 
   while (1)
     {
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
+      gpio_config(&io_conf);
+      dht22_temperature = SHRT_MIN;
+      dht22_humidity = SHRT_MIN;
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
@@ -82,8 +94,8 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
-      wtemperature=0;
-      ctemperature=0;
+      wtemperature=SHRT_MIN;
+      ctemperature=SHRT_MIN;
 
       int sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
@@ -99,7 +111,7 @@ void sensors_read(void* pvParameters)
             char addr[8+8+1];
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
-            unsigned int temp_c = (unsigned int)(temps[j] * 10);
+            short temp_c = (short)(temps[j] * 10);
             ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, temp_c%10 );
 
 #ifdef CONFIG_MQTT_THERMOSTAT
@@ -142,7 +154,7 @@ void sensors_read(void* pvParameters)
       }
 #endif // CONFIG_MQTT_THERMOSTAT
       publish_sensors_data();
-      vTaskDelay(60000 / portTICK_PERIOD_MS);
+      vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
 
