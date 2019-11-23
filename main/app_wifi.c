@@ -11,6 +11,9 @@
 #include "app_wifi.h"
 #include "app_nvs.h"
 
+
+int wifi_reconnect_counter = 0;
+
 EventGroupHandle_t wifi_event_group;
 const int WIFI_CONNECTED_BIT = BIT0;
 
@@ -33,9 +36,18 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
   case SYSTEM_EVENT_STA_GOT_IP:
     ESP_LOGW(TAG, "SYSTEM_EVENT_STA_GOT_IP");
     xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+    wifi_reconnect_counter = 0;
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
     ESP_LOGW(TAG, "SYSTEM_EVENT_STA_DISCONNECTED");
+    wifi_reconnect_counter += 1;
+    ESP_LOGI(TAG, "wifi_reconnect_counter: %d", wifi_reconnect_counter);
+    if (wifi_reconnect_counter > (6 * 5)) { //FIXME find proper time interval
+      vTaskDelay(10000 / portTICK_PERIOD_MS);
+      esp_restart();
+    }
+    break;
+
     esp_wifi_connect();
     xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
     break;

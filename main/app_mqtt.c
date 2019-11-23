@@ -75,7 +75,7 @@ const int MQTT_SUBSCRIBED_BIT = BIT1;
 const int MQTT_PUBLISHED_BIT = BIT2;
 const int MQTT_INIT_FINISHED_BIT = BIT3;
 
-int mqtt_reconnect_counter;
+int mqtt_reconnect_counter = 0;
 
 #define FW_VERSION "0.02.12j"
 
