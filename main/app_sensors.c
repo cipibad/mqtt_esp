@@ -84,8 +84,8 @@ void sensors_read(void* pvParameters)
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
-                   dht22_humidity/10, dht22_humidity%10 ,
-                   dht22_temperature/10, dht22_temperature%10);
+                   dht22_humidity/10, abs(dht22_humidity%10) ,
+                   dht22_temperature/10, abs(dht22_temperature%10));
         }
       else
         {
@@ -112,7 +112,7 @@ void sensors_read(void* pvParameters)
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
             short temp_c = (short)(temps[j] * 10);
-            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, temp_c%10 );
+            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
 
 #ifdef CONFIG_MQTT_THERMOSTAT
             if (strcmp(addr, CONFIG_MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS) == 0) {
@@ -170,24 +170,24 @@ void publish_sensors_data()
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
   sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,",
-          dht22_humidity / 10, dht22_humidity % 10,
-          dht22_temperature / 10, dht22_temperature % 10
+          dht22_humidity / 10, abs(dht22_humidity % 10),
+          dht22_temperature / 10, abs(dht22_temperature % 10)
           );
   strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
   sprintf(tstr, "\"wtemperature\":%d.%d,\"ctemperature\":%d.%d,",
-          wtemperature / 10, wtemperature % 10,
-          ctemperature / 10, ctemperature % 10);
+          wtemperature / 10, abs(wtemperature % 10),
+          ctemperature / 10, abs(ctemperature % 10));
   strcat(data, tstr);
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
   ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ", bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
   sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,\"pressure\":%d,",
-          bme280_humidity/1000, bme280_humidity%1000,
-          bme280_temperature/100,bme280_temperature%100,
+          bme280_humidity/1000, abs(bme280_humidity%1000),
+          bme280_temperature/100, abs(bme280_temperature%100),
           (int)(bme280_pressure*0.750061683)
           );
   strcat(data, tstr);
