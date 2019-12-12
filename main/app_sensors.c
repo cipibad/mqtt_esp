@@ -67,18 +67,13 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_BME280
 #ifdef CONFIG_MQTT_SENSOR_DHT22
   gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
-
-  gpio_config_t io_conf;
-  memset(&io_conf, 0, sizeof(gpio_config_t));
-  io_conf.pin_bit_mask = (1ULL << CONFIG_MQTT_SENSOR_DHT22_GPIO);
-  /* io_conf.mode = GPIO_MODE_OUTPUT_OD; */
-  /* io_conf.pull_up_en = GPIO_PULLUP_ENABLE; */
+  gpio_set_direction(CONFIG_MQTT_SENSOR_DHT22_GPIO, GPIO_MODE_OUTPUT_OD);
+  gpio_set_level(CONFIG_MQTT_SENSOR_DHT22_GPIO, 1);
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
   while (1)
     {
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      gpio_config(&io_conf);
       dht22_temperature = SHRT_MIN;
       dht22_humidity = SHRT_MIN;
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
