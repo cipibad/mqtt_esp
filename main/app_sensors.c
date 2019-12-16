@@ -136,7 +136,7 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-#ifdef CONFIG_MQTT_THERMOSTAT
+#ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
       struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
       struct ThermostatMessage tm;
       memset(&tm, 0, sizeof(struct ThermostatMessage));
@@ -147,7 +147,7 @@ void sensors_read(void* pvParameters)
                       ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
         ESP_LOGE(TAG, "Cannot send to thermostatQueue");
       }
-#endif // CONFIG_MQTT_THERMOSTAT
+#endif // CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
       publish_sensors_data();
       vTaskDelay(5000 / portTICK_PERIOD_MS);
     }

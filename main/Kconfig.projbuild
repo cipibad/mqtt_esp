@@ -210,16 +210,25 @@ config MQTT_OPS
 config MQTT_THERMOSTAT
     boolean "enable thermostat control"
     default n
-    depends on MQTT_SENSOR
     help
         Enable thermostat control
+
+config MQTT_THERMOSTAT_HEATING_OPTIMIZER
+    boolean "enable thermostat control based on circuit temperature"
+    default n
+    depends on MQTT_SENSOR
+    depends on MQTT_THERMOSTAT
+    help
+        Enable thermostat control based on circuit temperature
+
 
 config MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS
     string "Thermostat DS18X20 sensor address"
     default "4802069245473e28"
     depends on MQTT_THERMOSTAT
+    depends on MQTT_THERMOSTAT_HEATING_OPTIMIZER
     help
-        Address of DS18X20 sensor to be used as thermostat
+        Address of DS18X20 sensor to be used as thermostat(hot water temperature)
 
 config MQTT_THERMOSTAT_RELAY_ID
     int "Thermostat Relay Id"

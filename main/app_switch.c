@@ -50,11 +50,11 @@ void gpio_switch_init (void *arg)
   gpio_install_isr_service(0);
   //hook isr handler for specific gpio pin
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB0_GPIO, gpio_isr_handler, (void *) 0);
-#if CONFIG_MQTT_RELAYS_NB > 1
+#if CONFIG_MQTT_RELAYS_NB > 1 && CONFIG_MQTT_SWITCHES_NB > 1
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB1_GPIO, gpio_isr_handler, (void *) 1);
-#if CONFIG_MQTT_RELAYS_NB > 2
+#if CONFIG_MQTT_RELAYS_NB > 2 && CONFIG_MQTT_SWITCHES_NB > 2
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB2_GPIO, gpio_isr_handler, (void *) 2);
-#if CONFIG_MQTT_RELAYS_NB > 3
+#if CONFIG_MQTT_RELAYS_NB > 3 && CONFIG_MQTT_SWITCHES_NB > 3
   gpio_isr_handler_add(CONFIG_MQTT_SWITCHES_NB3_GPIO, gpio_isr_handler, (void *) 3);
 #endif
 #endif
