@@ -104,7 +104,6 @@ void publish_thermostat_state(const char* reason, unsigned int duration)
   memset(data,0,256);
 
   char tstr[64];
-  strcat(data, "{");
 
   sprintf(tstr, "{\"thermostatState\":%d,", thermostatEnabled);
   strcat(data, tstr);
