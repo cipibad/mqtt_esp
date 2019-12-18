@@ -1,3 +1,6 @@
+#include "esp_system.h"
+#ifdef CONFIG_MQTT_SENSOR
+
 #include <limits.h>
 #include <string.h>
 #include "esp_log.h"
@@ -194,3 +197,4 @@ void publish_sensors_data()
 
 }
 
+#endif // CONFIG_MQTT_SENSOR

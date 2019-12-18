@@ -1,3 +1,6 @@
+#include "esp_system.h"
+#ifdef CONFIG_MQTT_SCHEDULERS
+
 #include <time.h>
 
 #include "esp_log.h"
@@ -165,3 +168,5 @@ void handle_scheduler(void* pvParameters)
     }
   }
 }
+
+#endif //CONFIG_MQTT_SCHEDULERS

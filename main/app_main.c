@@ -34,10 +34,12 @@ QueueHandle_t thermostatQueue;
 QueueHandle_t relayCmdQueue;
 QueueHandle_t relayCfgQueue;
 int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
+#endif//CONFIG_MQTT_RELAYS_NB
 
+#ifdef CONFIG_MQTT_SCHEDULERS
 #include "app_scheduler.h"
 QueueHandle_t schedulerCfgQueue;
-#endif//CONFIG_MQTT_RELAYS_NB
+#endif // CONFIG_MQTT_SCHEDULERS
 
 #ifdef CONFIG_MQTT_OTA
 #include "app_ota.h"
@@ -125,12 +127,15 @@ void app_main(void)
 #ifdef CONFIG_MQTT_THERMOSTAT
   thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
 #endif // CONFIG_MQTT_THERMOSTAT
+
 #if CONFIG_MQTT_RELAYS_NB
   relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
   relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCfgMessage) );
-
-  schedulerCfgQueue = xQueueCreate(8, sizeof(struct SchedulerCfgMessage) );
 #endif //CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_MQTT_SCHEDULERS
+  schedulerCfgQueue = xQueueCreate(8, sizeof(struct SchedulerCfgMessage) );
+#endif // CONFIG_MQTT_SCHEDULERS
 
 
 #ifdef CONFIG_MQTT_OTA
@@ -207,7 +212,9 @@ void app_main(void)
     xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
 
+#ifdef CONFIG_MQTT_SCHEDULERS
     xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_MQTT_SCHEDULERS
 
   }
 }

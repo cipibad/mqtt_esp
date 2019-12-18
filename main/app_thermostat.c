@@ -244,9 +244,9 @@ void update_thermostat()
   circuitColdEnough = (circuitTemperatureFlag > 0) ? (circuitTemperature < circuitTargetTemperature) : true;
 
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-
   bool roomHotEnough = true;
   bool roomTooCold = false;
+
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
   roomHotEnough = ((room0TemperatureFlag > 0) && thermostatMode & BIT_ROOM_SENSOR) ?
     (room0Temperature > (room0TargetTemperature + room0TemperatureSensibility)) : true;
@@ -254,7 +254,6 @@ void update_thermostat()
   roomTooCold = ((room0TemperatureFlag > 0) && thermostatMode & BIT_ROOM_SENSOR) ?
     (room0Temperature < (room0TargetTemperature - room0TemperatureSensibility)) : false;
 #endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-
 
   if (thermostatEnabled &&
       (heatingToggledOff || (roomHotEnough && waterHotEnough))) {

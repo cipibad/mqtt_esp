@@ -273,5 +273,11 @@ config MQTT_THERMOSTAT_ROOM_3_SENSORS_TOPIC
         room 3 sensor topic
 
 
+config MQTT_SCHEDULERS
+    boolean "enable schedulers support"
+    default n
+    help
+        Enable schedulers support
+
 
 endmenu
