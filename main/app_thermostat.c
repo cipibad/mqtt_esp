@@ -259,8 +259,8 @@ void update_thermostat()
   if (thermostatEnabled &&
       (heatingToggledOff || (roomHotEnough && waterHotEnough))) {
     const char * reason = heatingToggledOff ?
-      ((roomHotEnough && waterHotEnough) ? "Thermostat was disabled because heating stopped and water and rooms are too hot" : "Thermostat was disabled because heating stopped") :
-      ((roomHotEnough && waterHotEnough) ? "Thermostat was disabled because water and rooms are too hot" : "should never print" );
+      ((roomHotEnough && waterHotEnough) ? "heating stopped and water and rooms are too hot" : "heating stopped") :
+      ((roomHotEnough && waterHotEnough) ? "water and rooms are too hot" : "should never print" );
     ESP_LOGI(TAG, "%s", reason);
     disableThermostat(reason);
   }
@@ -268,8 +268,8 @@ void update_thermostat()
   if (!thermostatEnabled &&
       (waterTooCold || roomTooCold) && circuitColdEnough && (holdOffMode != HOLD_OFF_ENABLED)) {
     const char * reason = waterTooCold ?
-      (roomTooCold ? "Thermostat was enabled because water and room are too cold" : "Thermostat was enabled because water is too cold") :
-      (roomTooCold ? "Thermostat was enabled because room is too cold" : "should never print");
+      (roomTooCold ? "water and room are too cold" : "water is too cold") :
+      (roomTooCold ? "room is too cold" : "should never print");
     ESP_LOGI(TAG, "%s", reason);
     enableThermostat(reason);
     }
