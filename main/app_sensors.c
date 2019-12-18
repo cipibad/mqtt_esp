@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <string.h>
 #include "esp_log.h"
 
@@ -15,8 +16,8 @@
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
-int16_t dht22_temperature;
-int16_t dht22_humidity;
+short dht22_temperature = SHRT_MIN;
+short dht22_humidity = SHRT_MIN;
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
@@ -25,8 +26,8 @@ int16_t dht22_humidity;
 static const gpio_num_t SENSOR_GPIO = CONFIG_MQTT_SENSOR_DS18X20_GPIO;
 ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
-unsigned int wtemperature;
-unsigned int ctemperature;
+short wtemperature = SHRT_MIN;
+short ctemperature = SHRT_MIN;
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 
@@ -64,16 +65,22 @@ void sensors_read(void* pvParameters)
     ESP_LOGE(TAG, "Cannot init bme280 sensor");
   }
 #endif //CONFIG_MQTT_SENSOR_BME280
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+  gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
+  gpio_set_direction(CONFIG_MQTT_SENSOR_DHT22_GPIO, GPIO_MODE_OUTPUT_OD);
+  gpio_set_level(CONFIG_MQTT_SENSOR_DHT22_GPIO, 1);
+#endif //CONFIG_MQTT_SENSOR_DHT22
 
   while (1)
     {
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-      gpio_pad_select_gpio(CONFIG_MQTT_SENSOR_DHT22_GPIO);
+      dht22_temperature = SHRT_MIN;
+      dht22_humidity = SHRT_MIN;
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
-                   dht22_humidity/10, dht22_humidity%10 ,
-                   dht22_temperature/10, dht22_temperature%10);
+                   dht22_humidity/10, abs(dht22_humidity%10) ,
+                   dht22_temperature/10, abs(dht22_temperature%10));
         }
       else
         {
@@ -82,8 +89,8 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
-      wtemperature=0;
-      ctemperature=0;
+      wtemperature=SHRT_MIN;
+      ctemperature=SHRT_MIN;
 
       int sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
@@ -99,8 +106,8 @@ void sensors_read(void* pvParameters)
             char addr[8+8+1];
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
-            unsigned int temp_c = (unsigned int)(temps[j] * 10);
-            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, temp_c%10 );
+            short temp_c = (short)(temps[j] * 10);
+            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
 
 #ifdef CONFIG_MQTT_THERMOSTAT
             if (strcmp(addr, CONFIG_MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS) == 0) {
@@ -142,7 +149,7 @@ void sensors_read(void* pvParameters)
       }
 #endif // CONFIG_MQTT_THERMOSTAT
       publish_sensors_data();
-      vTaskDelay(60000 / portTICK_PERIOD_MS);
+      vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -158,24 +165,24 @@ void publish_sensors_data()
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
   sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,",
-          dht22_humidity / 10, dht22_humidity % 10,
-          dht22_temperature / 10, dht22_temperature % 10
+          dht22_humidity / 10, abs(dht22_humidity % 10),
+          dht22_temperature / 10, abs(dht22_temperature % 10)
           );
   strcat(data, tstr);
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
   sprintf(tstr, "\"wtemperature\":%d.%d,\"ctemperature\":%d.%d,",
-          wtemperature / 10, wtemperature % 10,
-          ctemperature / 10, ctemperature % 10);
+          wtemperature / 10, abs(wtemperature % 10),
+          ctemperature / 10, abs(ctemperature % 10));
   strcat(data, tstr);
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
   ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ", bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
   sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,\"pressure\":%d,",
-          bme280_humidity/1000, bme280_humidity%1000,
-          bme280_temperature/100,bme280_temperature%100,
+          bme280_humidity/1000, abs(bme280_humidity%1000),
+          bme280_temperature/100, abs(bme280_temperature%100),
           (int)(bme280_pressure*0.750061683)
           );
   strcat(data, tstr);

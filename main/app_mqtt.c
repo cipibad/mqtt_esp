@@ -295,11 +295,11 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
   return false;
 }
 
-bool getTemperatureValue(unsigned int* value, const cJSON* root, const char* tag)
+bool getTemperatureValue(short* value, const cJSON* root, const char* tag)
 {
   cJSON * object = cJSON_GetObjectItem(root,tag);
   if (object) {
-    *value = (unsigned int) (object->valuedouble * 10);
+    *value = (short) (object->valuedouble * 10);
     ESP_LOGI(TAG, "%s: %d.%01d", tag, (*value)/10, (*value)%10);
     return true;
   }

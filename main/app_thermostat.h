@@ -1,6 +1,8 @@
 #ifndef APP_THERMOSTAT_H
 #define APP_THERMOSTAT_H
 
+#include "freertos/FreeRTOS.h"
+
 #define BIT_THERMOSTAT 1
 #define BIT_WATER_SENSOR (1 << 1)
 #define BIT_ROOM_SENSOR (1 << 2)
@@ -18,22 +20,22 @@ enum HoldOffMode {
 };
 
 struct ThermostatCfgMessage {
-  unsigned int circuitTargetTemperature;
-  unsigned int waterTargetTemperature;
-  unsigned int waterTemperatureSensibility;
-  unsigned int room0TargetTemperature;
-  unsigned int room0TemperatureSensibility;
+  short circuitTargetTemperature;
+  short waterTargetTemperature;
+  short waterTemperatureSensibility;
+  short room0TargetTemperature;
+  short room0TemperatureSensibility;
   enum ThermostatMode thermostatMode;
   enum HoldOffMode holdOffMode;
 };
 
 struct ThermostatSensorsMessage {
-  unsigned int wtemperature;
-  unsigned int ctemperature;
+  short wtemperature;
+  short ctemperature;
 };
 
 struct ThermostatRoomMessage {
-  unsigned int temperature;
+  short temperature;
 };
 
 union ThermostatData {
