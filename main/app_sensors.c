@@ -152,7 +152,7 @@ void sensors_read(void* pvParameters)
       }
 #endif // CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
       publish_sensors_data();
-      vTaskDelay(5000 / portTICK_PERIOD_MS);
+      vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }
 
