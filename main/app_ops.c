@@ -1,4 +1,5 @@
 #include "esp_system.h"
+#ifdef CONFIG_MQTT_OPS
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
@@ -124,3 +125,4 @@ void ops_pub_task(void* pvParameters)
   }
 }
 
+#endif // CONFIG_MQTT_OPS

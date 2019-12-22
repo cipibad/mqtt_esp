@@ -17,10 +17,7 @@
 
 #include "cJSON.h"
 
-#if CONFIG_MQTT_RELAYS_NB
-#include "app_relay.h"
-extern QueueHandle_t relayCmdQueue;
-extern QueueHandle_t relayCfgQueue;
+#ifdef CONFIG_MQTT_SCHEDULERS
 
 #include "app_scheduler.h"
 extern QueueHandle_t schedulerCfgQueue;
@@ -29,11 +26,22 @@ extern struct SchedulerCfgMessage schedulerCfg;
 //FIXME end hack until decide if queue+thread really usefull
 
 #define SCHEDULER_TOPICS_NB 1
+
+#else // CONFIG_MQTT_SCHEDULERS
+
+#define SCHEDULER_TOPICS_NB 0
+
+#endif // CONFIG_MQTT_SCHEDULERS
+
+#if CONFIG_MQTT_RELAYS_NB
+#include "app_relay.h"
+extern QueueHandle_t relayCmdQueue;
+extern QueueHandle_t relayCfgQueue;
+
 #define RELAYS_TOPICS_NB 2 //CMD and CFG
 
 #else //CONFIG_MQTT_RELAYS_NB
 
-#define SCHEDULER_TOPICS_NB 0
 #define RELAYS_TOPICS_NB 0 //CMD and CFG
 
 #endif //CONFIG_MQTT_RELAYS_NB
@@ -77,7 +85,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12k"
+#define FW_VERSION "0.02.12m"
 
 extern QueueHandle_t mqttQueue;
 
@@ -97,8 +105,10 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #ifdef CONFIG_MQTT_OTA
     OTA_TOPIC,
 #endif //CONFIG_MQTT_OTA
-#if CONFIG_MQTT_RELAYS_NB
+#ifdef CONFIG_MQTT_SCHEDULERS
     SCHEDULER_CFG_TOPIC "+",
+#endif // CONFIG_MQTT_SCHEDULERS
+#if CONFIG_MQTT_RELAYS_NB
     RELAY_CMD_TOPIC "+",
     RELAY_CFG_TOPIC "+",
 #endif //CONFIG_MQTT_RELAYS_NB
@@ -165,7 +175,7 @@ char get_relay_json_value(const char* tag, esp_mqtt_event_handle_t event)
 
 bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
 {
-#if CONFIG_MQTT_RELAYS_NB
+#ifdef CONFIG_MQTT_SCHEDULERS
   unsigned char schedulerId = get_topic_id(event, MAX_SCHEDULER_NB, SCHEDULER_CFG_TOPIC);
 
   if (schedulerId != JSON_BAD_TOPIC_ID) {
@@ -216,7 +226,7 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
     }
     return true;
   }
-#endif //CONFIG_MQTT_RELAYS_NB
+#endif // CONFIG_MQTT_SCHEDULERS
   return false;
 }
 
