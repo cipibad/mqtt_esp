@@ -12,6 +12,11 @@ enum ThermostatMode {
   TERMOSTAT_MODE_HEAT = BIT_THERMOSTAT | BIT_HEAT, //3
 };
 
+enum ThermostatState {
+  THERMOSTAT_STATE_IDLE = 1,
+  THERMOSTAT_STATE_HEATING = 3,
+};
+
 enum HoldOffMode {
   HOLD_OFF_DISABLED = 1,
   HOLD_OFF_ENABLED,
