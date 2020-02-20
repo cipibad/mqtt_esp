@@ -68,6 +68,21 @@ extern QueueHandle_t thermostatQueue;
 
 static const char *TAG = "APP_THERMOSTAT";
 
+void publish_thermostat_current_temperature_evt()
+{
+  if (room0Temperature == SHRT_MIN)
+    return;
+
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ctemp/thermostat";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d",
+          room0TemperatureFlag > 0 ? room0Temperature / 10 : 0,
+          room0TemperatureFlag > 0 ? abs(room0Temperature % 10) : 0);
+  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+}
+
 void publish_thermostat_mode_evt()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/mode/thermostat";
@@ -194,6 +209,8 @@ void publish_thermostat_data()
   publish_water_thermostat_mode_evt();
   publish_thermostat_action_evt();
   publish_water_thermostat_action_evt();
+  publish_thermostat_current_temperature_evt();
+
 }
 
 
@@ -369,10 +386,11 @@ void vThermostatTimerCallback( TimerHandle_t xTimer )
 void handle_room_temperature_msg(short newRoomTemperature)
 {
   if (newRoomTemperature != SHRT_MIN) {
+    room0TemperatureFlag = SENSOR_LIFETIME;
     if (room0Temperature != newRoomTemperature) {
       room0Temperature = newRoomTemperature;
+      publish_thermostat_current_temperature_evt();
     }
-    room0TemperatureFlag = SENSOR_LIFETIME;
   }
 }
 #endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
@@ -485,8 +503,12 @@ void handle_thermostat_cmd_task(void* pvParameters)
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
 
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-          if (room0TemperatureFlag > 0)
+          if (room0TemperatureFlag > 0) {
             room0TemperatureFlag -= 1;
+            if (room0TemperatureFlag == 0) {
+              publish_thermostat_current_temperature_evt();
+            }
+          }
 
           ESP_LOGI(TAG, "room0TemperatureFlag: %d",
                    room0TemperatureFlag);
