@@ -83,6 +83,17 @@ void publish_thermostat_current_temperature_evt()
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
+void publish_thermostat_target_temperature_evt()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temp/thermostat";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", room0TargetTemperature / 10, abs(room0TargetTemperature % 10));
+
+  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+}
+
 void publish_thermostat_mode_evt()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/mode/thermostat";
@@ -161,8 +172,7 @@ void publish_thermostat_cfg()
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
 
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-  sprintf(tstr, "\"room0TargetTemperature\":%d.%01d,\"room0TemperatureSensibility\":%d.%01d,",
-          room0TargetTemperature/10, room0TargetTemperature%10,
+  sprintf(tstr, "\"room0TemperatureSensibility\":%d.%01d,",
           room0TemperatureSensibility/10, room0TemperatureSensibility%10);
   strcat(data, tstr);
 #endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
@@ -458,12 +468,6 @@ void handle_thermostat_cmd_task(void* pvParameters)
           }
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-          if (t.data.cfgData.room0TargetTemperature && room0TargetTemperature != t.data.cfgData.room0TargetTemperature) {
-            room0TargetTemperature=t.data.cfgData.room0TargetTemperature;
-            esp_err_t err = write_nvs_short(room0TargetTemperatureTAG, room0TargetTemperature);
-            ESP_ERROR_CHECK( err );
-            updated = true;
-          }
           if (t.data.cfgData.room0TemperatureSensibility && room0TemperatureSensibility != t.data.cfgData.room0TemperatureSensibility) {
             room0TemperatureSensibility=t.data.cfgData.room0TemperatureSensibility;
             esp_err_t err = write_nvs_short(room0TemperatureSensibilityTAG, room0TemperatureSensibility);
@@ -534,6 +538,15 @@ void handle_thermostat_cmd_task(void* pvParameters)
           }
           publish_water_thermostat_mode_evt();
           publish_water_thermostat_action_evt();
+        }
+
+        if (t.msgType == THERMOSTAT_CMD_TARGET_TEMPERATURE) {
+          if (room0TargetTemperature != t.data.targetTemperature) {
+            room0TargetTemperature = t.data.thermostatMode;
+            esp_err_t err = write_nvs_short(thermostatModeTAG, thermostatMode);
+            ESP_ERROR_CHECK( err );
+          }
+          publish_thermostat_target_temperature_evt();
         }
       }
   }
