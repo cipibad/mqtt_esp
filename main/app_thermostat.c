@@ -83,6 +83,22 @@ void publish_thermostat_current_temperature_evt()
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
+void publish_water_thermostat_current_temperature_evt()
+{
+  if (waterCurrentTemperature == SHRT_MIN)
+    return;
+
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ctemp/wthermostat";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d",
+          waterCurrentTemperatureFlag > 0 ? waterCurrentTemperature / 10 : 0,
+          waterCurrentTemperatureFlag > 0 ? abs(waterCurrentTemperature % 10) : 0);
+  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+}
+
+
 void publish_thermostat_target_temperature_evt()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temp/thermostat";
@@ -220,6 +236,7 @@ void publish_thermostat_data()
   publish_thermostat_action_evt();
   publish_water_thermostat_action_evt();
   publish_thermostat_current_temperature_evt();
+  publish_water_thermostat_current_temperature_evt();
 
 }
 
@@ -409,10 +426,11 @@ void handle_room_temperature_msg(short newRoomTemperature)
 void handle_sensors_msg(short newWaterTemperature, short newCircuitTemperature)
 {
   if (newWaterTemperature != SHRT_MIN) {
+    waterTemperatureFlag = SENSOR_LIFETIME;
     if (newWaterTemperature != waterTemperature) {
       waterTemperature = newWaterTemperature;
     }
-    waterTemperatureFlag = SENSOR_LIFETIME;
+    publish_water_thermostat_current_temperature_evt();
   }
 
   if (circuitTemperature != SHRT_MIN) {
@@ -498,8 +516,12 @@ void handle_thermostat_cmd_task(void* pvParameters)
           thermostatDuration += 1;
 #ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
           heatingDuration += 1;
-          if (waterTemperatureFlag > 0)
+          if (waterTemperatureFlag > 0) {
             waterTemperatureFlag -= 1;
+            if (waterTemperatureFlag == 0) {
+              publish_water_thermostat_current_temperature_evt();
+            }
+          }
           if (circuitTemperatureFlag > 0)
             circuitTemperatureFlag -= 1;
           ESP_LOGI(TAG, "waterTemperatureFlag: %d, circuitTemperatureFlag: %d",
