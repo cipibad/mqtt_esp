@@ -110,6 +110,17 @@ void publish_thermostat_target_temperature_evt()
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
+void publish_thermostat_temperature_tolerance_evt()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/tolerance/thermostat";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", room0TemperatureSensibility / 10, abs(room0TemperatureSensibility % 10));
+
+  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+}
+
 void publish_water_thermostat_target_temperature_evt()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temp/wthermostat";
@@ -197,12 +208,6 @@ void publish_thermostat_cfg()
   strcat(data, tstr);
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
 
-#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-  sprintf(tstr, "\"room0TemperatureSensibility\":%d.%01d,",
-          room0TemperatureSensibility/10, room0TemperatureSensibility%10);
-  strcat(data, tstr);
-#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-
   sprintf(tstr, "\"holdOffMode\":%d}",
           holdOffMode);
   strcat(data, tstr);
@@ -243,12 +248,13 @@ void publish_thermostat_data()
   publish_thermostat_cfg();
   
   publish_thermostat_mode_evt();
-  publish_water_thermostat_mode_evt();
   publish_thermostat_action_evt();
-  publish_water_thermostat_action_evt();
   publish_thermostat_current_temperature_evt();
-  publish_water_thermostat_current_temperature_evt();
   publish_thermostat_target_temperature_evt();
+
+  publish_water_thermostat_mode_evt();
+  publish_water_thermostat_action_evt();
+  publish_water_thermostat_current_temperature_evt();
   publish_water_thermostat_target_temperature_evt();
 }
 
@@ -491,14 +497,6 @@ void handle_thermostat_cmd_task(void* pvParameters)
             updated = true;
           }
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-#if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
-          if (t.data.cfgData.room0TemperatureSensibility && room0TemperatureSensibility != t.data.cfgData.room0TemperatureSensibility) {
-            room0TemperatureSensibility=t.data.cfgData.room0TemperatureSensibility;
-            esp_err_t err = write_nvs_short(room0TemperatureSensibilityTAG, room0TemperatureSensibility);
-            ESP_ERROR_CHECK( err );
-            updated = true;
-          }
-#endif //CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
           if (t.data.cfgData.holdOffMode && holdOffMode != t.data.cfgData.holdOffMode) {
             holdOffMode=t.data.cfgData.holdOffMode;
             updated = true;
@@ -584,6 +582,15 @@ void handle_thermostat_cmd_task(void* pvParameters)
             ESP_ERROR_CHECK( err );
           }
           publish_water_thermostat_target_temperature_evt();
+        }
+
+        if (t.msgType == THERMOSTAT_CMD_TOLERANCE) {
+          if (room0TemperatureSensibility != t.data.tolerance) {
+            room0TemperatureSensibility=t.data.tolerance;
+            esp_err_t err = write_nvs_short(room0TemperatureSensibilityTAG, room0TemperatureSensibility);
+            ESP_ERROR_CHECK( err );
+          }
+          publish_thermostat_temperature_tolerance_evt();
         }
       }
   }

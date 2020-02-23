@@ -90,7 +90,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12o6"
+#define FW_VERSION "0.02.12o7"
 
 extern QueueHandle_t mqttQueue;
 
@@ -391,8 +391,7 @@ void handle_water_thermostat_mqtt_tolerance_cmd(const char *payload)
   struct ThermostatMessage tm;
   memset(&tm, 0, sizeof(struct ThermostatMessage));
   tm.msgType = WATER_THERMOSTAT_CMD_TOLERANCE;
-  // FIXME: add tests to convert from decimal integer to 0.1dC
-  tm.data.tolerance = atoi(payload);
+  tm.data.tolerance = atof(payload) * 10;
 
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
@@ -486,8 +485,7 @@ void handle_thermostat_mqtt_tolerance_cmd(const char *payload)
   struct ThermostatMessage tm;
   memset(&tm, 0, sizeof(struct ThermostatMessage));
   tm.msgType = THERMOSTAT_CMD_TOLERANCE;
-  // FIXME: add tests to convert from decimal integer to 0.1dC
-  tm.data.tolerance = atoi(payload);
+  tm.data.tolerance = atof(payload) * 10;
 
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
