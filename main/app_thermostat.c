@@ -85,7 +85,7 @@ void publish_thermostat_current_temperature_evt()
 
 void publish_water_thermostat_current_temperature_evt()
 {
-  if (waterCurrentTemperature == SHRT_MIN)
+  if (waterTemperature == SHRT_MIN)
     return;
 
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ctemp/wthermostat";
@@ -93,8 +93,8 @@ void publish_water_thermostat_current_temperature_evt()
   char data[16];
   memset(data,0,16);
   sprintf(data, "%d.%d",
-          waterCurrentTemperatureFlag > 0 ? waterCurrentTemperature / 10 : 0,
-          waterCurrentTemperatureFlag > 0 ? abs(waterCurrentTemperature % 10) : 0);
+          waterTemperatureFlag > 0 ? waterTemperature / 10 : 0,
+          waterTemperatureFlag > 0 ? abs(waterTemperature % 10) : 0);
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
@@ -106,6 +106,17 @@ void publish_thermostat_target_temperature_evt()
   char data[16];
   memset(data,0,16);
   sprintf(data, "%d.%d", room0TargetTemperature / 10, abs(room0TargetTemperature % 10));
+
+  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+}
+
+void publish_water_thermostat_target_temperature_evt()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temp/wthermostat";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", waterTargetTemperature / 10, abs(waterTargetTemperature % 10));
 
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
@@ -180,9 +191,8 @@ void publish_thermostat_cfg()
   strcat(data, "{");
 
 #ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-  sprintf(tstr, "\"circuitTargetTemperature\":%d.%01d,\"waterTargetTemperature\":%d.%01d,\"waterTemperatureSensibility\":%d.%01d,",
+  sprintf(tstr, "\"circuitTargetTemperature\":%d.%01d,\"waterTemperatureSensibility\":%d.%01d,",
           circuitTargetTemperature/10, circuitTargetTemperature%10,
-          waterTargetTemperature/10, waterTargetTemperature%10,
           waterTemperatureSensibility/10, waterTemperatureSensibility%10);
   strcat(data, tstr);
 #endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
@@ -231,13 +241,15 @@ void publish_thermostat_data()
 {
   publish_thermostat_state(NULL, 0);
   publish_thermostat_cfg();
+  
   publish_thermostat_mode_evt();
   publish_water_thermostat_mode_evt();
   publish_thermostat_action_evt();
   publish_water_thermostat_action_evt();
   publish_thermostat_current_temperature_evt();
   publish_water_thermostat_current_temperature_evt();
-
+  publish_thermostat_target_temperature_evt();
+  publish_water_thermostat_target_temperature_evt();
 }
 
 
@@ -472,12 +484,6 @@ void handle_thermostat_cmd_task(void* pvParameters)
             ESP_ERROR_CHECK( err );
             updated = true;
           }
-          if (t.data.cfgData.waterTargetTemperature && waterTargetTemperature != t.data.cfgData.waterTargetTemperature) {
-            waterTargetTemperature=t.data.cfgData.waterTargetTemperature;
-            esp_err_t err = write_nvs_short(waterTargetTemperatureTAG, waterTargetTemperature);
-            ESP_ERROR_CHECK( err );
-            updated = true;
-          }
           if (t.data.cfgData.waterTemperatureSensibility && waterTemperatureSensibility != t.data.cfgData.waterTemperatureSensibility) {
             waterTemperatureSensibility=t.data.cfgData.waterTemperatureSensibility;
             esp_err_t err = write_nvs_short(waterTemperatureSensibilityTAG, waterTemperatureSensibility);
@@ -569,6 +575,15 @@ void handle_thermostat_cmd_task(void* pvParameters)
             ESP_ERROR_CHECK( err );
           }
           publish_thermostat_target_temperature_evt();
+        }
+
+        if (t.msgType == WATER_THERMOSTAT_CMD_TARGET_TEMPERATURE) {
+          if (waterTargetTemperature != t.data.targetTemperature) {
+            waterTargetTemperature=t.data.targetTemperature;
+            esp_err_t err = write_nvs_short(waterTargetTemperatureTAG, waterTargetTemperature);
+            ESP_ERROR_CHECK( err );
+          }
+          publish_water_thermostat_target_temperature_evt();
         }
       }
   }
