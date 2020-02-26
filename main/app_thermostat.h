@@ -63,6 +63,8 @@ union ThermostatData {
 #define WATER_THERMOSTAT_CMD_TARGET_TEMPERATURE 9
 #define THERMOSTAT_CMD_TOLERANCE 10
 #define WATER_THERMOSTAT_CMD_TOLERANCE 11
+#define CO_THERMOSTAT_CMD_MODE 12
+#define CO_THERMOSTAT_CMD_TARGET_TEMPERATURE 13
 
 struct ThermostatMessage {
   unsigned char msgType;

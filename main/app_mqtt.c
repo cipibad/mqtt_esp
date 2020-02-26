@@ -63,13 +63,14 @@ extern QueueHandle_t otaQueue;
 
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
-#define THERMOSTAT_TOPICS_NB 3
+#define THERMOSTAT_TOPICS_NB 4
 
 //FIXME: to remove cfg/thermostat
 #define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cfg/thermostat"
 
 #define CMD_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/thermostat"
 #define CMD_WATER_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/wthermostat"
+#define CMD_CO_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/cothermostat"
 
 #else // CONFIG_MQTT_THERMOSTAT
 
@@ -90,7 +91,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12o7"
+#define FW_VERSION "0.02.12p"
 
 extern QueueHandle_t mqttQueue;
 
@@ -121,6 +122,7 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     THERMOSTAT_TOPIC,
     CMD_THERMOSTAT_TOPIC,
     CMD_WATER_THERMOSTAT_TOPIC,
+    CMD_CO_THERMOSTAT_TOPIC,
 #endif // CONFIG_MQTT_THERMOSTAT
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB
     CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC,
@@ -423,6 +425,58 @@ void handle_water_thermostat_mqtt_mode_cmd(const char *payload)
   }
 }
 
+void handle_co_thermostat_mqtt_temp_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = CO_THERMOSTAT_CMD_TARGET_TEMPERATURE;
+  tm.data.targetTemperature = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_co_thermostat_mqtt_mode_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = CO_THERMOSTAT_CMD_MODE;
+
+  if (strcmp(payload, "heat") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_HEAT;
+  else if (strcmp(payload, "off") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_OFF;
+
+  if (tm.data.thermostatMode == TERMOSTAT_MODE_UNSET) {
+    ESP_LOGE(TAG, "wrong payload");
+    return;
+  }
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_co_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+  if (strcmp(action, "mode") == 0) {
+    handle_co_thermostat_mqtt_mode_cmd(payload);
+    return;
+  }
+  if (strcmp(action, "temp") == 0) {
+    handle_co_thermostat_mqtt_temp_cmd(payload);
+    return;
+  }
+  ESP_LOGW(TAG, "unhlandled relay cmd: %s", action);
+}
+
 void handle_water_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
 {
   char action[16];
@@ -637,6 +691,10 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     }
     if (strcmp(service, "wthermostat") == 0) {
       handle_water_thermostat_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
+    if (strcmp(service, "cothermostat") == 0) {
+      handle_co_thermostat_mqtt_cmd(event->topic, event->topic_len, payload);
       return;
     }
 #endif //CONFIG_MQTT_THERMOSTAT
