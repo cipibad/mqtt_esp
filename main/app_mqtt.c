@@ -63,8 +63,11 @@ extern QueueHandle_t otaQueue;
 
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
-#define THERMOSTAT_TOPICS_NB 1
-#define THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cfg/thermostat"
+#define THERMOSTAT_TOPICS_NB 3
+
+#define CMD_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/thermostat"
+#define CMD_WATER_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/wthermostat"
+#define CMD_CO_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/cothermostat"
 
 #else // CONFIG_MQTT_THERMOSTAT
 
@@ -85,7 +88,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12m"
+#define FW_VERSION "0.02.12p"
 
 extern QueueHandle_t mqttQueue;
 
@@ -113,7 +116,9 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     RELAY_CFG_TOPIC "+",
 #endif //CONFIG_MQTT_RELAYS_NB
 #ifdef CONFIG_MQTT_THERMOSTAT
-    THERMOSTAT_TOPIC,
+    CMD_THERMOSTAT_TOPIC,
+    CMD_WATER_THERMOSTAT_TOPIC,
+    CMD_CO_THERMOSTAT_TOPIC,
 #endif // CONFIG_MQTT_THERMOSTAT
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB
     CONFIG_MQTT_THERMOSTAT_ROOM_0_SENSORS_TOPIC,
@@ -316,72 +321,246 @@ bool getTemperatureValue(short* value, const cJSON* root, const char* tag)
   return false;
 }
 
-bool handle_thermostat_mqtt_event(esp_mqtt_event_handle_t event)
+char* getToken(char* buffer, const char* topic, int topic_len, unsigned char place)
 {
-#ifdef CONFIG_MQTT_THERMOSTAT
-  if (strncmp(event->topic, THERMOSTAT_TOPIC, strlen(THERMOSTAT_TOPIC)) == 0) {
-    if (event->data_len >= MAX_MQTT_DATA_THERMOSTAT )
-      {
-        ESP_LOGI(TAG, "unexpected thermostat cmd payload length");
-        return true;
-      }
-    char tmpBuf[MAX_MQTT_DATA_THERMOSTAT];
-    memcpy(tmpBuf, event->data, event->data_len);
-    tmpBuf[event->data_len] = 0;
-    cJSON * root   = cJSON_Parse(tmpBuf);
-    if (root) {
-      struct ThermostatMessage tm;
-      memset(&tm, 0, sizeof(struct ThermostatMessage));
-      tm.msgType = THERMOSTAT_CFG_MSG;
-      bool updated = false;
-      if (getTemperatureValue(&tm.data.cfgData.circuitTargetTemperature,
-                              root, "circuitTargetTemperature")) {
-        updated = true;
-      }
-      if (getTemperatureValue(&tm.data.cfgData.waterTargetTemperature,
-                              root, "waterTargetTemperature")) {
-        updated = true;
-      }
-      if (getTemperatureValue(&tm.data.cfgData.waterTemperatureSensibility,
-                              root, "waterTemperatureSensibility")) {
-        updated = true;
-      }
-      if (getTemperatureValue(&tm.data.cfgData.room0TargetTemperature,
-                              root, "room0TargetTemperature")) {
-        updated = true;
-      }
-      if (getTemperatureValue(&tm.data.cfgData.room0TemperatureSensibility,
-                              root, "room0TemperatureSensibility")) {
-        updated = true;
-      }
+  if (topic == NULL)
+    return NULL;
 
-      cJSON * tmMode = cJSON_GetObjectItem(root,"thermostatMode");
-      if (tmMode) {
-        tm.data.cfgData.thermostatMode = tmMode->valueint;
-        ESP_LOGI(TAG, "thermostatMode: %d", tm.data.cfgData.thermostatMode);
-        updated = true;
-      }
+  if (topic_len >= 64)
+    return NULL;
 
-      cJSON * holdOffMode = cJSON_GetObjectItem(root,"holdOffMode");
-      if (holdOffMode) {
-        tm.data.cfgData.holdOffMode = holdOffMode->valueint;
-        ESP_LOGI(TAG, "holdOffMode: %d", tm.data.cfgData.holdOffMode);
-        updated = true;
-      }
+  char str[64];
+  memcpy(str, topic, topic_len);
+  str[topic_len] = 0;
 
-      if (updated) {
-        if (xQueueSend( thermostatQueue
-                        ,( void * )&tm
-                        ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-          ESP_LOGE(TAG, "Cannot send to thermostatQueue");
-        }
-      }
-      cJSON_Delete(root);
-    }
-    return true;
+  char *token = strtok(str, "/");
+  int i = 0;
+  while(i < place && token) {
+    token = strtok(NULL, "/");
+    i += 1;
   }
-#endif // CONFIG_MQTT_THERMOSTAT
-  return false;
+  if (!token)
+    return NULL;
+
+  return strcpy(buffer, token);
+}
+
+char* getActionType(char* actionType, const char* topic, int topic_len)
+{
+  return getToken(actionType, topic, topic_len, 2);
+}
+char* getAction(char* action, const char* topic, int topic_len)
+{
+  return getToken(action, topic, topic_len, 3);
+}
+
+char* getService(char* service, const char* topic, int topic_len)
+{
+  return getToken(service, topic, topic_len, 4);
+}
+
+signed char getServiceId(const char* topic, int topic_len)
+{
+  signed char serviceId=-1;
+  char buffer[8];
+  char* s = getToken(buffer, topic, topic_len, 5);
+  if (s) {
+    serviceId = atoi(s);
+  }
+  return serviceId;
+}
+
+void handle_water_thermostat_mqtt_temp_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = WATER_THERMOSTAT_CMD_TARGET_TEMPERATURE;
+  tm.data.targetTemperature = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_water_thermostat_mqtt_tolerance_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = WATER_THERMOSTAT_CMD_TOLERANCE;
+  tm.data.tolerance = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_water_thermostat_mqtt_mode_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = WATER_THERMOSTAT_CMD_MODE;
+
+  if (strcmp(payload, "heat") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_HEAT;
+  else if (strcmp(payload, "off") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_OFF;
+
+  if (tm.data.thermostatMode == TERMOSTAT_MODE_UNSET) {
+    ESP_LOGE(TAG, "wrong payload");
+    return;
+  }
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_co_thermostat_mqtt_temp_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = CO_THERMOSTAT_CMD_TARGET_TEMPERATURE;
+  tm.data.targetTemperature = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_co_thermostat_mqtt_mode_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = CO_THERMOSTAT_CMD_MODE;
+
+  if (strcmp(payload, "heat") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_HEAT;
+  else if (strcmp(payload, "off") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_OFF;
+
+  if (tm.data.thermostatMode == TERMOSTAT_MODE_UNSET) {
+    ESP_LOGE(TAG, "wrong payload");
+    return;
+  }
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_co_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+  if (strcmp(action, "mode") == 0) {
+    handle_co_thermostat_mqtt_mode_cmd(payload);
+    return;
+  }
+  if (strcmp(action, "temp") == 0) {
+    handle_co_thermostat_mqtt_temp_cmd(payload);
+    return;
+  }
+  ESP_LOGW(TAG, "unhlandled relay cmd: %s", action);
+}
+
+void handle_water_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+  if (strcmp(action, "mode") == 0) {
+    handle_water_thermostat_mqtt_mode_cmd(payload);
+    return;
+  }
+  if (strcmp(action, "temp") == 0) {
+    handle_water_thermostat_mqtt_temp_cmd(payload);
+    return;
+  }
+  if (strcmp(action, "tolerance") == 0) {
+    handle_water_thermostat_mqtt_tolerance_cmd(payload);
+    return;
+  }
+  ESP_LOGW(TAG, "unhlandled relay cmd: %s", action);
+}
+
+void handle_thermostat_mqtt_mode_cmd(const char *payload)
+{
+
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = THERMOSTAT_CMD_MODE;
+
+  if (strcmp(payload, "heat") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_HEAT;
+  else if (strcmp(payload, "off") == 0)
+    tm.data.thermostatMode = TERMOSTAT_MODE_OFF;
+
+  if (tm.data.thermostatMode == TERMOSTAT_MODE_UNSET) {
+    ESP_LOGE(TAG, "wrong payload");
+    return;
+  }
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_thermostat_mqtt_temp_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = THERMOSTAT_CMD_TARGET_TEMPERATURE;
+  tm.data.targetTemperature = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_thermostat_mqtt_tolerance_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = THERMOSTAT_CMD_TOLERANCE;
+  tm.data.tolerance = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
+void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+  if (strcmp(action, "mode") == 0) {
+    handle_thermostat_mqtt_mode_cmd(payload);
+    return;
+  }
+  if (strcmp(action, "temp") == 0) {
+    handle_thermostat_mqtt_temp_cmd(payload);
+    return;
+  }
+  if (strcmp(action, "tolerance") == 0) {
+    handle_thermostat_mqtt_tolerance_cmd(payload);
+    return;
+  }
+  ESP_LOGW(TAG, "unhlandled relay cmd: %s", action);
 }
 
 bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
@@ -420,6 +599,42 @@ bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
 }
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
+
+  char actionType[16];
+  getActionType(actionType, event->topic, event->topic_len);
+
+  if (getActionType(actionType, event->topic, event->topic_len) && strcmp(actionType, "cmd") == 0) {
+    char payload[16];
+    //FIXME this check should be generic and 16 should get a define
+    if (event->data_len > 16 - 1) { //including '\0'
+      ESP_LOGE(TAG, "payload to big");
+      return;
+    }
+
+
+    memcpy(payload, event->data, event->data_len);
+    payload[event->data_len] = 0;
+
+    char service[16];
+    getService(service, event->topic, event->topic_len);
+
+#ifdef CONFIG_MQTT_THERMOSTAT
+    if (strcmp(service, "thermostat") == 0) {
+      handle_thermostat_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
+    if (strcmp(service, "wthermostat") == 0) {
+      handle_water_thermostat_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
+    if (strcmp(service, "cothermostat") == 0) {
+      handle_co_thermostat_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
+#endif //CONFIG_MQTT_THERMOSTAT
+
+  }
+
   if (handle_scheduler_mqtt_event(event))
     return;
   if (handle_room_sensors_mqtt_event(event))
@@ -429,8 +644,6 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
   if (handle_relay_cmd_mqtt_event(event))
     return;
   if (handle_ota_mqtt_event(event))
-    return;
-  if (handle_thermostat_mqtt_event(event))
     return;
 }
 

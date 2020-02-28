@@ -12,28 +12,28 @@ extern "C" {
 }
 
 extern "C" {
-  void publish_thermostat_cfg();
+  void publish_thermostat_current_temperature_evt();
   void handle_room_temperature_msg(short);
 }
 
-TEST_CASE("publish_thermostat_cfg", "[tag]" ) {
-  MockRepository mocks;
-  const char* topic = "device_type/client_id/evt/thermostat/cfg";
-  const char* mqtt_data = "{\"room0TargetTemperature\":22.0,\
-\"room0TemperatureSensibility\":0.2,\"thermostatMode\":1,\"holdOffMode\":1}";
+extern short room0Temperature;
+extern unsigned char room0TemperatureFlag;
 
+TEST_CASE("publish_thermostat_current_temperature_evt", "[tag]" ) {
+  MockRepository mocks;
+  const char* topic = "device_type/client_id/evt/ctemp/thermostat";
+  const char* mqtt_data = "10.5";
+  room0Temperature = 105;
+  room0TemperatureFlag = 1;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
-  publish_thermostat_cfg();
+  publish_thermostat_current_temperature_evt();
   REQUIRE(true);
 }
 
 TEST_CASE("handle_room_update", "[tag]" ) {
-  extern short room0Temperature;
-  extern unsigned char room0TemperatureFlag;
-
-  REQUIRE(room0Temperature == SHRT_MIN);
-  REQUIRE(room0TemperatureFlag == 0);
+  room0Temperature = SHRT_MIN;
+  room0TemperatureFlag = 0;
 
   handle_room_temperature_msg(SHRT_MIN);
   REQUIRE(room0Temperature == SHRT_MIN);
