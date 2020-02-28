@@ -1,6 +1,7 @@
 #include "esp_system.h"
 #include <limits.h>
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef CONFIG_MQTT_THERMOSTAT
 
