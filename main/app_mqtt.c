@@ -291,6 +291,8 @@ signed char getServiceId(const char* topic, int topic_len)
   return serviceId;
 }
 
+#ifdef CONFIG_MQTT_THERMOSTAT
+
 void handle_water_thermostat_mqtt_temp_cmd(const char *payload)
 {
   struct ThermostatMessage tm;
@@ -394,72 +396,6 @@ void handle_co_thermostat_mqtt_cmd(const char* topic, int topic_len, const char*
   ESP_LOGW(TAG, "unhandled cycle optimizer thermostat action: %s", action);
 }
 
-#if CONFIG_MQTT_RELAYS_NB
-
-void handle_relay_mqtt_status_cmd(signed char relayId, const char *payload)
-{
-  struct RelayMessage rm;
-  memset(&rm, 0, sizeof(struct RelayMessage));
-  rm.msgType = RELAY_CMD_STATUS;
-  rm.relayId = relayId;
-
-  if (strcmp(payload, "ON") == 0)
-    rm.data = RELAY_STATUS_ON;
-  else if (strcmp(payload, "OFF") == 0)
-    rm.data = RELAY_STATUS_OFF;
-
-  if (rm.data == RELAY_STATUS_UNSET) {
-    ESP_LOGE(TAG, "wrong payload");
-    return;
-  }
-
-  if (xQueueSend( relayQueue
-                  ,( void * )&rm
-                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot send to relayQueue");
-  }
-}
-
-void handle_relay_mqtt_sleep_cmd(signed char relayId, const char *payload)
-{
-  struct RelayMessage rm;
-  memset(&rm, 0, sizeof(struct RelayMessage));
-  rm.msgType = RELAY_CMD_SLEEP;
-  rm.relayId = relayId;
-
-  rm.data = atoi(payload);
-
-  if (xQueueSend( relayQueue
-                  ,( void * )&rm
-                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot send to relayQueue");
-  }
-}
-
-
-void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload)
-{
-  char action[16];
-  getAction(action, topic, topic_len);
-
-  signed char relayId = getServiceId(topic, topic_len);
-  if (relayId != -1) {
-    if (strcmp(action, "status") == 0) {
-      handle_relay_mqtt_status_cmd(relayId, payload);
-      return;
-    }
-    if (strcmp(action, "sleep") == 0) {
-      handle_relay_mqtt_sleep_cmd(relayId, payload);
-      return;
-    }
-    ESP_LOGW(TAG, "unhandled relay action: %s", action);
-    return;
-  }
-  ESP_LOGW(TAG, "unhandled relay id: %d", relayId);
-}
-
-#endif // CONFIG_MQTT_RELAYS_NB
-
 void handle_water_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
 {
   char action[16];
@@ -550,6 +486,70 @@ void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* pa
   ESP_LOGW(TAG, "unhandled water thermostat: %s", action);
 }
 
+#endif // CONFIG_MQTT_THERMOSTAT
+
+#if CONFIG_MQTT_RELAYS_NB
+
+void handle_relay_mqtt_status_cmd(signed char relayId, const char *payload)
+{
+  struct RelayMessage rm;
+  memset(&rm, 0, sizeof(struct RelayMessage));
+  rm.msgType = RELAY_CMD_STATUS;
+  rm.relayId = relayId;
+
+  if (strcmp(payload, "ON") == 0)
+    rm.data = RELAY_STATUS_ON;
+  else if (strcmp(payload, "OFF") == 0)
+    rm.data = RELAY_STATUS_OFF;
+
+  if (xQueueSend( relayQueue
+                  ,( void * )&rm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to relayQueue");
+  }
+}
+
+void handle_relay_mqtt_sleep_cmd(signed char relayId, const char *payload)
+{
+  struct RelayMessage rm;
+  memset(&rm, 0, sizeof(struct RelayMessage));
+  rm.msgType = RELAY_CMD_SLEEP;
+  rm.relayId = relayId;
+
+  rm.data = atoi(payload);
+
+  if (xQueueSend( relayQueue
+                  ,( void * )&rm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to relayQueue");
+  }
+}
+
+
+void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+
+  signed char relayId = getServiceId(topic, topic_len);
+  if (relayId != -1) {
+    if (strcmp(action, "status") == 0) {
+      handle_relay_mqtt_status_cmd(relayId, payload);
+      return;
+    }
+    if (strcmp(action, "sleep") == 0) {
+      handle_relay_mqtt_sleep_cmd(relayId, payload);
+      return;
+    }
+    ESP_LOGW(TAG, "unhandled relay action: %s", action);
+    return;
+  }
+  ESP_LOGW(TAG, "unhandled relay id: %d", relayId);
+}
+
+#endif // CONFIG_MQTT_RELAYS_NB
+
+
 bool handle_room_sensors_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #if CONFIG_MQTT_THERMOSTAT_ROOMS_SENSORS_NB > 0
@@ -618,14 +618,14 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       handle_co_thermostat_mqtt_cmd(event->topic, event->topic_len, payload);
       return;
     }
+#endif //CONFIG_MQTT_THERMOSTAT
+
 #if CONFIG_MQTT_RELAYS_NB
     if (strcmp(service, "relay") == 0) {
       handle_relay_mqtt_cmd(event->topic, event->topic_len, payload);
       return;
     }
 #endif // CONFIG_MQTT_RELAYS_NB
-
-#endif //CONFIG_MQTT_THERMOSTAT
 
   }
 

@@ -5,27 +5,13 @@
 #define RELAY_CMD_STATUS 1
 #define RELAY_CMD_SLEEP  2
 
-#define RELAY_STATUS_UNSET 0
+#define RELAY_STATUS_OFF   0
 #define RELAY_STATUS_ON    1
-#define RELAY_STATUS_OFF   2
-
 
 struct RelayMessage {
   unsigned char msgType;
   unsigned char relayId;
   int data;
-};
-
-struct RelayCmdMessage
-{
-    unsigned char relayId;
-    unsigned char relayValue;
-};
-
-struct RelayCfgMessage
-{
-    unsigned char relayId;
-    unsigned char onTimeout;
 };
 
 void publish_all_relays_status();

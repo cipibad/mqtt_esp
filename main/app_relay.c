@@ -152,9 +152,9 @@ void update_timer(int id)
 
 void update_relay_status(int id, char value)
 {
-  ESP_LOGI(TAG, "update_relay_status: id: %d, value: %d", id, value == RELAY_STATUS_ON);
+  ESP_LOGI(TAG, "update_relay_status: id: %d, value: %d", id, value);
   ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id] == RELAY_ON);
-  if ((value == RELAY_STATUS_ON) != (relayStatus[id] == RELAY_ON)) {
+  if (value != (relayStatus[id] == RELAY_ON)) {
     if (value == RELAY_STATUS_ON) {
       relayStatus[id] = RELAY_ON;
       ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
