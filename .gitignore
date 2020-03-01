@@ -1,3 +1,7 @@
 /.gitignore
 /build
 *~
+*.gcda
+*.gcno
+*.o
+test-host/test_mqtt_esp

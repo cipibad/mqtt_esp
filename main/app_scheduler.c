@@ -17,7 +17,7 @@
 
 static const char *TAG = "SCHEDULER";
 extern QueueHandle_t schedulerCfgQueue;
-extern QueueHandle_t relayCmdQueue;
+extern QueueHandle_t relayQueue;
 
 void update_time_from_ntp()
 {
@@ -104,10 +104,10 @@ void handle_relay_action_trigger(struct SchedulerCfgMessage *msg, int nowMinutes
     ESP_LOGI(TAG, "Executing scheduleId: %d",
              msg->schedulerId);
     struct RelayCmdMessage r=msg->data.relayActionData;
-    if (xQueueSend( relayCmdQueue,
+    if (xQueueSend( relayQueue,
                     ( void * )&r,
                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to relayCmdQueue");
+      ESP_LOGE(TAG, "Cannot send to relayQueue");
     }
   }
 

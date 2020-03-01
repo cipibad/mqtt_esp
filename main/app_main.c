@@ -31,8 +31,7 @@ QueueHandle_t thermostatQueue;
 
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
-QueueHandle_t relayCmdQueue;
-QueueHandle_t relayCfgQueue;
+QueueHandle_t relayQueue;
 int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
 #endif//CONFIG_MQTT_RELAYS_NB
 
@@ -129,8 +128,7 @@ void app_main(void)
 #endif // CONFIG_MQTT_THERMOSTAT
 
 #if CONFIG_MQTT_RELAYS_NB
-  relayCmdQueue = xQueueCreate(32, sizeof(struct RelayCmdMessage) );
-  relayCfgQueue = xQueueCreate(8, sizeof(struct RelayCfgMessage) );
+  relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_SCHEDULERS
@@ -183,13 +181,12 @@ void app_main(void)
   } else {
 
 #ifdef CONFIG_MQTT_SENSOR
-    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 3, NULL, 10, NULL);
+    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 5, NULL, 10, NULL);
 #endif //CONFIG_MQTT_SENSOR
 
 
 #if CONFIG_MQTT_RELAYS_NB
-    xTaskCreate(handle_relay_cmd_task, "handle_relay_cmd_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
-    xTaskCreate(handle_relay_cfg_task, "handle_relay_cfg_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    xTaskCreate(handle_relay_task, "handle_relay_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #if CONFIG_MQTT_SWITCHES_NB

@@ -305,7 +305,7 @@ void disableThermostat(const char * reason)
 {
   publish_thermostat_state(NULL, 0);
   thermostatState=THERMOSTAT_STATE_IDLE;
-  update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 0);
+  update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 0);
   publish_thermostat_action_evt();
   publish_water_thermostat_action_evt();
   publish_thermostat_state(reason, thermostatDuration);
@@ -317,7 +317,7 @@ void enableThermostat(const char * reason)
 {
   publish_thermostat_state(NULL, 0);
   thermostatState=THERMOSTAT_STATE_HEATING;
-  update_relay_state(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1);
+  update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, 1);
   publish_thermostat_state(reason, thermostatDuration);
   publish_thermostat_action_evt();
   publish_water_thermostat_action_evt();

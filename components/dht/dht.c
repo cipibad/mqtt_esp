@@ -67,7 +67,7 @@ static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 #define CHECK_LOGE(x, msg, ...) do { \
         esp_err_t __; \
         if ((__ = x) != ESP_OK) { \
-            ESP_LOGE(TAG, msg, ## __VA_ARGS__); \
+            ESP_LOGD(TAG, msg, ## __VA_ARGS__); \
             return __; \
         } \
     } while (0)
