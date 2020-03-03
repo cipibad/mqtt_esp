@@ -78,7 +78,9 @@ extern QueueHandle_t thermostatQueue;
 esp_mqtt_client_handle_t client = NULL;
 int connect_reason;
 const int mqtt_disconnect = 33; //32+1
-const char * connect_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/connection";
+
+const char * available_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/status/available";
+const char * config_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/config/available";
 
 EventGroupHandle_t mqtt_event_group;
 const int MQTT_CONNECTED_BIT = BIT0;
@@ -660,14 +662,20 @@ void mqtt_publish_data(const char * topic,
   }
 }
 
-void publish_connected_data()
+void publish_config_msg()
 {
-  char data[256];
-  memset(data,0,256);
+  char data[64];
+  memset(data,0,64);
 
-  sprintf(data, "{\"state\":\"connected\", \"v\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
+  sprintf(data, "{\"fw_version\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
+  mqtt_publish_data(config_topic, data, QOS_1, RETAIN);
 
-  mqtt_publish_data(connect_topic, data, QOS_1, RETAIN);
+}
+
+void publish_available_msg()
+{
+  char* data = "online";
+  mqtt_publish_data(available_topic, data, QOS_1, RETAIN);
 }
 
 
@@ -747,13 +755,13 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
 
 void mqtt_init_and_start()
 {
-  const char * lwtmsg = "{\"state\":\"disconnected\"}";
+  const char * lwtmsg = "offline";
   const esp_mqtt_client_config_t mqtt_cfg = {
     .uri = "mqtts://" CONFIG_MQTT_USERNAME ":" CONFIG_MQTT_PASSWORD "@" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
     .event_handle = mqtt_event_handler,
     .cert_pem = (const char *)mqtt_iot_cipex_ro_pem_start,
     .client_id = CONFIG_MQTT_CLIENT_ID,
-    .lwt_topic = connect_topic,
+    .lwt_topic = available_topic,
     .lwt_msg = lwtmsg,
     .lwt_qos = 1,
     .lwt_retain = 1,
@@ -777,7 +785,8 @@ void handle_mqtt_sub_pub(void* pvParameters)
         xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
         mqtt_subscribe(client);
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-        publish_connected_data();
+        publish_available_msg();
+        publish_config_msg();
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_status();
         publish_all_relays_timeout();
