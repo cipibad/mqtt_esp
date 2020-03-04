@@ -90,7 +90,7 @@ const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12q"
+#define FW_VERSION "0.02.12q1"
 
 extern QueueHandle_t mqttQueue;
 

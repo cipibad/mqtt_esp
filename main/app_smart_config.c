@@ -165,6 +165,7 @@ void smartconfig_cmd_task(void* pvParameters)
           ESP_LOGI(TAG, "received switch event at: %d", scm.ticks);
           if (scm.ticks - lastRead < 5) {
             ESP_LOGI(TAG, "duplicate call, ignored ");
+            lastRead = scm.ticks;
             continue;
           }
           lastRead = scm.ticks;

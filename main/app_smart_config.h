@@ -4,7 +4,7 @@
 struct SmartConfigMessage
 {
     int ticks;
-    char relayId;
+    unsigned char relayId;
 };
 
 void smartconfig_cmd_task(void* pvParameters);
