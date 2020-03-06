@@ -41,7 +41,7 @@ EventGroupHandle_t smartconfig_event_group;
 
 #if CONFIG_MQTT_RELAYS_NB
 extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
-extern QueueHandle_t relayCmdQueue;
+extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
 
@@ -175,8 +175,8 @@ void smartconfig_cmd_task(void* pvParameters)
             ESP_LOGI(TAG, "up ");
             if ((scm.ticks - pushTick ) < ticksToWait) {
 #if CONFIG_MQTT_RELAYS_NB
-              struct RelayCmdMessage r={scm.relayId, !(relayStatus[(int)scm.relayId] == RELAY_ON)}; //FIXME for two switches
-              xQueueSend(relayCmdQueue,
+              struct RelayMessage r={RELAY_CMD_STATUS, scm.relayId, !(relayStatus[(int)scm.relayId] == RELAY_ON)};
+              xQueueSend(relayQueue,
                          ( void * )&r,
                          RELAY_QUEUE_TIMEOUT);
 #endif //CONFIG_MQTT_RELAYS_NB

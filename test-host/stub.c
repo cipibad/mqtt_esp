@@ -4,9 +4,8 @@
 #include "freertos/queue.h"
 
 
-void update_relay_state(int id, char value)
-{
-}
+void update_relay_status(int id, char value)
+{}
 
 int xQueueSend( QueueHandle_t xQueue, const void * const pvItemToQueue, TickType_t xTicksToWait)
 {}

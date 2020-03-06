@@ -7,6 +7,8 @@
 
 #define CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER 1
 
+/* #define CONFIG_MQTT_RELAYS_NB 1 */
+
 #define CONFIG_MQTT_USERNAME "username"
 #define CONFIG_MQTT_PASSWORD "pass"
 #define CONFIG_MQTT_SERVER "mqtt.server"
