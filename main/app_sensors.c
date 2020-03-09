@@ -101,7 +101,7 @@ void publish_ds18x20_temperature(int sensor_id)
 
 void publish_ds18x20_data()
 {
-  for(int i=0; i<=sensor_count; i++) {
+  for(int i=0; i<sensor_count; i++) {
     publish_ds18x20_temperature(i);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
@@ -255,7 +255,7 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_BME280
 
 #ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-      FIXME
+      //FIXME
       struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
       struct ThermostatMessage tm;
       memset(&tm, 0, sizeof(struct ThermostatMessage));
