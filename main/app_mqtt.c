@@ -197,7 +197,7 @@ bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
           }
           cJSON * relayValue = cJSON_GetObjectItem(data,"relayValue");
           if (relayValue) {
-            s.data.relayActionData.relayValue = relayValue->valueint;
+            s.data.relayActionData.data = relayValue->valueint;
           }
         }
       }

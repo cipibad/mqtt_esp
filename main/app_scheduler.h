@@ -17,7 +17,7 @@ void handle_scheduler(void* pvParameters);
 //FIXME basic structure only
 
 union Data {
-  struct RelayCmdMessage relayActionData;
+  struct RelayMessage relayActionData;
   struct TriggerData {time_t now;} triggerActionData;
 };
 

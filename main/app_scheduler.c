@@ -91,7 +91,7 @@ void log_scheduler(const struct SchedulerCfgMessage *msg)
   if (msg->actionId == RELAY_ACTION) {
     ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
              msg->data.relayActionData.relayId,
-             msg->data.relayActionData.relayValue);
+             msg->data.relayActionData.data);
   }
 }
 
@@ -103,7 +103,7 @@ void handle_relay_action_trigger(struct SchedulerCfgMessage *msg, int nowMinutes
       schedulerMinutes == (nowMinutes - 1)) {
     ESP_LOGI(TAG, "Executing scheduleId: %d",
              msg->schedulerId);
-    struct RelayCmdMessage r=msg->data.relayActionData;
+    struct RelayMessage r=msg->data.relayActionData;
     if (xQueueSend( relayQueue,
                     ( void * )&r,
                     RELAY_QUEUE_TIMEOUT) != pdPASS) {

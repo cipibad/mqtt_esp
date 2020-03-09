@@ -31,6 +31,7 @@ ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
 short wtemperature = SHRT_MIN;
 short ctemperature = SHRT_MIN;
+int sensor_count = 0;
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
 
@@ -48,6 +49,117 @@ extern QueueHandle_t thermostatQueue;
 #endif // CONFIG_MQTT_THERMOSTAT
 
 static const char *TAG = "app_sensors";
+
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+void publish_dht22_temperature()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature/dht22";
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", dht22_temperature / 10, abs(dht22_temperature % 10));
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
+
+void publish_dht22_humidity()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/humidity/dht22";
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", dht22_humidity / 10, abs(dht22_humidity % 10));
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
+
+#endif // CONFIG_MQTT_SENSOR_DHT22
+
+void publish_dht22_data()
+{
+  publish_dht22_temperature();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_dht22_humidity();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+}
+#endif // CONFIG_MQTT_SENSOR_DHT22
+
+void publish_ds18x20_temperature(int sensor_id)
+{
+ const char * temperature_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d",
+          ((short)(temps[sensor_id] * 10)) / 10,
+          abs(((short)(temps[sensor_id] * 10)) % 10));
+
+  char topic[MQTT_MAX_TOPIC_LEN];
+  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  sprintf(topic, "%s/%08x%08x", temperature_topic,
+          (uint32_t)(addrs[sensor_id] >> 32),
+          (uint32_t)addrs[sensor_id]);
+
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
+
+void publish_ds18x20_data()
+{
+  for(int i=0; i<sensor_count; i++) {
+    publish_ds18x20_temperature(i);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
+
+#ifdef CONFIG_MQTT_SENSOR_BME280
+void publish_bme280_temperature()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature/bme280";
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", bme280_temperature/100, abs(bme280_temperature%100));
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
+
+void publish_bme280_humidity()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/humidity/bme280";
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", bme280_humidity/1000, abs(bme280_humidity%1000));
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
+
+void publish_bme280_pressure()
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/pressure/bme280";
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d", (int)(bme280_pressure*0.750061683));
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
+
+void publish_bme280_data()
+{
+  publish_bme280_temperature();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_bme280_humidity();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_bme280_pressure();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+}
+#endif // CONFIG_MQTT_SENSOR_BME280
+
+void publish_sensors_data()
+{
+#ifdef CONFIG_MQTT_SENSOR_DHT22
+  void publish_dht22_data();
+#endif // CONFIG_MQTT_SENSOR_DHT22
+
+#ifdef CONFIG_MQTT_SENSOR_DS18X20
+  publish_ds18x20_data();
+#endif // CONFIG_MQTT_SENSOR_DS18X20
+
+#ifdef CONFIG_MQTT_SENSOR_BME280
+  void publish_bme280_data();
+#endif // CONFIG_MQTT_SENSOR_BME280
+}
 
 void sensors_read(void* pvParameters)
 {
@@ -84,6 +196,7 @@ void sensors_read(void* pvParameters)
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
                    dht22_humidity/10, abs(dht22_humidity%10) ,
                    dht22_temperature/10, abs(dht22_temperature%10));
+          publish_dht22_data();
         }
       else
         {
@@ -95,7 +208,7 @@ void sensors_read(void* pvParameters)
       wtemperature=SHRT_MIN;
       ctemperature=SHRT_MIN;
 
-      int sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
+      sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
         ESP_LOGW(TAG, "No sensors detected!\n");
       } else {
@@ -123,6 +236,7 @@ void sensors_read(void* pvParameters)
             ctemperature = temp_c;
 #endif // CONFIG_MQTT_THERMOSTAT
           }
+        publish_ds18x20_data();
 
       }
 #endif // CONFIG_MQTT_SENSOR_DS18X20
@@ -132,6 +246,7 @@ void sensors_read(void* pvParameters)
       if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
         {
           ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
+          publish_bme280_data();
         }
       else
         {
@@ -140,6 +255,7 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_BME280
 
 #ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
+      //FIXME
       struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
       struct ThermostatMessage tm;
       memset(&tm, 0, sizeof(struct ThermostatMessage));
@@ -151,50 +267,7 @@ void sensors_read(void* pvParameters)
         ESP_LOGE(TAG, "Cannot send to thermostatQueue");
       }
 #endif // CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-      publish_sensors_data();
       vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }
 
-void publish_sensors_data()
-{
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/sensors";
-  ESP_LOGI(TAG, "starting mqtt_publish_sensor_data");
-
-  char data[256];
-  memset(data,0,256);
-  char tstr[64];
-  strcat(data, "{");
-
-#ifdef CONFIG_MQTT_SENSOR_DHT22
-  sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,",
-          dht22_humidity / 10, abs(dht22_humidity % 10),
-          dht22_temperature / 10, abs(dht22_temperature % 10)
-          );
-  strcat(data, tstr);
-#endif //CONFIG_MQTT_SENSOR_DHT22
-
-#ifdef CONFIG_MQTT_SENSOR_DS18X20
-  sprintf(tstr, "\"wtemperature\":%d.%d,\"ctemperature\":%d.%d,",
-          wtemperature / 10, abs(wtemperature % 10),
-          ctemperature / 10, abs(ctemperature % 10));
-  strcat(data, tstr);
-#endif // CONFIG_MQTT_SENSOR_DS18X20
-
-#ifdef CONFIG_MQTT_SENSOR_BME280
-  ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ", bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
-  sprintf(tstr, "\"humidity\":%d.%d,\"temperature\":%d.%d,\"pressure\":%d,",
-          bme280_humidity/1000, abs(bme280_humidity%1000),
-          bme280_temperature/100, abs(bme280_temperature%100),
-          (int)(bme280_pressure*0.750061683)
-          );
-  strcat(data, tstr);
-#endif //CONFIG_MQTT_SENSOR_BME280
-  data[strlen(data)-1] = 0;
-  strcat(data, "}");
-
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
-
-}
-
-#endif // CONFIG_MQTT_SENSOR
