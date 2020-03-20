@@ -52,28 +52,28 @@ void relays_init()
 
 void publish_relay_status(int id)
 {
-  const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/status/relay/";
+  const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/status/relay";
   char data[16];
   memset(data,0,16);
   sprintf(data, "%s", relayStatus[id] == RELAY_ON ? "ON" : "OFF");
 
   char topic[MQTT_MAX_TOPIC_LEN];
   memset(topic,0,MQTT_MAX_TOPIC_LEN);
-  sprintf(topic, "%s%d", relays_topic, id);
+  sprintf(topic, "%s/%d", relays_topic, id);
 
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
 void publish_relay_timeout(int id)
 {
-  const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/sleep/relay/";
+  const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/sleep/relay";
   char data[16];
   memset(data,0,16);
   sprintf(data, "%d", relayOnTimeout[id]);
 
   char topic[MQTT_MAX_TOPIC_LEN];
   memset(topic,0,MQTT_MAX_TOPIC_LEN);
-  sprintf(topic, "%s%d", relays_topic, id);
+  sprintf(topic, "%s/%d", relays_topic, id);
 
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }

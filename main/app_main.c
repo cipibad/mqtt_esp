@@ -24,10 +24,10 @@
 #include "app_sensors.h"
 #endif //CONFIG_MQTT_SENSOR
 
-#ifdef CONFIG_MQTT_THERMOSTAT
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
 #include "app_thermostat.h"
 QueueHandle_t thermostatQueue;
-#endif // CONFIG_MQTT_THERMOSTAT
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
@@ -123,9 +123,9 @@ void app_main(void)
   mqtt_event_group = xEventGroupCreate();
   wifi_event_group = xEventGroupCreate();
 
-#ifdef CONFIG_MQTT_THERMOSTAT
-  thermostatQueue = xQueueCreate(1, sizeof(struct ThermostatMessage) );
-#endif // CONFIG_MQTT_THERMOSTAT
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
+  thermostatQueue = xQueueCreate(3, sizeof(struct ThermostatMessage) );
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #if CONFIG_MQTT_RELAYS_NB
   relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
@@ -164,9 +164,9 @@ void app_main(void)
   }
 #endif // CONFIG_MQTT_RELAYS_NB
 
-#ifdef CONFIG_MQTT_THERMOSTAT
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
   read_nvs_thermostat_data();
-#endif // CONFIG_MQTT_THERMOSTAT
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 
   smartconfigQueue = xQueueCreate(3, sizeof(struct SmartConfigMessage) );
@@ -197,9 +197,9 @@ void app_main(void)
    xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, NULL, 5, NULL);
 #endif //CONFIG_MQTT_OTA
 
-#ifdef CONFIG_MQTT_THERMOSTAT
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
   xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
-#endif // CONFIG_MQTT_THERMOSTAT
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
     xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 
     wifi_init();
