@@ -229,16 +229,22 @@ config MQTT_THERMOSTAT_RELAY_ID
    help
        Thermostat relay id
 
-choice MQTT_THERMOSTATS_NB0_TYPE
-   bool "Thermostat 0 type"
+choice MQTT_THERMOSTAT_ID_CIRCUIT_OPTIMIZER
+   bool "Id of thermostat handling circuit optimisation"
    depends on MQTT_THERMOSTATS_NB > 0
-   default MQTT_THERMOSTATS_NB0_TYPE_NORMAL
    help
-       Thermostat type
-config MQTT_THERMOSTATS_NB0_TYPE_NORMAL
-   bool "Normal thermostat"
+       Id of thermostat handling circuit optimisation
 config MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
-   bool "Circuit optimizer thermostat"
+   bool "Thermostat id 0"
+config MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
+   bool "Thermostat id 1"
+   depends on MQTT_THERMOSTATS_NB > 1
+config MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
+   bool "Thermostat id 2"
+   depends on MQTT_THERMOSTATS_NB > 2
+config MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
+   bool "Thermostat id 3"
+   depends on MQTT_THERMOSTATS_NB > 3
 endchoice
 
 
@@ -268,19 +274,6 @@ config MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC
    help
        Sensor topic
 
-choice MQTT_THERMOSTATS_NB1_TYPE
-   bool "Thermostat 1 type"
-   depends on MQTT_THERMOSTATS_NB > 1
-   default MQTT_THERMOSTATS_NB1_TYPE_NORMAL
-   help
-       Thermostat type
-config MQTT_THERMOSTATS_NB1_TYPE_NORMAL
-   bool "Normal thermostat"
-config MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
-   bool "Circuit optimizer thermostat"
-endchoice
-
-
 choice MQTT_THERMOSTATS_NB1_SENSOR_TYPE
    bool "Thermostat 1 sensor type"
    depends on MQTT_THERMOSTATS_NB > 1
@@ -307,19 +300,6 @@ config MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC
    help
        Sensor topic
 
-choice MQTT_THERMOSTATS_NB2_TYPE
-   bool "Thermostat 2 type"
-   depends on MQTT_THERMOSTATS_NB > 2
-   default MQTT_THERMOSTATS_NB2_TYPE_NORMAL
-   help
-       Thermostat type
-config MQTT_THERMOSTATS_NB2_TYPE_NORMAL
-   bool "Normal thermostat"
-config MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
-   bool "Circuit optimizer thermostat"
-endchoice
-
-
 choice MQTT_THERMOSTATS_NB2_SENSOR_TYPE
    bool "Thermostat 2 sensor type"
    depends on MQTT_THERMOSTATS_NB > 2
@@ -345,19 +325,6 @@ config MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC
    default ""
    help
        Sensor topic
-
-choice MQTT_THERMOSTATS_NB3_TYPE
-   bool "Thermostat 3 type"
-   depends on MQTT_THERMOSTATS_NB > 3
-   default MQTT_THERMOSTATS_NB3_TYPE_NORMAL
-   help
-       Thermostat type
-config MQTT_THERMOSTATS_NB3_TYPE_NORMAL
-   bool "Normal thermostat"
-config MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
-   bool "Circuit optimizer thermostat"
-endchoice
-
 
 choice MQTT_THERMOSTATS_NB3_SENSOR_TYPE
    bool "Thermostat 3 sensor type"

@@ -65,41 +65,14 @@ const char * temperatureToleranceTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
-enum ThermostatType thermostatType[CONFIG_MQTT_THERMOSTATS_NB] = {
-#ifdef CONFIG_MQTT_THERMOSTATS_NB0_TYPE_NORMAL
-  THERMOSTAT_TYPE_NORMAL,
-#endif // CONFIG_MQTT_THERMOSTATS_NB0_TYPE_NORMAL
-#ifdef CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
-  THERMOSTAT_TYPE_CIRCUIT,
-#endif // CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
-
-#ifdef CONFIG_MQTT_THERMOSTATS_NB1_TYPE_NORMAL
-  THERMOSTAT_TYPE_NORMAL,
-#endif // CONFIG_MQTT_THERMOSTATS_NB1_TYPE_NORMAL
-#ifdef CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
-  THERMOSTAT_TYPE_CIRCUIT,
-#endif // CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
-
-#ifdef CONFIG_MQTT_THERMOSTATS_NB2_TYPE_NORMAL
-  THERMOSTAT_TYPE_NORMAL,
-#endif // CONFIG_MQTT_THERMOSTATS_NB2_TYPE_NORMAL
-#ifdef CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
-  THERMOSTAT_TYPE_CIRCUIT,
-#endif // CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
-
-#ifdef CONFIG_MQTT_THERMOSTATS_NB3_TYPE_NORMAL
-  THERMOSTAT_TYPE_NORMAL,
-#endif // CONFIG_MQTT_THERMOSTATS_NB3_TYPE_NORMAL
-#ifdef CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
-  THERMOSTAT_TYPE_CIRCUIT
-#endif // CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
-};  
+enum ThermostatType thermostatType[CONFIG_MQTT_THERMOSTATS_NB] = {THERMOSTAT_TYPE_NORMAL};
 
 short currentTemperature[CONFIG_MQTT_THERMOSTATS_NB] = {SHRT_MIN};
-short currentTemperature_1[CONFIG_MQTT_THERMOSTATS_NB] = {SHRT_MIN};
-short currentTemperature_2[CONFIG_MQTT_THERMOSTATS_NB] = {SHRT_MIN};
-short currentTemperature_3[CONFIG_MQTT_THERMOSTATS_NB] = {SHRT_MIN};
 short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB] = {0};
+
+short currentTemperature_1 = SHRT_MIN;
+short currentTemperature_2 = SHRT_MIN;
+short currentTemperature_3 = SHRT_MIN;
 
 bool heatingEnabled = false;
 unsigned int heatingDuration = 0;
@@ -210,16 +183,16 @@ void get_thermostat_state(char * data, int thermostatMode)
   if (thermostatMode == TERMOSTAT_MODE_HEAT) {
     switch(thermostatState) {
     case THERMOSTAT_STATE_IDLE:
-      sprintf(data, "%s", "idle");
+      sprintf(data, "idle");
       break;
     case THERMOSTAT_STATE_HEATING:
-      sprintf(data, "%s", "heating");
+      sprintf(data, "heating");
       break;
     default:
       ESP_LOGE(TAG, "bad heating state");
     }
   } else {
-    sprintf(data, "%s", "off");
+    sprintf(data, "off");
   }
 }
 
@@ -343,9 +316,9 @@ void update_thermostat()
       ESP_LOGI(TAG, "temperatureTolerance[%d] is %d", id, temperatureTolerance[id]);
     }
     if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
-      ESP_LOGI(TAG, "currentTemperature_1[%d] is %d", id, currentTemperature_1[id]);
-      ESP_LOGI(TAG, "currentTemperature_2[%d] is %d", id, currentTemperature_2[id]);
-      ESP_LOGI(TAG, "currentTemperature_3[%d] is %d", id, currentTemperature_3[id]);
+      ESP_LOGI(TAG, "currentTemperature_1[%d] is %d", id, currentTemperature_1);
+      ESP_LOGI(TAG, "currentTemperature_2[%d] is %d", id, currentTemperature_2);
+      ESP_LOGI(TAG, "currentTemperature_3[%d] is %d", id, currentTemperature_3);
     }
   }
   
@@ -374,17 +347,17 @@ void update_thermostat()
     if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == TERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
         if (currentTemperature[id] != SHRT_MIN &&
-            currentTemperature_1[id] != SHRT_MIN &&
-            currentTemperature_2[id] != SHRT_MIN &&
-            currentTemperature_3[id] != SHRT_MIN) {
-          if (currentTemperature_3[id] < currentTemperature_2[id] &&
-              currentTemperature_2[id] < currentTemperature_1[id] &&
-              currentTemperature_1[id] < currentTemperature[id]) {
+            currentTemperature_1 != SHRT_MIN &&
+            currentTemperature_2 != SHRT_MIN &&
+            currentTemperature_3 != SHRT_MIN) {
+          if (currentTemperature_3 < currentTemperature_2 &&
+              currentTemperature_2 < currentTemperature_1 &&
+              currentTemperature_1 < currentTemperature[id]) {
             heating = true;
           }
-          if (currentTemperature_3[id] >= currentTemperature_2[id] &&
-              currentTemperature_2[id] >= currentTemperature_1[id] &&
-              currentTemperature_1[id] >= currentTemperature[id]) {
+          if (currentTemperature_3 >= currentTemperature_2 &&
+              currentTemperature_2 >= currentTemperature_1 &&
+              currentTemperature_1 >= currentTemperature[id]) {
             not_heating = true;
           }
         }
@@ -461,6 +434,23 @@ void vThermostatTimerCallback( TimerHandle_t xTimer )
 
 void handle_thermostat_cmd_task(void* pvParameters)
 {
+  //init remaining variables
+#ifdef CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
+  thermostatType[0]=THERMOSTAT_TYPE_CIRCUIT;
+#endif // CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
+  thermostatType[1]=THERMOSTAT_TYPE_CIRCUIT;
+#endif // CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
+  thermostatType[2]=THERMOSTAT_TYPE_CIRCUIT;
+#endif // CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
+  thermostatType[3]=THERMOSTAT_TYPE_CIRCUIT;
+#endif // CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
+
   //create period read timer
   TimerHandle_t th =
     xTimerCreate( "thermostatSensorsTimer",           /* Text name. */
@@ -497,14 +487,14 @@ void handle_thermostat_cmd_task(void* pvParameters)
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
           if (t.data.currentTemperature != SHRT_MIN) {
             currentTemperature[t.thermostatId] = SENSOR_LIFETIME;
-            if (currentTemperature_3[t.thermostatId] != currentTemperature_2[t.thermostatId]) {
-              currentTemperature_3[t.thermostatId] = currentTemperature_2[t.thermostatId];
+            if (currentTemperature_3 != currentTemperature_2) {
+              currentTemperature_3 = currentTemperature_2;
             }
-            if (currentTemperature_2[t.thermostatId] != currentTemperature_1[t.thermostatId]) {
-              currentTemperature_2[t.thermostatId] = currentTemperature_1[t.thermostatId];
+            if (currentTemperature_2 != currentTemperature_1) {
+              currentTemperature_2 = currentTemperature_1;
             }
-            if (currentTemperature_1[t.thermostatId] != currentTemperature[t.thermostatId]) {
-              currentTemperature_1[t.thermostatId] = currentTemperature[t.thermostatId];
+            if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
+              currentTemperature_1 = currentTemperature[t.thermostatId];
             }
             if (currentTemperature[t.thermostatId] != t.data.currentTemperature) {
               currentTemperature[t.thermostatId] = t.data.currentTemperature;
