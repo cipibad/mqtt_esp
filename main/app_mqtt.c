@@ -312,11 +312,11 @@ void handle_thermostat_mqtt_mode_cmd(signed char thermostatId, const char *paylo
   tm.msgType = THERMOSTAT_CMD_MODE;
   tm.thermostatId = thermostatId;
   if (strcmp(payload, "heat") == 0)
-    tm.data.thermostatMode = TERMOSTAT_MODE_HEAT;
+    tm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
   else if (strcmp(payload, "off") == 0)
-    tm.data.thermostatMode = TERMOSTAT_MODE_OFF;
+    tm.data.thermostatMode = THERMOSTAT_MODE_OFF;
 
-  if (tm.data.thermostatMode == TERMOSTAT_MODE_UNSET) {
+  if (tm.data.thermostatMode == THERMOSTAT_MODE_UNSET) {
     ESP_LOGE(TAG, "wrong payload");
     return;
   }

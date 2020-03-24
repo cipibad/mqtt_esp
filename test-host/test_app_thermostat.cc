@@ -24,8 +24,10 @@ extern short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
 extern short targetTemperature[CONFIG_MQTT_THERMOSTATS_NB];
 extern short currentTemperature[CONFIG_MQTT_THERMOSTATS_NB];
 extern short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB];
-extern short thermostatMode[CONFIG_MQTT_THERMOSTATS_NB];
+extern enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB];
+extern enum ThermostatType thermostatType[CONFIG_MQTT_THERMOSTATS_NB];
 extern enum ThermostatState thermostatState;
+extern enum HeatingState heatingState;
 
 TEST_CASE("publish_thermostat_current_temperature_evt_valid", "[tag]" ) {
   MockRepository mocks;
@@ -70,7 +72,7 @@ TEST_CASE("publish_thermostat_mode_evt_unset", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/mode/thermostat/0";
   const char* mqtt_data = "off";
-  thermostatMode[0] = TERMOSTAT_MODE_UNSET;
+  thermostatMode[0] = THERMOSTAT_MODE_UNSET;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_mode_evt(0);
@@ -80,7 +82,7 @@ TEST_CASE("publish_thermostat_mode_evt_off", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/mode/thermostat/0";
   const char* mqtt_data = "off";
-  thermostatMode[0] = TERMOSTAT_MODE_OFF;
+  thermostatMode[0] = THERMOSTAT_MODE_OFF;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_mode_evt(0);
@@ -90,49 +92,99 @@ TEST_CASE("publish_thermostat_mode_evt_heat", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/mode/thermostat/0";
   const char* mqtt_data = "heat";
-  thermostatMode[0] = TERMOSTAT_MODE_HEAT;
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_mode_evt(0);
 }
 
-TEST_CASE("publish_thermostat_action_evt_unset", "[tag]" ) {
+TEST_CASE("publish_normal_thermostat_action_evt_unset", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/action/thermostat/0";
   const char* mqtt_data = "off";
-  thermostatMode[0] = TERMOSTAT_MODE_UNSET;
+  thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+  thermostatMode[0] = THERMOSTAT_MODE_UNSET;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_action_evt(0);
 }
 
-TEST_CASE("publish_thermostat_action_evt_off", "[tag]" ) {
+TEST_CASE("publish_normal_thermostat_action_evt_off", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/action/thermostat/0";
   const char* mqtt_data = "off";
-  thermostatMode[0] = TERMOSTAT_MODE_OFF;
+  thermostatMode[0] = THERMOSTAT_MODE_OFF;
+  thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_action_evt(0);
 }
 
-TEST_CASE("publish_thermostat_action_evt_heat_idle", "[tag]" ) {
+TEST_CASE("publish_normal_thermostat_action_evt_heat_idle", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/action/thermostat/0";
   const char* mqtt_data = "idle";
-  thermostatMode[0] = TERMOSTAT_MODE_HEAT;
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatState = THERMOSTAT_STATE_IDLE;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_action_evt(0);
 }
 
-TEST_CASE("publish_thermostat_action_evt_heat_heating", "[tag]" ) {
+TEST_CASE("publish_normal_thermostat_action_evt_heat_heating", "[tag]" ) {
   MockRepository mocks;
   const char* topic = "device_type/client_id/evt/action/thermostat/0";
   const char* mqtt_data = "heating";
-  thermostatMode[0] = TERMOSTAT_MODE_HEAT;
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatState = THERMOSTAT_STATE_HEATING;
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+
+  publish_thermostat_action_evt(0);
+}
+
+TEST_CASE("publish_circuit_thermostat_action_evt_unset", "[tag]" ) {
+  MockRepository mocks;
+  const char* topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* mqtt_data = "off";
+  thermostatMode[0] = THERMOSTAT_MODE_UNSET;
+  thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+
+  publish_thermostat_action_evt(0);
+}
+
+TEST_CASE("publish_circuit_thermostat_action_evt_off", "[tag]" ) {
+  MockRepository mocks;
+  const char* topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* mqtt_data = "off";
+  thermostatMode[0] = THERMOSTAT_MODE_OFF;
+  thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+
+  publish_thermostat_action_evt(0);
+}
+
+TEST_CASE("publish_circuit_thermostat_action_evt_heat_idle", "[tag]" ) {
+  MockRepository mocks;
+  const char* topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* mqtt_data = "idle";
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+  heatingState = HEATING_STATE_IDLE;
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+
+  publish_thermostat_action_evt(0);
+}
+
+TEST_CASE("publish_circuit_thermostat_action_evt_heat_heating", "[tag]" ) {
+  MockRepository mocks;
+  const char* topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* mqtt_data = "heating";
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+  heatingState = HEATING_STATE_ENABLED;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
   publish_thermostat_action_evt(0);

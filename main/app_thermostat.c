@@ -20,7 +20,11 @@
 enum ThermostatState thermostatState = THERMOSTAT_STATE_IDLE;
 unsigned int thermostatDuration = 0;
 
-enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {TERMOSTAT_MODE_UNSET};
+enum HeatingState heatingState = HEATING_STATE_IDLE;
+unsigned int heatingDuration = 0;
+
+
+enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {THERMOSTAT_MODE_UNSET};
 
 const char * thermostatModeTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "thermMode0"
@@ -73,9 +77,6 @@ short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB] = {0};
 short currentTemperature_1 = SHRT_MIN;
 short currentTemperature_2 = SHRT_MIN;
 short currentTemperature_3 = SHRT_MIN;
-
-bool heatingEnabled = false;
-unsigned int heatingDuration = 0;
 
 extern QueueHandle_t thermostatQueue;
 
@@ -161,7 +162,7 @@ void publish_thermostat_mode_evt(int id)
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%s", thermostatMode[id] == TERMOSTAT_MODE_HEAT ? "heat" : "off");
+  sprintf(data, "%s", thermostatMode[id] == THERMOSTAT_MODE_HEAT ? "heat" : "off");
 
   char topic[MQTT_MAX_TOPIC_LEN];
   memset(topic,0,MQTT_MAX_TOPIC_LEN);
@@ -178,14 +179,31 @@ void publish_all_thermostats_mode_evt()
   }
 }
 
-void get_thermostat_state(char * data, int thermostatMode)
+void get_normal_thermostat_action(char * data, int id)
 {
-  if (thermostatMode == TERMOSTAT_MODE_HEAT) {
+  if (thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
     switch(thermostatState) {
     case THERMOSTAT_STATE_IDLE:
       sprintf(data, "idle");
       break;
     case THERMOSTAT_STATE_HEATING:
+      sprintf(data, "heating");
+      break;
+    default:
+      ESP_LOGE(TAG, "bad heating state");
+    }
+  } else {
+    sprintf(data, "off");
+  }
+}
+void get_circuit_thermostat_action(char * data, int id)
+{
+    if (thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+    switch(heatingState) {
+    case HEATING_STATE_IDLE:
+      sprintf(data, "idle");
+      break;
+    case HEATING_STATE_ENABLED:
       sprintf(data, "heating");
       break;
     default:
@@ -202,7 +220,11 @@ void publish_thermostat_action_evt(int id)
 
   char data[16];
   memset(data,0,16);
-  get_thermostat_state(data, thermostatMode[id]);
+  if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+    get_normal_thermostat_action(data, id);
+  } else {
+    get_circuit_thermostat_action(data, id);
+  }
 
   char topic[MQTT_MAX_TOPIC_LEN];
   memset(topic,0,MQTT_MAX_TOPIC_LEN);
@@ -211,10 +233,30 @@ void publish_thermostat_action_evt(int id)
   mqtt_publish_data(topic, data, QOS_1, RETAIN);
 }
 
+void publish_all_normal_thermostats_action_evt()
+{
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+      publish_thermostat_action_evt(id);
+      vTaskDelay(50 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
+void publish_all_circuit_thermostats_action_evt()
+{
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
+      publish_thermostat_action_evt(id);
+      vTaskDelay(50 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
 void publish_all_thermostats_action_evt()
 {
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    publish_thermostat_mode_evt(id);
+    publish_thermostat_action_evt(id);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
@@ -230,10 +272,9 @@ void publish_thermostat_state(const char* reason, unsigned int duration)
   sprintf(tstr, "{\"thermostatState\":%d,", thermostatState==THERMOSTAT_STATE_HEATING);
   strcat(data, tstr);
 
-#ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-  sprintf(tstr, "\"heatingState\":%d,", heatingEnabled);
+  //FIXME this should print only we have at least one circuit thermostat
+  sprintf(tstr, "\"heatingState\":%d,", heatingState == HEATING_STATE_ENABLED);
   strcat(data, tstr);
-#endif //CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
 
   if(!reason) {
     reason = "";
@@ -265,9 +306,10 @@ void disableThermostat(const char * reason)
 
   thermostatState=THERMOSTAT_STATE_IDLE;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
-  publish_all_thermostats_action_evt();
 
+  publish_all_thermostats_action_evt();
   publish_thermostat_state(reason, thermostatDuration);
+
   thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat disabled");
 }
@@ -278,9 +320,10 @@ void enableThermostat(const char * reason)
 
   thermostatState=THERMOSTAT_STATE_HEATING;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
-  publish_all_thermostats_action_evt();
 
+  publish_all_thermostats_action_evt();
   publish_thermostat_state(reason, thermostatDuration);
+
   thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat enabled");
 }
@@ -288,25 +331,26 @@ void enableThermostat(const char * reason)
 void enableHeating()
 {
   publish_thermostat_state(NULL, 0);
-  heatingEnabled = true;
-  ESP_LOGI(TAG, "heating enabled");
+  heatingState = HEATING_STATE_ENABLED;
   publish_thermostat_state("Heating was enabled", heatingDuration);
+
   heatingDuration = 0;
+  ESP_LOGI(TAG, "heating enabled");
 }
 void disableHeating()
 {
   publish_thermostat_state(NULL, 0);
-  heatingEnabled = false;
-  ESP_LOGI(TAG, "heating2 disabled");
+  heatingState = HEATING_STATE_IDLE;
   publish_thermostat_state("Heating was disabled", heatingDuration);
   heatingDuration = 0;
+  ESP_LOGI(TAG, "heating2 disabled");
 }
 
 void update_thermostat()
 {
 
   ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
-  ESP_LOGI(TAG, "heatingEnabled state is %d", heatingEnabled);
+  ESP_LOGI(TAG, "heating state is %d", heatingState);
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     ESP_LOGI(TAG, "thermostatMode[%d] is %d", id, thermostatMode[id]);
     ESP_LOGI(TAG, "currentTemperature[%d] is %d", id, currentTemperature[id]);
@@ -344,7 +388,7 @@ void update_thermostat()
   bool not_heating = false;
   
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == TERMOSTAT_MODE_HEAT) {
+    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
         if (currentTemperature[id] != SHRT_MIN &&
             currentTemperature_1 != SHRT_MIN &&
@@ -367,9 +411,9 @@ void update_thermostat()
   
   bool heatingToggledOff = false;
 
-  if (!heatingEnabled && heating) {
+  if ((heatingState == HEATING_STATE_IDLE) && heating) {
     enableHeating();
-  } else if (heatingEnabled && not_heating) {
+  } else if ((heatingState == HEATING_STATE_ENABLED) && not_heating) {
     disableHeating();
     heatingToggledOff = true;
   }
@@ -384,7 +428,7 @@ void update_thermostat()
   bool circuitColdEnough = true;
     
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == TERMOSTAT_MODE_HEAT) {
+    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
           sprintf(tstr, "thermostat[%d] is hot enough, ", id);
