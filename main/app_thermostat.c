@@ -485,13 +485,14 @@ bool tooHot(char* reason)
 
 bool tooCold(char* reason)
 {
-  bool tooCold = true;
+  bool tooCold = false;
   char tstr[64];
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
+          tooCold = true;
           ESP_LOGI(TAG, "thermostat[%d] is too cold, ", id);
           sprintf(tstr, "thermostat[%d] is too cold, ", id);
           strcat(reason, tstr);
@@ -545,8 +546,8 @@ void update_thermostat()
     }
   } else if (circuitColdEnough()) {
     if (tooCold(reason)) {
-      ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
-      disableThermostat(reason);
+      ESP_LOGI(TAG, "Turning thermostat on, reason: %s", reason);
+      enableThermostat(reason);
     }
   }
 }
@@ -619,17 +620,21 @@ void handle_thermostat_cmd_task(void* pvParameters)
 
         //new messages
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
+          ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
           if (t.data.currentTemperature != SHRT_MIN) {
             currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
           }
-          if (currentTemperature_3 != currentTemperature_2) {
-            currentTemperature_3 = currentTemperature_2;
-          }
-          if (currentTemperature_2 != currentTemperature_1) {
-            currentTemperature_2 = currentTemperature_1;
-          }
-          if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
-            currentTemperature_1 = currentTemperature[t.thermostatId];
+
+          if (circuitThermostatId == t.thermostatId) {
+            if (currentTemperature_3 != currentTemperature_2) {
+              currentTemperature_3 = currentTemperature_2;
+            }
+            if (currentTemperature_2 != currentTemperature_1) {
+              currentTemperature_2 = currentTemperature_1;
+            }
+            if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
+              currentTemperature_1 = currentTemperature[t.thermostatId];
+            }
           }
           if (currentTemperature[t.thermostatId] != t.data.currentTemperature) {
             currentTemperature[t.thermostatId] = t.data.currentTemperature;

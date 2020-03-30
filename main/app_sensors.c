@@ -15,6 +15,11 @@
 #include "app_main.h"
 #include "app_sensors.h"
 
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
+#include "app_thermostat.h"
+extern QueueHandle_t thermostatQueue;
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
 #include "app_mqtt.h"
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
@@ -50,14 +55,15 @@ extern QueueHandle_t thermostatQueue;
 
 static const char *TAG = "app_sensors";
 
-#if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
-void thermostat_publish_data(int thermostat_id, int value)
+void thermostat_publish_local_data(int thermostat_id, int value)
 {
   struct ThermostatMessage tm;
   memset(&tm, 0, sizeof(struct ThermostatMessage));
   tm.msgType = THERMOSTAT_CURRENT_TEMPERATURE;
   tm.thermostatId = thermostat_id;
   tm.data.currentTemperature = value;
+
+  ESP_LOGI(TAG, "publishing local thermostat data");
 
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
@@ -68,41 +74,40 @@ void thermostat_publish_data(int thermostat_id, int value)
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
+  ESP_LOGI(TAG, "sensor topic: %s", topic);
+
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_LOCAL
-  if (strncmp(event->topic, CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC)) == 0) {
-    thermostat_publish_data(0, value);
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(0, value);
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_LOCAL
-  if (strncmp(event->topic, CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC)) == 1) {
-    thermostat_publish_data(1, value);
+  ESP_LOGI(TAG, "thermostat 1 topic: %s", CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC);
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(1, value);
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_LOCAL
-  if (strncmp(event->topic, CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC)) == 2) {
-    thermostat_publish_data(2, value);
+  ESP_LOGI(TAG, "thermostat 2 topic: %s", CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC);
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(2, value);
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_MQTT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_LOCAL
-  if (strncmp(event->topic, CONFIG_MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC)) == 3) {
-    thermostat_publish_data(3, value);
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(3, value);
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
   
 }
-#endif // CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
-
-
 
 void publish_sensor_data(const char * topic, int value)
 {
 
-#if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
   publish_data_to_thermostat(topic, value);
-#endif // CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
 
   char data[16];
   memset(data,0,16);
