@@ -22,18 +22,19 @@ unsigned int thermostatDuration = 0;
 
 enum HeatingState heatingState = HEATING_STATE_IDLE;
 unsigned int heatingDuration = 0;
+int circuitThermostatId = -1;
 
 
 enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {THERMOSTAT_MODE_UNSET};
 
 const char * thermostatModeTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
-  "thermMode0"
+  "thermMode0",
 #if CONFIG_MQTT_THERMOSTATS_NB > 1
-  "thermMode1"
+  "thermMode1",
 #if CONFIG_MQTT_THERMOSTATS_NB > 2
-  "thermMode2"
+  "thermMode2",
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
-  "thermMode3"
+  "thermMode3",
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
@@ -42,13 +43,13 @@ const char * thermostatModeTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
 short targetTemperature[CONFIG_MQTT_THERMOSTATS_NB] = {21*10};
 
 const char * targetTemperatureTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
-  "targetTemp0"
+  "targetTemp0",
 #if CONFIG_MQTT_THERMOSTATS_NB > 1
-  "targetTemp1"
+  "targetTemp1",
 #if CONFIG_MQTT_THERMOSTATS_NB > 2
-  "targetTemp2"
+  "targetTemp2",
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
-  "targetTemp3"
+  "targetTemp3",
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
@@ -57,13 +58,13 @@ const char * targetTemperatureTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
 short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB] = {5}; //0.5
 
 const char * temperatureToleranceTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
-  "tempToler0"
+  "tempToler0",
 #if CONFIG_MQTT_THERMOSTATS_NB > 1
-  "tempToler1"
+  "tempToler1",
 #if CONFIG_MQTT_THERMOSTATS_NB > 2
-  "tempToler2"
+  "tempToler2",
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
-  "tempToler3"
+  "tempToler3",
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
@@ -295,10 +296,30 @@ void publish_thermostat_data()
   publish_all_thermostats_temperature_tolerance_evt();
   publish_all_thermostats_mode_evt();
   publish_all_thermostats_action_evt();
-  
+
   publish_thermostat_state(NULL, 0);
 }
 
+
+void publish_thermostat_notification_evt(const char* msg)
+{
+  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/notification/thermostat";
+  mqtt_publish_data(topic, msg, QOS_0, NO_RETAIN);
+}
+
+void publish_normal_thermostat_notification(enum ThermostatState state,
+                                            unsigned int duration,
+                                            const char *reason)
+{
+  char data[256];
+  memset(data,0,256);
+
+  sprintf(data, "Thermostat state changed to %s due to %s. It was %s for %u minutes",
+          state == THERMOSTAT_STATE_HEATING ? "on"  : "off", reason,
+          state == THERMOSTAT_STATE_HEATING ? "off" : "on", duration);
+
+  publish_thermostat_notification_evt(data);
+}
 
 void disableThermostat(const char * reason)
 {
@@ -307,8 +328,10 @@ void disableThermostat(const char * reason)
   thermostatState=THERMOSTAT_STATE_IDLE;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
 
-  publish_all_thermostats_action_evt();
   publish_thermostat_state(reason, thermostatDuration);
+
+  publish_all_normal_thermostats_action_evt();
+  publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
 
   thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat disabled");
@@ -321,11 +344,26 @@ void enableThermostat(const char * reason)
   thermostatState=THERMOSTAT_STATE_HEATING;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
 
-  publish_all_thermostats_action_evt();
   publish_thermostat_state(reason, thermostatDuration);
+
+  publish_all_normal_thermostats_action_evt();
+  publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
 
   thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat enabled");
+}
+
+void publish_circuit_thermostat_notification(enum HeatingState state,
+                                             unsigned int duration)
+{
+  char data[256];
+  memset(data,0,256);
+
+  sprintf(data, "Heating state changed to %s. It was %s for %u minutes",
+          state == HEATING_STATE_ENABLED ? "on"  : "off",
+          state == HEATING_STATE_ENABLED ? "off" : "on", duration);
+
+  publish_thermostat_notification_evt(data);
 }
 
 void enableHeating()
@@ -333,6 +371,9 @@ void enableHeating()
   publish_thermostat_state(NULL, 0);
   heatingState = HEATING_STATE_ENABLED;
   publish_thermostat_state("Heating was enabled", heatingDuration);
+
+  publish_all_circuit_thermostats_action_evt();
+  publish_circuit_thermostat_notification(heatingState, heatingDuration);
 
   heatingDuration = 0;
   ESP_LOGI(TAG, "heating enabled");
@@ -342,13 +383,17 @@ void disableHeating()
   publish_thermostat_state(NULL, 0);
   heatingState = HEATING_STATE_IDLE;
   publish_thermostat_state("Heating was disabled", heatingDuration);
+
+  publish_all_circuit_thermostats_action_evt();
+  publish_circuit_thermostat_notification(heatingState, heatingDuration);
+
   heatingDuration = 0;
   ESP_LOGI(TAG, "heating2 disabled");
 }
 
-void update_thermostat()
-{
 
+void dump_data()
+{
   ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
   ESP_LOGI(TAG, "heating state is %d", heatingState);
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
@@ -365,8 +410,10 @@ void update_thermostat()
       ESP_LOGI(TAG, "currentTemperature_3[%d] is %d", id, currentTemperature_3);
     }
   }
-  
+}
 
+bool sensor_reporting()
+{
   bool sensorReporting = false;
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL && currentTemperatureFlag[id] != 0) {
@@ -374,8 +421,95 @@ void update_thermostat()
       break;
     }
   }
-  
-  if (!sensorReporting) {
+  return sensorReporting;
+}
+
+bool heating()
+{
+  if (circuitThermostatId == -1)
+    return false;
+  bool heating = false;
+  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
+    if (currentTemperature_3 < currentTemperature_2 &&
+        currentTemperature_2 < currentTemperature_1 &&
+        currentTemperature_1 < currentTemperature[circuitThermostatId]) {
+      heating = true;
+    }
+  }
+  return heating;
+}
+
+bool not_heating()
+{
+  if (circuitThermostatId == -1)
+    return false;
+  bool not_heating = false;
+  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
+    if (currentTemperature_3 >= currentTemperature_2 &&
+        currentTemperature_2 >= currentTemperature_1 &&
+        currentTemperature_1 >= currentTemperature[circuitThermostatId]) {
+      not_heating = true;
+    }
+  }
+  return not_heating;
+}
+
+bool circuitColdEnough()
+{
+  if (circuitThermostatId == -1)
+    return true;
+  return  (currentTemperature[circuitThermostatId] <= targetTemperature[circuitThermostatId]);
+}
+
+bool tooHot(char* reason)
+{
+  bool tooHot = false;
+  char tstr[64];
+
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+      if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+        if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
+          ESP_LOGI(TAG, "thermostat[%d] is too hot, ", id);
+          sprintf(tstr, "thermostat[%d] is too hot, ", id);
+          strcat(reason, tstr);
+          tooHot = true;
+          break;
+        }
+      }
+    }
+  }
+  return tooHot;
+}
+
+bool tooCold(char* reason)
+{
+  bool tooCold = true;
+  char tstr[64];
+
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+      if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+        if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
+          ESP_LOGI(TAG, "thermostat[%d] is too cold, ", id);
+          sprintf(tstr, "thermostat[%d] is too cold, ", id);
+          strcat(reason, tstr);
+        } else {
+          ESP_LOGI(TAG, "thermostat[%d] is good, ", id);
+          tooCold = false;
+          break;
+        }
+      }
+    }
+  }
+  return tooCold;
+}
+
+void update_thermostat()
+{
+  dump_data();
+
+  if (!sensor_reporting()) {
     ESP_LOGI(TAG, "no live sensor is reporting => no thermostat handling");
     if (thermostatState==THERMOSTAT_STATE_HEATING) {
       ESP_LOGI(TAG, "stop thermostat as no live sensor is reporting");
@@ -384,83 +518,34 @@ void update_thermostat()
     return;
   }
 
-  bool heating = false;
-  bool not_heating = false;
-  
-  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
-      if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
-        if (currentTemperature[id] != SHRT_MIN &&
-            currentTemperature_1 != SHRT_MIN &&
-            currentTemperature_2 != SHRT_MIN &&
-            currentTemperature_3 != SHRT_MIN) {
-          if (currentTemperature_3 < currentTemperature_2 &&
-              currentTemperature_2 < currentTemperature_1 &&
-              currentTemperature_1 < currentTemperature[id]) {
-            heating = true;
-          }
-          if (currentTemperature_3 >= currentTemperature_2 &&
-              currentTemperature_2 >= currentTemperature_1 &&
-              currentTemperature_1 >= currentTemperature[id]) {
-            not_heating = true;
-          }
-        }
-      }
-    }
-  }
-  
   bool heatingToggledOff = false;
 
-  if ((heatingState == HEATING_STATE_IDLE) && heating) {
+  if ((heatingState == HEATING_STATE_IDLE) && heating()) {
     enableHeating();
-  } else if ((heatingState == HEATING_STATE_ENABLED) && not_heating) {
+  } else if ((heatingState == HEATING_STATE_ENABLED) && not_heating()) {
     disableHeating();
     heatingToggledOff = true;
   }
-  
+
+  if (thermostatState == THERMOSTAT_STATE_HEATING &&
+      heatingToggledOff) {
+    ESP_LOGI(TAG, "reason: Heating turned off");
+    disableThermostat("Heating turned off");
+  }
+
+
   char reason[256];
   memset(reason,0,256);
 
-  char tstr[64];
-
-  bool hotEnough = true;
-  bool tooCold = false;
-  bool circuitColdEnough = true;
-    
-  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
-      if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
-        if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
-          sprintf(tstr, "thermostat[%d] is hot enough, ", id);
-          strcat(reason, tstr);
-        } else if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
-          sprintf(tstr, "thermostat[%d] is too cold, ", id);
-          strcat(reason, tstr);
-          tooCold = true;
-          hotEnough = false;
-        } else{
-          sprintf(tstr, "thermostat[%d] is good, ", id);
-          strcat(reason, tstr);
-          hotEnough = false;
-        }
-      }
-      if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
-        if (currentTemperature > targetTemperature) {
-          circuitColdEnough = false;
-        }
-      }
-    }
-
-    if (thermostatState == THERMOSTAT_STATE_HEATING &&
-        (heatingToggledOff || hotEnough)) {
-      ESP_LOGI(TAG, "reason: %s", reason);
+  if (thermostatState == THERMOSTAT_STATE_HEATING) {
+    if (tooHot(reason)) {
+      ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
       disableThermostat(reason);
     }
-
-    if (thermostatState != THERMOSTAT_STATE_HEATING &&
-        tooCold && circuitColdEnough) {
-      ESP_LOGI(TAG, "reason: %s", reason);
-      enableThermostat(reason);
+  } else if (circuitColdEnough()) {
+    if (tooCold(reason)) {
+      ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
+      disableThermostat(reason);
     }
   }
 }
@@ -481,18 +566,22 @@ void handle_thermostat_cmd_task(void* pvParameters)
   //init remaining variables
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
   thermostatType[0]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=0;
 #endif // CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
   thermostatType[1]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=1;
 #endif // CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
   thermostatType[2]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=2;
 #endif // CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
   thermostatType[3]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=3;
 #endif // CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
 
   //create period read timer
@@ -515,7 +604,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
         if (t.msgType == THERMOSTAT_LIFE_TICK) {
           thermostatDuration += 1;
           heatingDuration += 1; //fixme heatingControlStillNotClear4Me
-          
+
           for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
             if (currentTemperatureFlag[id] > 0) {
               currentTemperatureFlag[id] -= 1;
@@ -530,20 +619,20 @@ void handle_thermostat_cmd_task(void* pvParameters)
         //new messages
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
           if (t.data.currentTemperature != SHRT_MIN) {
-            currentTemperature[t.thermostatId] = SENSOR_LIFETIME;
-            if (currentTemperature_3 != currentTemperature_2) {
-              currentTemperature_3 = currentTemperature_2;
-            }
-            if (currentTemperature_2 != currentTemperature_1) {
-              currentTemperature_2 = currentTemperature_1;
-            }
-            if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
-              currentTemperature_1 = currentTemperature[t.thermostatId];
-            }
-            if (currentTemperature[t.thermostatId] != t.data.currentTemperature) {
-              currentTemperature[t.thermostatId] = t.data.currentTemperature;
-              publish_thermostat_current_temperature_evt(t.thermostatId);
-            }
+            currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
+          }
+          if (currentTemperature_3 != currentTemperature_2) {
+            currentTemperature_3 = currentTemperature_2;
+          }
+          if (currentTemperature_2 != currentTemperature_1) {
+            currentTemperature_2 = currentTemperature_1;
+          }
+          if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
+            currentTemperature_1 = currentTemperature[t.thermostatId];
+          }
+          if (currentTemperature[t.thermostatId] != t.data.currentTemperature) {
+            currentTemperature[t.thermostatId] = t.data.currentTemperature;
+            publish_thermostat_current_temperature_evt(t.thermostatId);
           }
         }
 

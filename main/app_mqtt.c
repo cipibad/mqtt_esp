@@ -141,16 +141,16 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
     CMD_THERMOSTAT_TOPIC,
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
-CONFIG_MQTT_THERMOSTATS_NB0_MQTT_SENSOR_TOPIC
+    CONFIG_MQTT_THERMOSTATS_NB0_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
-CONFIG_MQTT_THERMOSTATS_NB1_MQTT_SENSOR_TOPIC
+    CONFIG_MQTT_THERMOSTATS_NB1_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_MQTT
-CONFIG_MQTT_THERMOSTATS_NB2_MQTT_SENSOR_TOPIC
+    CONFIG_MQTT_THERMOSTATS_NB2_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_MQTT
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
-CONFIG_MQTT_THERMOSTATS_NB3_MQTT_SENSOR_TOPIC
+    CONFIG_MQTT_THERMOSTATS_NB3_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
   };
 
@@ -500,7 +500,11 @@ bool handleThermostatMqttSensor(esp_mqtt_event_handle_t event)
 
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
-
+  //FIXME this check should be generic and 16 should get a define
+  if (event->data_len > 16 - 1) { //including '\0'
+    ESP_LOGE(TAG, "payload to big");
+    return;
+  }
 #if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
   if (handleThermostatMqttSensor(event)){
     return;
@@ -512,11 +516,6 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 
   if (getActionType(actionType, event->topic, event->topic_len) && strcmp(actionType, "cmd") == 0) {
     char payload[16];
-    //FIXME this check should be generic and 16 should get a define
-    if (event->data_len > 16 - 1) { //including '\0'
-      ESP_LOGE(TAG, "payload to big");
-      return;
-    }
 
     memcpy(payload, event->data, event->data_len);
     payload[event->data_len] = 0;

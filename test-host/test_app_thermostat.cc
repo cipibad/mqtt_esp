@@ -18,6 +18,11 @@ extern "C" {
   void publish_thermostat_temperature_tolerance_evt(int id);
   void publish_thermostat_mode_evt(int id);
   void publish_thermostat_action_evt(int id);
+  void publish_normal_thermostat_notification(enum ThermostatState state,
+                                              unsigned int duration,
+                                              const char *reason);
+  void publish_circuit_thermostat_notification(enum HeatingState state,
+                                               unsigned int duration);
 }
 
 extern short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
@@ -187,6 +192,74 @@ TEST_CASE("publish_circuit_thermostat_action_evt_heat_heating", "[tag]" ) {
   heatingState = HEATING_STATE_ENABLED;
   mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
 
+  publish_thermostat_action_evt(0);
+}
+
+TEST_CASE("publish_normal_thermostat_notification_on", "[tag]" ) {
+  MockRepository mocks;
+  const char* notification_topic = "device_type/client_id/evt/notification/thermostat";
+  const char* notification_mqtt_data = "Thermostat state changed to on due to some reason. It was off for 10 minutes";
+  const char* action_topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* action_mqtt_data = "heating";
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+  thermostatState = THERMOSTAT_STATE_HEATING;
+
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+
+  publish_normal_thermostat_notification(thermostatState, 10, "some reason");
+  publish_thermostat_action_evt(0);
+}
+
+TEST_CASE("publish_normal_thermostat_notification_off", "[tag]" ) {
+  MockRepository mocks;
+  const char* notification_topic = "device_type/client_id/evt/notification/thermostat";
+  const char* notification_mqtt_data = "Thermostat state changed to off due to some reason. It was on for 10 minutes";
+  const char* action_topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* action_mqtt_data = "idle";
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+  thermostatState = THERMOSTAT_STATE_IDLE;
+
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+
+  publish_normal_thermostat_notification(thermostatState, 10, "some reason");
+  publish_thermostat_action_evt(0);
+}
+
+
+TEST_CASE("publish_circuit_thermostat_notification_off", "[tag]" ) {
+  MockRepository mocks;
+  const char* notification_topic = "device_type/client_id/evt/notification/thermostat";
+  const char* notification_mqtt_data = "Heating state changed to off. It was on for 10 minutes";
+  const char* action_topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* action_mqtt_data = "idle";
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+  heatingState = HEATING_STATE_IDLE;
+
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+
+  publish_circuit_thermostat_notification(heatingState, 10);
+  publish_thermostat_action_evt(0);
+}
+TEST_CASE("publish_circuit_thermostat_notification_on", "[tag]" ) {
+  MockRepository mocks;
+  const char* notification_topic = "device_type/client_id/evt/notification/thermostat";
+  const char* notification_mqtt_data = "Heating state changed to on. It was off for 10 minutes";
+  const char* action_topic = "device_type/client_id/evt/action/thermostat/0";
+  const char* action_mqtt_data = "heating";
+  thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+  thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+  heatingState = HEATING_STATE_ENABLED;
+
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
+  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+
+  publish_circuit_thermostat_notification(heatingState, 10);
   publish_thermostat_action_evt(0);
 }
 
