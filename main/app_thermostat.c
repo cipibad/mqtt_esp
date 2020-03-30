@@ -1,9 +1,10 @@
 #include "esp_system.h"
+
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
+
 #include <limits.h>
 #include <string.h>
 #include <stdlib.h>
-
-#if CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #include "esp_log.h"
 

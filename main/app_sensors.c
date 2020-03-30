@@ -123,8 +123,6 @@ void publish_dht22_humidity()
   publish_sensor_data(topic, dht22_humidity);
 }
 
-#endif // CONFIG_MQTT_SENSOR_DHT22
-
 void publish_dht22_data()
 {
   publish_dht22_temperature();
@@ -134,6 +132,7 @@ void publish_dht22_data()
 }
 #endif // CONFIG_MQTT_SENSOR_DHT22
 
+#ifdef CONFIG_MQTT_SENSOR_DS18X20
 void publish_ds18x20_temperature(int sensor_id)
 {
  const char * temperature_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature";
@@ -154,6 +153,7 @@ void publish_ds18x20_data()
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
+#endif // CONFIG_MQTT_SENSOR_DS18X20
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
 void publish_bme280_temperature()
@@ -311,3 +311,4 @@ void sensors_read(void* pvParameters)
     }
 }
 
+#endif // CONFIG_MQTT_SENSOR
