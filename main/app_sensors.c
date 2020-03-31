@@ -34,8 +34,6 @@ short dht22_humidity = SHRT_MIN;
 static const gpio_num_t SENSOR_GPIO = CONFIG_MQTT_SENSOR_DS18X20_GPIO;
 ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
-short wtemperature = SHRT_MIN;
-short ctemperature = SHRT_MIN;
 int sensor_count = 0;
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
@@ -47,11 +45,6 @@ int32_t bme280_pressure;
 int32_t bme280_temperature;
 int32_t bme280_humidity;
 #endif //CONFIG_MQTT_SENSOR_BME280
-
-#ifdef CONFIG_MQTT_THERMOSTAT
-#include "app_thermostat.h"
-extern QueueHandle_t thermostatQueue;
-#endif // CONFIG_MQTT_THERMOSTAT
 
 static const char *TAG = "app_sensors";
 
@@ -250,9 +243,6 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
-      wtemperature=SHRT_MIN;
-      ctemperature=SHRT_MIN;
-
       sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
         ESP_LOGW(TAG, "No sensors detected!\n");
@@ -269,17 +259,6 @@ void sensors_read(void* pvParameters)
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
             short temp_c = (short)(temps[j] * 10);
             ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
-
-#ifdef CONFIG_MQTT_THERMOSTAT
-            if (strcmp(addr, CONFIG_MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS) == 0) {
-              wtemperature = temp_c;
-            }
-            else {
-              ctemperature = temp_c;
-            }
-#else
-            ctemperature = temp_c;
-#endif // CONFIG_MQTT_THERMOSTAT
           }
         publish_ds18x20_data();
 
@@ -299,19 +278,6 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-#ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-      //FIXME
-      struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
-      struct ThermostatMessage tm;
-      memset(&tm, 0, sizeof(struct ThermostatMessage));
-      tm.msgType = THERMOSTAT_SENSORS_MSG;
-      tm.data.sensorsData = t;
-      if (xQueueSend( thermostatQueue
-                      ,( void * )&tm
-                      ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-        ESP_LOGE(TAG, "Cannot send to thermostatQueue");
-      }
-#endif // CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
       vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }

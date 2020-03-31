@@ -198,7 +198,7 @@ void app_main(void)
 #endif //CONFIG_MQTT_OTA
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
-  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
+  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 7, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
     xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 

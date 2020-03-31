@@ -274,6 +274,13 @@ config MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC
    help
        Sensor topic
 
+config MQTT_THERMOSTATS_NB0_FRIENDLY_NAME
+   string "Thermostat 0 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 0
+   default "t0"
+   help
+       Thermostat 0 friendly name
+
 choice MQTT_THERMOSTATS_NB1_SENSOR_TYPE
    bool "Thermostat 1 sensor type"
    depends on MQTT_THERMOSTATS_NB > 1
@@ -299,6 +306,13 @@ config MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC
    default ""
    help
        Sensor topic
+
+config MQTT_THERMOSTATS_NB1_FRIENDLY_NAME
+   string "Thermostat 1 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 1
+   default "t1"
+   help
+       Thermostat 1 friendly name
 
 choice MQTT_THERMOSTATS_NB2_SENSOR_TYPE
    bool "Thermostat 2 sensor type"
@@ -326,6 +340,13 @@ config MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC
    help
        Sensor topic
 
+config MQTT_THERMOSTATS_NB2_FRIENDLY_NAME
+   string "Thermostat 2 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 2
+   default "t2"
+   help
+       Thermostat 2 friendly name
+
 choice MQTT_THERMOSTATS_NB3_SENSOR_TYPE
    bool "Thermostat 3 sensor type"
    depends on MQTT_THERMOSTATS_NB > 3
@@ -352,22 +373,12 @@ config MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC
    help
        Sensor topic
 
-config MQTT_THERMOSTAT_HEATING_OPTIMIZER
-    boolean "enable thermostat control based on circuit temperature"
-    default n
-    depends on MQTT_SENSOR
-    depends on MQTT_THERMOSTAT
-    help
-        Enable thermostat control based on circuit temperature
-
-
-config MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS
-    string "Thermostat DS18X20 sensor address"
-    default "4802069245473e28"
-    depends on MQTT_THERMOSTAT
-    depends on MQTT_THERMOSTAT_HEATING_OPTIMIZER
-    help
-        Address of DS18X20 sensor to be used as thermostat(hot water temperature)
+config MQTT_THERMOSTATS_NB3_FRIENDLY_NAME
+   string "Thermostat 3 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 3
+   default "t3"
+   help
+       Thermostat 3 friendly name
 
 config MQTT_SCHEDULERS
     boolean "enable schedulers support"
