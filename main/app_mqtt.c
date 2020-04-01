@@ -553,9 +553,9 @@ void mqtt_publish_data(const char * topic,
     xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
     int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
     if (qos == QOS_0) {
-      ESP_LOGI(TAG, "published qos0 data");
+      ESP_LOGI(TAG, "published qos0 data, topic: %s", topic);
     } else if (msg_id > 0) {
-      ESP_LOGI(TAG, "sent publish data successful, msg_id=%d", msg_id);
+      ESP_LOGI(TAG, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
       EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
       if (bits & MQTT_PUBLISHED_BIT) {
         ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);

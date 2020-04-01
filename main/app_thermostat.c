@@ -541,15 +541,12 @@ bool tooHot(char* reason)
   bool tooHot = true;
   char tstr[64];
 
-  ESP_LOGI(TAG, "checking if too hot");
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    ESP_LOGI(TAG, "checking thermostat: %d", id);
     if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
-      ESP_LOGI(TAG, "checking thermostat type");
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
           ESP_LOGI(TAG, "thermostat[%d] is hot enough, ", id);
-          sprintf(tstr, "%s is hot enough, ", thermostatFriendlyName[id]);
+          sprintf(tstr, "\"%s\" is hot enough, ", thermostatFriendlyName[id]);
           strcat(reason, tstr);
         } else {
           tooHot = false;
@@ -559,6 +556,11 @@ bool tooHot(char* reason)
       }
     }
   }
+  if (tooHot && strlen(reason) == 0) {
+    strcat(reason, "No normal thermostat is enabled");
+  } else {
+    reason[strlen(reason)-2] = 0;
+  }
   return tooHot;
 }
 
@@ -566,18 +568,12 @@ bool tooCold(char* reason)
 {
   bool tooCold = false;
   char tstr[64];
-  ESP_LOGI(TAG, "checking if too cold");
-
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    ESP_LOGI(TAG, "checking thermostat: %d", id);
-
     if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
-      ESP_LOGI(TAG, "checking thermostat type");
-
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
           ESP_LOGI(TAG, "thermostat[%d] is too cold, ", id);
-          sprintf(tstr, "%s is too cold, ", thermostatFriendlyName[id]);
+          sprintf(tstr, "\"%s\" is too cold, ", thermostatFriendlyName[id]);
           strcat(reason, tstr);
           tooCold = true;
           break;
@@ -586,6 +582,9 @@ bool tooCold(char* reason)
         }
       }
     }
+  }
+  if (tooCold) {
+    reason[strlen(reason)-2] = 0;
   }
   return tooCold;
 }
@@ -598,7 +597,7 @@ void update_thermostat()
     ESP_LOGI(TAG, "no live sensor is reporting => no thermostat handling");
     if (thermostatState==THERMOSTAT_STATE_HEATING) {
       ESP_LOGI(TAG, "stop thermostat as no live sensor is reporting");
-      disableThermostat("Thermostat was disabled as no live sensor is reporting");
+      disableThermostat("No live sensor is reporting");
     }
     return;
   }
@@ -733,7 +732,6 @@ void handle_thermostat_cmd_task(void* pvParameters)
             ESP_ERROR_CHECK( err );
           }
           publish_thermostat_mode_evt(t.thermostatId);
-          publish_thermostat_action_evt(t.thermostatId);
         }
 
         if (t.msgType == THERMOSTAT_CMD_TARGET_TEMPERATURE) {

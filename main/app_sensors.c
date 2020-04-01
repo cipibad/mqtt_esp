@@ -56,8 +56,6 @@ void thermostat_publish_local_data(int thermostat_id, int value)
   tm.thermostatId = thermostat_id;
   tm.data.currentTemperature = value;
 
-  ESP_LOGI(TAG, "publishing local thermostat data");
-
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -67,8 +65,6 @@ void thermostat_publish_local_data(int thermostat_id, int value)
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
-  ESP_LOGI(TAG, "sensor topic: %s", topic);
-
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_LOCAL
   if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC)) == 0) {
     thermostat_publish_local_data(0, value);
@@ -76,14 +72,12 @@ void publish_data_to_thermostat(const char * topic, int value)
 #endif //CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_LOCAL
-  ESP_LOGI(TAG, "thermostat 1 topic: %s", CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC);
   if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC)) == 0) {
     thermostat_publish_local_data(1, value);
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_LOCAL
-  ESP_LOGI(TAG, "thermostat 2 topic: %s", CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC);
   if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC)) == 0) {
     thermostat_publish_local_data(2, value);
   }
