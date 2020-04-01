@@ -545,12 +545,12 @@ bool tooHot(char* reason)
     if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
-          ESP_LOGI(TAG, "thermostat[%d] is hot enough, ", id);
-          sprintf(tstr, "\"%s\" is hot enough, ", thermostatFriendlyName[id]);
+          ESP_LOGI(TAG, "thermostat[%d] is hot enough", id);
+          sprintf(tstr, "%s thermostat is hot enough, ", thermostatFriendlyName[id]);
           strcat(reason, tstr);
         } else {
           tooHot = false;
-          ESP_LOGI(TAG, "thermostat[%d] is not too hot, ", id);
+          ESP_LOGI(TAG, "thermostat[%d] is not too hot", id);
           break;
         }
       }
@@ -572,8 +572,8 @@ bool tooCold(char* reason)
     if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
-          ESP_LOGI(TAG, "thermostat[%d] is too cold, ", id);
-          sprintf(tstr, "\"%s\" is too cold, ", thermostatFriendlyName[id]);
+          ESP_LOGI(TAG, "thermostat[%d] is too cold", id);
+          sprintf(tstr, "%s thermostat is too cold, ", thermostatFriendlyName[id]);
           strcat(reason, tstr);
           tooCold = true;
           break;

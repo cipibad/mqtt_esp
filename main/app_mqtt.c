@@ -85,6 +85,7 @@ const int MQTT_CONNECTED_BIT = BIT0;
 const int MQTT_SUBSCRIBED_BIT = BIT1;
 const int MQTT_PUBLISHED_BIT = BIT2;
 const int MQTT_INIT_FINISHED_BIT = BIT3;
+const int MQTT_PUBLISHING_BIT = BIT4;
 
 int mqtt_reconnect_counter;
 
@@ -550,20 +551,26 @@ void mqtt_publish_data(const char * topic,
                        int qos, int retain)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT) {
-    xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-    int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
-    if (qos == QOS_0) {
-      ESP_LOGI(TAG, "published qos0 data, topic: %s", topic);
-    } else if (msg_id > 0) {
-      ESP_LOGI(TAG, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
-      EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-      if (bits & MQTT_PUBLISHED_BIT) {
-        ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+    EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHING_BIT, false, true, MQTT_FLAG_TIMEOUT);
+    if (bits & MQTT_PUBLISHING_BIT) {
+      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHING_BIT);
+
+      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
+      int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
+      if (qos == QOS_0) {
+        ESP_LOGI(TAG, "published qos0 data, topic: %s", topic);
+      } else if (msg_id > 0) {
+        ESP_LOGI(TAG, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & MQTT_PUBLISHED_BIT) {
+          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+        } else {
+          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+        }
       } else {
-        ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+        ESP_LOGW(TAG, "failed to publish qos1, msg_id=%d", msg_id);
       }
-    } else {
-      ESP_LOGW(TAG, "failed to publish qos1, msg_id=%d", msg_id);
+      xEventGroupSetBits(mqtt_event_group, MQTT_PUBLISHING_BIT);
     }
   }
 }
@@ -691,6 +698,7 @@ void handle_mqtt_sub_pub(void* pvParameters)
         xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
         mqtt_subscribe(client);
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
+        xEventGroupSetBits(mqtt_event_group, MQTT_PUBLISHING_BIT);
         publish_available_msg();
         publish_config_msg();
 #if CONFIG_MQTT_RELAYS_NB
