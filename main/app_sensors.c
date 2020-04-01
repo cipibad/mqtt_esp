@@ -48,6 +48,7 @@ int32_t bme280_humidity;
 
 static const char *TAG = "app_sensors";
 
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
 void thermostat_publish_local_data(int thermostat_id, int value)
 {
   struct ThermostatMessage tm;
@@ -62,6 +63,7 @@ void thermostat_publish_local_data(int thermostat_id, int value)
     ESP_LOGE(TAG, "Cannot send to thermostatQueue");
   }
 }
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
