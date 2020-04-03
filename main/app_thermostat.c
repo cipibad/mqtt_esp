@@ -333,44 +333,14 @@ void publish_all_thermostats_action_evt()
   }
 }
 
-void publish_thermostat_state(const char* reason, unsigned int duration)
-{
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/thermostat/state";
-  char data[256];
-  memset(data,0,256);
-
-  char tstr[64];
-
-  sprintf(tstr, "{\"thermostatState\":%d,", thermostatState==THERMOSTAT_STATE_HEATING);
-  strcat(data, tstr);
-
-  //FIXME this should print only we have at least one circuit thermostat
-  sprintf(tstr, "\"heatingState\":%d,", heatingState == HEATING_STATE_ENABLED);
-  strcat(data, tstr);
-
-  if(!reason) {
-    reason = "";
-  }
-
-  sprintf(tstr, "\"reason\":\"%s\", \"duration\":%u}",
-          reason, duration);
-  strcat(data, tstr);
-
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
-}
-
 void publish_thermostat_data()
 {
-
   publish_all_thermostats_current_temperature_evt();
   publish_all_thermostats_target_temperature_evt();
   publish_all_thermostats_temperature_tolerance_evt();
   publish_all_thermostats_mode_evt();
   publish_all_thermostats_action_evt();
-
-  publish_thermostat_state(NULL, 0);
 }
-
 
 void publish_thermostat_notification_evt(const char* msg)
 {
@@ -394,12 +364,8 @@ void publish_normal_thermostat_notification(enum ThermostatState state,
 
 void disableThermostat(const char * reason)
 {
-  publish_thermostat_state(NULL, 0);
-
   thermostatState=THERMOSTAT_STATE_IDLE;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
-
-  publish_thermostat_state(reason, thermostatDuration);
 
   publish_all_normal_thermostats_action_evt();
   publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
@@ -410,12 +376,8 @@ void disableThermostat(const char * reason)
 
 void enableThermostat(const char * reason)
 {
-  publish_thermostat_state(NULL, 0);
-
   thermostatState=THERMOSTAT_STATE_HEATING;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
-
-  publish_thermostat_state(reason, thermostatDuration);
 
   publish_all_normal_thermostats_action_evt();
   publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
@@ -439,9 +401,7 @@ void publish_circuit_thermostat_notification(enum HeatingState state,
 
 void enableHeating()
 {
-  publish_thermostat_state(NULL, 0);
   heatingState = HEATING_STATE_ENABLED;
-  publish_thermostat_state("Heating was enabled", heatingDuration);
 
   publish_all_circuit_thermostats_action_evt();
   publish_circuit_thermostat_notification(heatingState, heatingDuration);
@@ -449,11 +409,10 @@ void enableHeating()
   heatingDuration = 0;
   ESP_LOGI(TAG, "heating enabled");
 }
+
 void disableHeating()
 {
-  publish_thermostat_state(NULL, 0);
   heatingState = HEATING_STATE_IDLE;
-  publish_thermostat_state("Heating was disabled", heatingDuration);
 
   publish_all_circuit_thermostats_action_evt();
   publish_circuit_thermostat_notification(heatingState, heatingDuration);
@@ -461,7 +420,6 @@ void disableHeating()
   heatingDuration = 0;
   ESP_LOGI(TAG, "heating2 disabled");
 }
-
 
 void dump_data()
 {
@@ -578,7 +536,7 @@ bool tooCold(char* reason)
           tooCold = true;
           break;
         } else {
-          ESP_LOGI(TAG, "thermostat[%d] is good, ", id);
+          ESP_LOGI(TAG, "thermostat[%d] is good", id);
         }
       }
     }
@@ -732,6 +690,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
             ESP_ERROR_CHECK( err );
           }
           publish_thermostat_mode_evt(t.thermostatId);
+          publish_thermostat_action_evt(t.thermostatId);
         }
 
         if (t.msgType == THERMOSTAT_CMD_TARGET_TEMPERATURE) {
