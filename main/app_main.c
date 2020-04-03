@@ -32,7 +32,6 @@ QueueHandle_t thermostatQueue;
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 QueueHandle_t relayQueue;
-int relayOnTimeout[CONFIG_MQTT_RELAYS_NB];
 #endif//CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_SCHEDULERS
@@ -156,12 +155,6 @@ void app_main(void)
 
 #if CONFIG_MQTT_RELAYS_NB
   relays_init();
-  char onTimeoutTag[32];
-  for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
-    snprintf(onTimeoutTag, 32, "relayOnTimeout%d", i); //FIXME should check return value
-    err=read_nvs_integer(onTimeoutTag, &relayOnTimeout[i]);
-    ESP_ERROR_CHECK( err );
-  }
 #endif // CONFIG_MQTT_RELAYS_NB
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
