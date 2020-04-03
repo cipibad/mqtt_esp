@@ -181,7 +181,7 @@ void update_relay_status(int id, char value)
   publish_relay_status(id);
 }
 
-void update_relay_sleep(int id, char onTimeout)
+void update_relay_sleep(int id, int onTimeout)
 {
   ESP_LOGI(TAG, "update_relay_sleep: id: %d, value: %d", id, onTimeout);
   ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relaySleepTimeout[id]);
@@ -190,10 +190,7 @@ void update_relay_sleep(int id, char onTimeout)
     relaySleepTimeout[id] = onTimeout;
     update_timer(id);
 
-    //FIXME extract NVS to separate function
-    char onTimeoutTag[32]; //FIXME duplication with read function
-    snprintf(onTimeoutTag, 32, "relayOnTimeout%d", id); //FIXME should check return value
-    esp_err_t err = write_nvs_integer(onTimeoutTag, relaySleepTimeout[id]);
+    esp_err_t err = write_nvs_integer(relaySleepTag[id], relaySleepTimeout[id]);
     ESP_ERROR_CHECK( err );
   }
   publish_relay_timeout(id);

@@ -89,7 +89,7 @@ const int MQTT_PUBLISHING_BIT = BIT4;
 
 int mqtt_reconnect_counter;
 
-#define FW_VERSION "0.02.12q1"
+#define FW_VERSION "0.02.12r"
 
 extern QueueHandle_t mqttQueue;
 
