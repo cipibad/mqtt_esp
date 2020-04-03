@@ -15,6 +15,11 @@
 #include "app_main.h"
 #include "app_sensors.h"
 
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
+#include "app_thermostat.h"
+extern QueueHandle_t thermostatQueue;
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
 #include "app_mqtt.h"
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
@@ -29,8 +34,6 @@ short dht22_humidity = SHRT_MIN;
 static const gpio_num_t SENSOR_GPIO = CONFIG_MQTT_SENSOR_DS18X20_GPIO;
 ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
-short wtemperature = SHRT_MIN;
-short ctemperature = SHRT_MIN;
 int sensor_count = 0;
 #endif // CONFIG_MQTT_SENSOR_DS18X20
 
@@ -43,33 +46,76 @@ int32_t bme280_temperature;
 int32_t bme280_humidity;
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-#ifdef CONFIG_MQTT_THERMOSTAT
-#include "app_thermostat.h"
-extern QueueHandle_t thermostatQueue;
-#endif // CONFIG_MQTT_THERMOSTAT
-
 static const char *TAG = "app_sensors";
+
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
+void thermostat_publish_local_data(int thermostat_id, int value)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = THERMOSTAT_CURRENT_TEMPERATURE;
+  tm.thermostatId = thermostat_id;
+  tm.data.currentTemperature = value;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
+void publish_data_to_thermostat(const char * topic, int value)
+{
+#ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_LOCAL
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB0_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(0, value);
+  }
+#endif //CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_LOCAL
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB1_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(1, value);
+  }
+#endif //CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_LOCAL
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB2_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(2, value);
+  }
+#endif //CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_TYPE_MQTT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_LOCAL
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB3_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(3, value);
+  }
+#endif //CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
+  
+}
+
+void publish_sensor_data(const char * topic, int value)
+{
+
+  publish_data_to_thermostat(topic, value);
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", value / 10, abs(value % 10));
+  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+}
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 void publish_dht22_temperature()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature/dht22";
-  char data[16];
-  memset(data,0,16);
-  sprintf(data, "%d.%d", dht22_temperature / 10, abs(dht22_temperature % 10));
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_sensor_data(topic, dht22_temperature);
 }
 
 void publish_dht22_humidity()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/humidity/dht22";
-  char data[16];
-  memset(data,0,16);
-  sprintf(data, "%d.%d", dht22_humidity / 10, abs(dht22_humidity % 10));
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_sensor_data(topic, dht22_humidity);
 }
-
-#endif // CONFIG_MQTT_SENSOR_DHT22
 
 void publish_dht22_data()
 {
@@ -80,15 +126,10 @@ void publish_dht22_data()
 }
 #endif // CONFIG_MQTT_SENSOR_DHT22
 
+#ifdef CONFIG_MQTT_SENSOR_DS18X20
 void publish_ds18x20_temperature(int sensor_id)
 {
  const char * temperature_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature";
-
-  char data[16];
-  memset(data,0,16);
-  sprintf(data, "%d.%d",
-          ((short)(temps[sensor_id] * 10)) / 10,
-          abs(((short)(temps[sensor_id] * 10)) % 10));
 
   char topic[MQTT_MAX_TOPIC_LEN];
   memset(topic,0,MQTT_MAX_TOPIC_LEN);
@@ -96,7 +137,7 @@ void publish_ds18x20_temperature(int sensor_id)
           (uint32_t)(addrs[sensor_id] >> 32),
           (uint32_t)addrs[sensor_id]);
 
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_sensor_data(topic, temps[sensor_id] * 10);
 }
 
 void publish_ds18x20_data()
@@ -106,33 +147,26 @@ void publish_ds18x20_data()
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
+#endif // CONFIG_MQTT_SENSOR_DS18X20
 
 #ifdef CONFIG_MQTT_SENSOR_BME280
 void publish_bme280_temperature()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature/bme280";
-  char data[16];
-  memset(data,0,16);
-  sprintf(data, "%d.%d", bme280_temperature/100, abs(bme280_temperature%100));
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_sensor_data(topic, bme280_temperature/10);
 }
 
 void publish_bme280_humidity()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/humidity/bme280";
-  char data[16];
-  memset(data,0,16);
-  sprintf(data, "%d.%d", bme280_humidity/1000, abs(bme280_humidity%1000));
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_sensor_data(topic, bme280_humidity/100);
 }
 
 void publish_bme280_pressure()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/pressure/bme280";
-  char data[16];
-  memset(data,0,16);
-  sprintf(data, "%d", (int)(bme280_pressure*0.750061683));
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+
+  publish_sensor_data(topic, bme280_pressure*7.50061683);
 }
 
 void publish_bme280_data()
@@ -205,9 +239,6 @@ void sensors_read(void* pvParameters)
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
 #ifdef CONFIG_MQTT_SENSOR_DS18X20
-      wtemperature=SHRT_MIN;
-      ctemperature=SHRT_MIN;
-
       sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
         ESP_LOGW(TAG, "No sensors detected!\n");
@@ -224,17 +255,6 @@ void sensors_read(void* pvParameters)
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
             short temp_c = (short)(temps[j] * 10);
             ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
-
-#ifdef CONFIG_MQTT_THERMOSTAT
-            if (strcmp(addr, CONFIG_MQTT_THERMOSTAT_DS18X20_SENSOR_ADDRESS) == 0) {
-              wtemperature = temp_c;
-            }
-            else {
-              ctemperature = temp_c;
-            }
-#else
-            ctemperature = temp_c;
-#endif // CONFIG_MQTT_THERMOSTAT
           }
         publish_ds18x20_data();
 
@@ -254,20 +274,8 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-#ifdef CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
-      //FIXME
-      struct ThermostatSensorsMessage t = {wtemperature, ctemperature};
-      struct ThermostatMessage tm;
-      memset(&tm, 0, sizeof(struct ThermostatMessage));
-      tm.msgType = THERMOSTAT_SENSORS_MSG;
-      tm.data.sensorsData = t;
-      if (xQueueSend( thermostatQueue
-                      ,( void * )&tm
-                      ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-        ESP_LOGE(TAG, "Cannot send to thermostatQueue");
-      }
-#endif // CONFIG_MQTT_THERMOSTAT_HEATING_OPTIMIZER
       vTaskDelay(60000 / portTICK_PERIOD_MS);
     }
 }
 
+#endif // CONFIG_MQTT_SENSOR

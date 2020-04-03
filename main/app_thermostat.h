@@ -6,15 +6,26 @@
 #define BIT_THERMOSTAT 1
 #define BIT_HEAT (1 << 1)
 
+enum ThermostatType {
+  THERMOSTAT_TYPE_NORMAL = 1,
+  THERMOSTAT_TYPE_CIRCUIT,
+};
+
+
 enum ThermostatMode {
-  TERMOSTAT_MODE_UNSET = 0, //0
-  TERMOSTAT_MODE_OFF = BIT_THERMOSTAT, //1
-  TERMOSTAT_MODE_HEAT = BIT_THERMOSTAT | BIT_HEAT, //3
+  THERMOSTAT_MODE_UNSET = 0, //0
+  THERMOSTAT_MODE_OFF = BIT_THERMOSTAT, //1
+  THERMOSTAT_MODE_HEAT = BIT_THERMOSTAT | BIT_HEAT, //3
 };
 
 enum ThermostatState {
   THERMOSTAT_STATE_IDLE = 1,
   THERMOSTAT_STATE_HEATING = 3,
+};
+
+enum HeatingState {
+  HEATING_STATE_IDLE = 1,
+  HEATING_STATE_ENABLED = 3,
 };
 
 enum HoldOffMode {
@@ -31,12 +42,19 @@ struct ThermostatRoomMessage {
   short temperature;
 };
 
+struct ThermostatMqttSensorsMessage {
+  unsigned char relayId;
+  short temperature;
+};
+
+
 union ThermostatData {
   struct ThermostatSensorsMessage sensorsData;
   struct ThermostatRoomMessage roomData;
   enum ThermostatMode thermostatMode;
   int targetTemperature;
   int tolerance;
+  short currentTemperature;
 };
 
 #define THERMOSTAT_SENSORS_MSG 2
@@ -55,8 +73,13 @@ union ThermostatData {
 #define CO_THERMOSTAT_CMD_MODE 12
 #define CO_THERMOSTAT_CMD_TARGET_TEMPERATURE 13
 
+
+
+#define THERMOSTAT_CURRENT_TEMPERATURE 14
+
 struct ThermostatMessage {
   unsigned char msgType;
+  unsigned char thermostatId;
   union ThermostatData data;
 };
 
