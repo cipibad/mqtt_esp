@@ -90,12 +90,7 @@ void relays_init()
     err=read_nvs_integer(relaySleepTag[i], &relaySleepTimeout[i]);
     ESP_ERROR_CHECK( err );
 
-    relaySleepTimer[i] =
-      xTimerCreate( relayTimerName[i],           /* Text name. */
-                    pdMS_TO_TICKS(relaySleepTimeout[i]*1000),  /* Period. */
-                    pdFALSE,                /* Autoreload. */
-                    (void *)i,                  /* ID. */
-                    vTimerCallback );  /* Callback function. */
+    relaySleepTimer[i] = NULL;
   }
 }
 
@@ -147,15 +142,26 @@ void publish_all_relays_timeout()
 void update_timer(int id)
 {
   ESP_LOGI(TAG, "update_timer for %d, timeout: %d", id, relaySleepTimeout[id]);
-  if (relaySleepTimer[id] == NULL) {
-    ESP_LOGE(TAG, "No Timer found for %d", id);
-    return;
+  if (relaySleepTimer[id] != NULL) {
+    if (xTimerIsTimerActive(relaySleepTimer[id]) != pdFALSE){
+      ESP_LOGI(TAG, "Found started timer, stopping");
+      xTimerStop( relaySleepTimer[id], portMAX_DELAY );
+    }
   }
-  if (xTimerIsTimerActive(relaySleepTimer[id]) != pdFALSE){
-    ESP_LOGI(TAG, "Found started timer, stopping");
-    xTimerStop( relaySleepTimer[id], portMAX_DELAY );
-  }
-  if ((relayStatus[id] == RELAY_ON) && relaySleepTimeout[id]) {
+  if ((relayStatus[id] == RELAY_ON) && relaySleepTimeout[id] != 0) {
+    if (relaySleepTimer[id] == NULL) {
+      ESP_LOGI(TAG, "No Timer found for %d, creating one", id);
+      relaySleepTimer[id] =
+        xTimerCreate( relayTimerName[id],           /* Text name. */
+                      pdMS_TO_TICKS(relaySleepTimeout[id]*1000),  /* Period. */
+                      pdFALSE,                /* Autoreload. */
+                      (void *)id,                  /* ID. */
+                      vTimerCallback );  /* Callback function. */
+    }
+    if (relaySleepTimer[id] == NULL) {
+      ESP_LOGE(TAG, "No Timer found for %d, cannot handle timeout", id);
+      return;
+    }
     if (xTimerChangePeriod(relaySleepTimer[id], pdMS_TO_TICKS(relaySleepTimeout[id]*1000), portMAX_DELAY) != pdPASS) {
       ESP_LOGE(TAG, "Cannot change period for relay %d timer", id);
     }

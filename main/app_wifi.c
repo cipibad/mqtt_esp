@@ -80,6 +80,7 @@ void wifi_init(void)
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
   ESP_LOGI(TAG, "start the WIFI SSID:[%s]", wifi_config.sta.ssid);
+  ESP_LOGI(TAG, "connecting with pass:[%s]", wifi_config.sta.password);
   ESP_ERROR_CHECK(esp_wifi_start());
   ESP_LOGI(TAG, "Waiting for wifi");
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
