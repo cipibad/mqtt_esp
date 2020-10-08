@@ -198,7 +198,7 @@ TEST_CASE("publish_circuit_thermostat_action_evt_heat_heating", "[tag]" ) {
 TEST_CASE("publish_normal_thermostat_notification_on", "[tag]" ) {
   MockRepository mocks;
   const char* notification_topic = "device_type/client_id/evt/notification/thermostat";
-  const char* notification_mqtt_data = "Thermostat state changed to on due to some reason. It was off for 10 minutes";
+  const char* notification_mqtt_data = "Thermostat changed to on due to some reason. It was off for 10 minutes";
   const char* action_topic = "device_type/client_id/evt/action/thermostat/0";
   const char* action_mqtt_data = "heating";
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
@@ -215,7 +215,7 @@ TEST_CASE("publish_normal_thermostat_notification_on", "[tag]" ) {
 TEST_CASE("publish_normal_thermostat_notification_off", "[tag]" ) {
   MockRepository mocks;
   const char* notification_topic = "device_type/client_id/evt/notification/thermostat";
-  const char* notification_mqtt_data = "Thermostat state changed to off due to some reason. It was on for 10 minutes";
+  const char* notification_mqtt_data = "Thermostat changed to off due to some reason. It was on for 10 minutes";
   const char* action_topic = "device_type/client_id/evt/action/thermostat/0";
   const char* action_mqtt_data = "idle";
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
