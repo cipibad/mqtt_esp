@@ -234,6 +234,8 @@ choice MQTT_THERMOSTAT_ID_CIRCUIT_OPTIMIZER
    depends on MQTT_THERMOSTATS_NB > 0
    help
        Id of thermostat handling circuit optimisation
+config MQTT_NO_THERMOSTATS_TYPE_CIRCUIT
+   bool "No thermostat of type water circuit"
 config MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
    bool "Thermostat id 0"
 config MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
