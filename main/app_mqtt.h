@@ -13,7 +13,7 @@ void mqtt_init_and_start();
 void handle_mqtt_sub_pub(void* pvParameters);
 
 
-#define MQTT_TIMEOUT 10
+#define MQTT_TIMEOUT 60
 #define MQTT_FLAG_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
 #define MQTT_QUEUE_TIMEOUT (MQTT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
 #define MQTT_MAX_TOPIC_LEN 64
