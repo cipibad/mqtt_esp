@@ -24,7 +24,12 @@ extern QueueHandle_t thermostatQueue;
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
+
+#define MEAN_FACTOR 5
+
+short dht22_mean_temperature = SHRT_MIN;
 short dht22_temperature = SHRT_MIN;
+short dht22_mean_humidity = SHRT_MIN;
 short dht22_humidity = SHRT_MIN;
 #endif //CONFIG_MQTT_SENSOR_DHT22
 
@@ -90,7 +95,7 @@ void publish_data_to_thermostat(const char * topic, int value)
     thermostat_publish_local_data(3, value);
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
-  
+
 }
 
 void publish_sensor_data(const char * topic, int value)
@@ -105,23 +110,23 @@ void publish_sensor_data(const char * topic, int value)
 }
 
 #ifdef CONFIG_MQTT_SENSOR_DHT22
-void publish_dht22_temperature()
+void publish_dht22_mean_temperature()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temperature/dht22";
-  publish_sensor_data(topic, dht22_temperature);
+  publish_sensor_data(topic, dht22_mean_temperature);
 }
 
-void publish_dht22_humidity()
+void publish_dht22_mean_humidity()
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/humidity/dht22";
-  publish_sensor_data(topic, dht22_humidity);
+  publish_sensor_data(topic, dht22_mean_humidity);
 }
 
 void publish_dht22_data()
 {
-  publish_dht22_temperature();
+  publish_dht22_mean_temperature();
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  publish_dht22_humidity();
+  publish_dht22_mean_humidity();
   vTaskDelay(50 / portTICK_PERIOD_MS);
 }
 #endif // CONFIG_MQTT_SENSOR_DHT22
@@ -227,9 +232,21 @@ void sensors_read(void* pvParameters)
       dht22_humidity = SHRT_MIN;
       if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
+          if (dht22_mean_temperature == SHRT_MIN) {
+            dht22_mean_temperature = dht22_temperature;
+          } else {
+            dht22_mean_temperature = (((CONFIG_MQTT_SENSOR_DHT22_SMA_FACTOR - 1) * dht22_mean_temperature) + dht22_temperature) / CONFIG_MQTT_SENSOR_DHT22_SMA_FACTOR;
+          }
+
+          if (dht22_mean_humidity == SHRT_MIN) {
+            dht22_mean_humidity = dht22_humidity;
+          } else {
+            dht22_mean_humidity = (((CONFIG_MQTT_SENSOR_DHT22_SMA_FACTOR - 1) * dht22_mean_humidity) + dht22_humidity) / CONFIG_MQTT_SENSOR_DHT22_SMA_FACTOR;
+          }
+
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
-                   dht22_humidity/10, abs(dht22_humidity%10) ,
-                   dht22_temperature/10, abs(dht22_temperature%10));
+                   dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
+                   dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
           publish_dht22_data();
         }
       else

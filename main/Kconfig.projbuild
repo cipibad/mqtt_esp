@@ -82,6 +82,13 @@ config MQTT_SENSOR_DHT22_GPIO
     help
         Gpio port of dht22 sensor
 
+config MQTT_SENSOR_DHT22_SMA_FACTOR
+    int "Simple moving average factor"
+    default 1
+    depends on MQTT_SENSOR_DHT22
+    help
+        Will provide temperature and humidity as simple moving average of so many measures, default 1 means no average, have to me greater that 1
+
 config MQTT_SENSOR_DS18X20
     boolean "enable DS18X20 sensor"
     default n
