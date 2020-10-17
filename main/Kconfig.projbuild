@@ -3,7 +3,7 @@ menu "MQTT SSL CONF"
 
 choice TARGET_DEVICE
    bool "Target device type"
-   default ESP8266
+   default TARGET_DEVICE_ESP8266
    help
        Target device type
 

@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 
 #include "driver/gpio.h"
 #include "rom/gpio.h"
@@ -61,6 +62,8 @@ extern const char * smartconfigTAG;
 extern int smartconfigFlag;
 
 QueueHandle_t mqttQueue;
+
+SemaphoreHandle_t xSemaphore;
 
 static const char *TAG = "MQTT(S?)_MAIN";
 
@@ -119,6 +122,10 @@ void app_main(void)
   esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
 
 
+  //otherwise will crash due to ESP_LOG in GPIO function
+  // that is called in critical section from DS18X20 driver
+  esp_log_level_set("gpio", ESP_LOG_WARN);
+
   mqtt_event_group = xEventGroupCreate();
   wifi_event_group = xEventGroupCreate();
 
@@ -139,6 +146,7 @@ void app_main(void)
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
 #endif //CONFIG_MQTT_OTA
   mqttQueue = xQueueCreate(1, sizeof(void *) );
+  xSemaphore = xSemaphoreCreateMutex();
 
   xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
 
@@ -166,7 +174,7 @@ void app_main(void)
   err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
   ESP_ERROR_CHECK( err );
 
-  xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", configMINIMAL_STACK_SIZE * 3, (void *)NULL, 5, NULL);
+  xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", 4096, (void *)NULL, 5, NULL);
 
   if (smartconfigFlag) {
     xTaskCreate(reboot_in_5_minutes_task, "reboot_in_5_minutes_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);

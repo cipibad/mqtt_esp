@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -85,13 +86,13 @@ const int MQTT_CONNECTED_BIT = BIT0;
 const int MQTT_SUBSCRIBED_BIT = BIT1;
 const int MQTT_PUBLISHED_BIT = BIT2;
 const int MQTT_INIT_FINISHED_BIT = BIT3;
-const int MQTT_PUBLISHING_BIT = BIT4;
 
 int mqtt_reconnect_counter;
 
 #define FW_VERSION "0.02.12s"
 
 extern QueueHandle_t mqttQueue;
+extern SemaphoreHandle_t xSemaphore;
 
 static const char *TAG = "MQTTS_MQTTS";
 
@@ -551,10 +552,7 @@ void mqtt_publish_data(const char * topic,
                        int qos, int retain)
 {
   if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT) {
-    EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHING_BIT, false, true, MQTT_FLAG_TIMEOUT);
-    if (bits & MQTT_PUBLISHING_BIT) {
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHING_BIT);
-
+    if (( xSemaphore != NULL ) && xSemaphoreTake( xSemaphore, 2 * MQTT_FLAG_TIMEOUT ) == pdTRUE) {
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
       if (qos == QOS_0) {
@@ -570,7 +568,9 @@ void mqtt_publish_data(const char * topic,
       } else {
         ESP_LOGW(TAG, "failed to publish qos1, msg_id=%d", msg_id);
       }
-      xEventGroupSetBits(mqtt_event_group, MQTT_PUBLISHING_BIT);
+      xSemaphoreGive( xSemaphore );
+    } else {
+      ESP_LOGW(TAG, "cannot get semaphore");
     }
   }
 }
@@ -641,6 +641,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   case MQTT_EVENT_ERROR:
     ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
     break;
+  case MQTT_EVENT_ANY:
+    ESP_LOGI(TAG, "MQTT_EVENT_ANY");
+    break;
+  case MQTT_EVENT_BEFORE_CONNECT:
+    ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
+    break;
   }
   return ESP_OK;
 }
@@ -698,7 +704,6 @@ void handle_mqtt_sub_pub(void* pvParameters)
         xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
         mqtt_subscribe(client);
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-        xEventGroupSetBits(mqtt_event_group, MQTT_PUBLISHING_BIT);
         publish_available_msg();
         publish_config_msg();
 #if CONFIG_MQTT_RELAYS_NB
