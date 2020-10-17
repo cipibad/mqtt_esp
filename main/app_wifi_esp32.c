@@ -1,6 +1,7 @@
+#include "esp_system.h"
+#ifdef CONFIG_TARGET_DEVICE_ESP32
 #include <string.h>
 
-#include "esp_system.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -99,3 +100,4 @@ void wifi_init(void)
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
 
 }
+#endif //CONFIG_TARGET_DEVICE_ESP32

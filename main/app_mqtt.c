@@ -641,12 +641,14 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   case MQTT_EVENT_ERROR:
     ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
     break;
+#ifdef CONFIG_TARGET_DEVICE_ESP32
   case MQTT_EVENT_ANY:
     ESP_LOGI(TAG, "MQTT_EVENT_ANY");
     break;
   case MQTT_EVENT_BEFORE_CONNECT:
     ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
     break;
+#endif //CONFIG_TARGET_DEVICE_ESP32
   }
   return ESP_OK;
 }
