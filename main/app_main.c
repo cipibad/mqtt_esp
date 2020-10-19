@@ -207,7 +207,7 @@ void app_main(void)
     mqtt_init_and_start();
 
 #ifdef CONFIG_MQTT_OPS
-    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
+    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 2, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
 
 #ifdef CONFIG_MQTT_SCHEDULERS
