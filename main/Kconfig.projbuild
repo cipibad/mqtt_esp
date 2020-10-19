@@ -236,6 +236,16 @@ config MQTT_THERMOSTAT_RELAY_ID
    help
        Thermostat relay id
 
+config MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
+   bool "Enable thermostat notifications"
+   default n
+   depends on MQTT_THERMOSTATS_NB > 0
+   help
+        There is partial implementation for user friendly notifications message
+        to be send when thermostat is toggled on/off. Still, it seems the message
+        size if to big for mqtt esp8266 stack, use this option to enable and fix it
+        if needed
+
 choice MQTT_THERMOSTAT_ID_CIRCUIT_OPTIMIZER
    bool "Id of thermostat handling circuit optimisation"
    depends on MQTT_THERMOSTATS_NB > 0
