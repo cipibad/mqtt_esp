@@ -25,6 +25,14 @@ extern QueueHandle_t thermostatQueue;
 #ifdef CONFIG_MQTT_SENSOR_DHT22
 #include "dht.h"
 
+#ifdef CONFIG_MQTT_SENSOR_TYPE_DHT22
+#define DHT_SENSOR_TYPE DHT_TYPE_AM2301
+#endif // CONFIG_MQTT_SENSOR_TYPE_DHT22
+
+#ifdef CONFIG_MQTT_SENSOR_TYPE_SI7021
+#define DHT_SENSOR_TYPE DHT_TYPE_SI7021
+#endif // CONFIG_MQTT_SENSOR_TYPE_SI7021
+
 #define MEAN_FACTOR 5
 
 short dht22_mean_temperature = SHRT_MIN;
@@ -230,7 +238,7 @@ void sensors_read(void* pvParameters)
 #ifdef CONFIG_MQTT_SENSOR_DHT22
       dht22_temperature = SHRT_MIN;
       dht22_humidity = SHRT_MIN;
-      if (dht_read_data(DHT_TYPE_AM2301, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
+      if (dht_read_data(DHT_SENSOR_TYPE, CONFIG_MQTT_SENSOR_DHT22_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
           if (dht22_mean_temperature == SHRT_MIN) {
             dht22_mean_temperature = dht22_temperature;

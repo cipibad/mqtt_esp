@@ -82,6 +82,17 @@ config MQTT_SENSOR_DHT22_GPIO
     help
         Gpio port of dht22 sensor
 
+choice MQTT_SENSOR_DHT22_TYPE
+   bool "Variant of dht sensor"
+    depends on MQTT_SENSOR_DHT22
+   help
+       Variant of dht sensor
+config MQTT_SENSOR_TYPE_DHT22
+   bool "DHT22"
+config MQTT_SENSOR_TYPE_SI7021
+   bool "SI7021"
+endchoice
+
 config MQTT_SENSOR_DHT22_SMA_FACTOR
     int "Simple moving average factor"
     default 1
