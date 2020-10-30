@@ -1,3 +1,6 @@
+#include "esp_system.h"
+#ifdef CONFIG_TARGET_DEVICE_ESP8266
+
 #include <string.h>
 
 #include "esp_log.h"
@@ -44,12 +47,7 @@ extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
 extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
-
-#ifdef CONFIG_TARGET_DEVICE_ESP32
-#define TICKS_FORMAT "%d"
-#else // CONFIG_TARGET_DEVICE_ESP32
 #define TICKS_FORMAT "%ld"
-#endif // CONFIG_TARGET_DEVICE_ESP32
 
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {
@@ -196,3 +194,4 @@ void smartconfig_cmd_task(void* pvParameters)
     }
   }
 }
+#endif //CONFIG_TARGET_DEVICE_ESP8266

@@ -3,7 +3,7 @@ menu "MQTT SSL CONF"
 
 choice TARGET_DEVICE
    bool "Target device type"
-   default ESP8266
+   default TARGET_DEVICE_ESP8266
    help
        Target device type
 
@@ -81,6 +81,17 @@ config MQTT_SENSOR_DHT22_GPIO
     depends on MQTT_SENSOR_DHT22
     help
         Gpio port of dht22 sensor
+
+choice MQTT_SENSOR_DHT22_TYPE
+   bool "Variant of dht sensor"
+    depends on MQTT_SENSOR_DHT22
+   help
+       Variant of dht sensor
+config MQTT_SENSOR_TYPE_DHT22
+   bool "DHT22"
+config MQTT_SENSOR_TYPE_SI7021
+   bool "SI7021"
+endchoice
 
 config MQTT_SENSOR_DHT22_SMA_FACTOR
     int "Simple moving average factor"
@@ -235,6 +246,16 @@ config MQTT_THERMOSTAT_RELAY_ID
    depends on MQTT_THERMOSTATS_NB > 0
    help
        Thermostat relay id
+
+config MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
+   bool "Enable thermostat notifications"
+   default n
+   depends on MQTT_THERMOSTATS_NB > 0
+   help
+        There is partial implementation for user friendly notifications message
+        to be send when thermostat is toggled on/off. Still, it seems the message
+        size if to big for mqtt esp8266 stack, use this option to enable and fix it
+        if needed
 
 choice MQTT_THERMOSTAT_ID_CIRCUIT_OPTIMIZER
    bool "Id of thermostat handling circuit optimisation"

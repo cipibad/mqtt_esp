@@ -1,5 +1,6 @@
+#include "esp_system.h"
+#ifdef CONFIG_TARGET_DEVICE_ESP8266
 #include <string.h>
-
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
@@ -85,3 +86,4 @@ void wifi_init(void)
   ESP_LOGI(TAG, "Waiting for wifi");
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
 }
+#endif //CONFIG_TARGET_DEVICE_ESP8266

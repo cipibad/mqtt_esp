@@ -342,6 +342,7 @@ void publish_thermostat_data()
   publish_all_thermostats_action_evt();
 }
 
+#if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 void publish_thermostat_notification_evt(const char* msg)
 {
   const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/notification/thermostat";
@@ -361,6 +362,7 @@ void publish_normal_thermostat_notification(enum ThermostatState state,
 
   publish_thermostat_notification_evt(data);
 }
+#endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
 void disableThermostat(const char * reason)
 {
@@ -368,7 +370,9 @@ void disableThermostat(const char * reason)
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
 
   publish_all_normal_thermostats_action_evt();
+#if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
   publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
+#endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat disabled");
@@ -380,12 +384,15 @@ void enableThermostat(const char * reason)
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
 
   publish_all_normal_thermostats_action_evt();
+#if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
   publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
+#endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   thermostatDuration = 0;
   ESP_LOGI(TAG, "thermostat enabled");
 }
 
+#if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 void publish_circuit_thermostat_notification(enum HeatingState state,
                                              unsigned int duration)
 {
@@ -398,13 +405,16 @@ void publish_circuit_thermostat_notification(enum HeatingState state,
 
   publish_thermostat_notification_evt(data);
 }
+#endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
 void enableHeating()
 {
   heatingState = HEATING_STATE_ENABLED;
 
   publish_all_circuit_thermostats_action_evt();
+#if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
   publish_circuit_thermostat_notification(heatingState, heatingDuration);
+#endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
   ESP_LOGI(TAG, "heating enabled");
@@ -415,7 +425,9 @@ void disableHeating()
   heatingState = HEATING_STATE_IDLE;
 
   publish_all_circuit_thermostats_action_evt();
+#if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
   publish_circuit_thermostat_notification(heatingState, heatingDuration);
+#endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
   ESP_LOGI(TAG, "heating2 disabled");
