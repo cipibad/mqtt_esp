@@ -299,7 +299,7 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_MQTT_SENSOR_BME280
 
-      vTaskDelay(60000 / portTICK_PERIOD_MS);
+      vTaskDelay(CONFIG_MQTT_SENSOR_READING_PERIOD * 1000 / portTICK_PERIOD_MS);
     }
 }
 

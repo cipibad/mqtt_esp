@@ -68,6 +68,13 @@ config MQTT_SENSOR
     help
         Enable sensor support
 
+config MQTT_SENSOR_READING_PERIOD
+    int "Sensor reading period"
+    default 60
+    depends on MQTT_SENSOR
+    help
+        Sensor reading period(in seconds)
+
 config MQTT_SENSOR_DHT22
     boolean "enable DHT22 sensor"
     default n
@@ -246,6 +253,13 @@ config MQTT_THERMOSTAT_RELAY_ID
    depends on MQTT_THERMOSTATS_NB > 0
    help
        Thermostat relay id
+
+config MQTT_THERMOSTATS_TICK_PERIOD
+   int "Interval on which the thermostat action happens"
+   default 60
+   depends on MQTT_THERMOSTATS_NB > 0
+   help
+       Interval on which the thermostat action happens(in seconds)
 
 config MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
    bool "Enable thermostat notifications"
