@@ -642,8 +642,8 @@ void handle_thermostat_cmd_task(void* pvParameters)
 
   //create period read timer
   TimerHandle_t th =
-    xTimerCreate( "thermostatSensorsTimer",           /* Text name. */
-                  pdMS_TO_TICKS(60000),  /* Period. */
+    xTimerCreate( "thermostatLifeTickTimer",           /* Text name. */
+                  pdMS_TO_TICKS(CONFIG_MQTT_THERMOSTATS_TICK_PERIOD * 1000),  /* Period. */
                   pdTRUE,                /* Autoreload. */
                   (void *)0,                  /* No ID. */
                   vThermostatTimerCallback );  /* Callback function. */
