@@ -157,7 +157,7 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   };
 
 
-extern const char mqtt_iot_cipex_ro_pem_start[] asm("_binary_mqtt_iot_cipex_ro_pem_start");
+extern const char cert_bundle_pem_start[] asm("_binary_cert_bundle_pem_start");
 
 unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
 {
@@ -680,7 +680,7 @@ void mqtt_init_and_start()
   const esp_mqtt_client_config_t mqtt_cfg = {
     .uri = "mqtts://" CONFIG_MQTT_USERNAME ":" CONFIG_MQTT_PASSWORD "@" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
     .event_handle = mqtt_event_handler,
-    .cert_pem = (const char *)mqtt_iot_cipex_ro_pem_start,
+    .cert_pem = (const char *)cert_bundle_pem_start,
     .client_id = CONFIG_MQTT_CLIENT_ID,
     .lwt_topic = available_topic,
     .lwt_msg = lwtmsg,

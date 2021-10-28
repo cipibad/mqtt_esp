@@ -24,7 +24,7 @@ static const char *TAG = "MQTTS_OTA";
 
 extern QueueHandle_t otaQueue;
 
-extern const uint8_t server_cert_pem_start[] asm("_binary_sw_iot_cipex_ro_pem_start");
+extern const uint8_t server_cert_pem_start[] asm("_binary_cert_bundle_pem_start");
 
 #define BUFFSIZE 1024
 /*an ota data write buffer ready to write to the flash*/
