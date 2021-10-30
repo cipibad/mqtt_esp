@@ -491,6 +491,11 @@ bool not_heating()
         currentTemperature_1 >= currentTemperature[circuitThermostatId]) {
       not_heating = true;
     }
+
+    //>decrease > 0.5 degree C means no longer heating but pump is working
+    if (currentTemperature_1 - currentTemperature[circuitThermostatId] > 5) {
+      not_heating = true;
+    }
   }
   return not_heating;
 }
