@@ -77,4 +77,4 @@ int esp_reset_reason()
 
 void * thermostatQueue;
 void * mqttQueue;
-void * _binary_mqtt_iot_cipex_ro_pem_start;
+void * _binary_cert_bundle_pem_start;
