@@ -13,18 +13,42 @@ config TARGET_DEVICE_ESP8266
    bool "ESP8266/sonoffbasic/sonoff plug/sonoff wall switch"
 endchoice
 
+choice WIFI_MODE
+   bool "Wifi mode"
+   default WIFI_MODE_STATION
+   help
+       Wifi mode, can be station on mixed
+config WIFI_MODE_STATION
+   bool "Wifi station only mode"
+config WIFI_MODE_MIXED
+   bool "Wifi mixed mode: station and AP(esp8266 only)"
+endchoice
 
 config WIFI_SSID
     string "WiFi SSID"
     default "myssid"
     help
-        SSID (network name) for the example to connect to.
+        SSID (network name) to connect to.
 
 config WIFI_PASSWORD
     string "WiFi Password"
     default "mypassword"
     help
-        WiFi password (WPA or WPA2) for the example to use.
+        WiFi password (WPA or WPA2) to use.
+
+config WIFI_AP_SSID
+    string "WiFi AP SSID"
+    default "myapssid"
+    depends on WIFI_MODE_MIXED
+    help
+        SSID (network name) for Acces Point mode.
+
+config WIFI_AP_PASSWORD
+    string "WiFi AP Password"
+    default "myappassword"
+    depends on WIFI_MODE_MIXED
+    help
+        WiFi password for Acces Point mode.
 
 config MQTT_USERNAME
     string "Mqtt Username"
