@@ -207,7 +207,14 @@ void app_main(void)
     mqtt_init_and_start();
 
 #ifdef CONFIG_MQTT_OPS
-    xTaskCreate(ops_pub_task, "ops_pub_task", configMINIMAL_STACK_SIZE * 2, NULL, 5, NULL);
+  #ifdef CONFIG_TARGET_DEVICE_ESP32
+    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 4)
+  #endif //CONFIG_TARGET_DEVICE_ESP32
+  #ifdef CONFIG_TARGET_DEVICE_ESP8266
+    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 2)
+  #endif //CONFIG_TARGET_DEVICE_ESP8266
+
+    xTaskCreate(ops_pub_task, "ops_pub_task", OPS_PUB_TASK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
 
 #ifdef CONFIG_MQTT_SCHEDULERS

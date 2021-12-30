@@ -5,3 +5,4 @@
 *.gcno
 *.o
 test-host/test_mqtt_esp
+main/version.h

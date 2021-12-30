@@ -7,6 +7,8 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 
+#include "version.h"
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -88,8 +90,6 @@ const int MQTT_PUBLISHED_BIT = BIT2;
 const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
-
-#define FW_VERSION "0.02.12u"
 
 extern QueueHandle_t mqttQueue;
 extern SemaphoreHandle_t xSemaphore;
