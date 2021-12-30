@@ -17,7 +17,6 @@
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
 #include "app_thermostat.h"
-extern QueueHandle_t thermostatQueue;
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #include "app_mqtt.h"
@@ -60,23 +59,6 @@ int32_t bme280_humidity;
 #endif //CONFIG_MQTT_SENSOR_BME280
 
 static const char *TAG = "app_sensors";
-
-#if CONFIG_MQTT_THERMOSTATS_NB > 0
-void thermostat_publish_local_data(int thermostat_id, int value)
-{
-  struct ThermostatMessage tm;
-  memset(&tm, 0, sizeof(struct ThermostatMessage));
-  tm.msgType = THERMOSTAT_CURRENT_TEMPERATURE;
-  tm.thermostatId = thermostat_id;
-  tm.data.currentTemperature = value;
-
-  if (xQueueSend( thermostatQueue
-                  ,( void * )&tm
-                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
-  }
-}
-#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
