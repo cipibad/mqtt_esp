@@ -2,7 +2,10 @@
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 
+
+SemaphoreHandle_t xSemaphore;
 
 void update_relay_status(int id, char value)
 {}
@@ -21,6 +24,12 @@ BaseType_t xTimerStart( TimerHandle_t xTimer, const TickType_t xTicksToWait )
 {}
 
 BaseType_t xQueueReceive( QueueHandle_t xQueue, void * const pvBuffer, TickType_t xTicksToWait)
+{}
+
+BaseType_t xQueueSemaphoreTake( QueueHandle_t xQueue, TickType_t xTicksToWait )
+{}
+
+BaseType_t xQueueGenericSend( QueueHandle_t xQueue, const void * const pvItemToQueue, TickType_t xTicksToWait, const BaseType_t xCopyPosition )
 {}
 
 esp_err_t write_nvs_integer(const char * tag, int value)
