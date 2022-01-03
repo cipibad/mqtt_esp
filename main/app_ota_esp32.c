@@ -32,7 +32,7 @@ static char ota_write_data[BUFFSIZE + 1] = { 0 };
 
 void publish_ota_data(int status)
 {
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ota";
   char data[256];
   memset(data,0,256);
 
@@ -69,7 +69,7 @@ void handle_ota_update_task(void* pvParameters)
   ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
            running->type, running->subtype, running->address);
   struct OtaMessage o;
-  char * url = "https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin";
+  char * url = "https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin";
 
   while(1) {
     if( xQueueReceive( otaQueue, &o , portMAX_DELAY) )

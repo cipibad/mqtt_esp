@@ -174,7 +174,7 @@ void publish_thermostat_current_temperature_evt(int id)
   if (currentTemperature[id] == SHRT_MIN)
     return;
 
-  const char * thermostat_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ctemp/thermostat";
+  const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ctemp/thermostat";
 
   char data[16];
   memset(data,0,16);
@@ -199,7 +199,7 @@ void publish_all_thermostats_current_temperature_evt()
 
 void publish_thermostat_target_temperature_evt(int id)
 {
-  const char * thermostat_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/temp/thermostat";
+  const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/temp/thermostat";
 
   char data[16];
   memset(data,0,16);
@@ -222,7 +222,7 @@ void publish_all_thermostats_target_temperature_evt()
 
 void publish_thermostat_temperature_tolerance_evt(int id)
 {
-  const char * thermostat_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/tolerance/thermostat";
+  const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/tolerance/thermostat";
 
   char data[16];
   memset(data,0,16);
@@ -245,7 +245,7 @@ void publish_all_thermostats_temperature_tolerance_evt()
 
 void publish_thermostat_mode_evt(int id)
 {
-  const char * thermostat_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/mode/thermostat";
+  const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/mode/thermostat";
 
   char data[16];
   memset(data,0,16);
@@ -303,7 +303,7 @@ void get_circuit_thermostat_action(char * data, int id)
 
 void publish_thermostat_action_evt(int id)
 {
-  const char * thermostat_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/action/thermostat";
+  const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/action/thermostat";
 
   char data[16];
   memset(data,0,16);
@@ -360,7 +360,7 @@ void publish_thermostat_data()
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 void publish_thermostat_notification_evt(const char* msg)
 {
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/notification/thermostat";
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/notification/thermostat";
   mqtt_publish_data(topic, msg, QOS_0, NO_RETAIN);
 }
 

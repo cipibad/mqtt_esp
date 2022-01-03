@@ -35,7 +35,7 @@ extern QueueHandle_t otaQueue;
 
 #define EXAMPLE_SERVER_IP "sw.iot.cipex.ro"
 #define EXAMPLE_SERVER_PORT "8910"
-#define EXAMPLE_FILENAME "/"CONFIG_MQTT_CLIENT_ID".bin"
+#define EXAMPLE_FILENAME "/"CONFIG_CLIENT_ID".bin"
 #define BUFFSIZE 1500
 #define TEXT_BUFFSIZE 1024
 
@@ -455,7 +455,7 @@ void handle_ota_update_task(void *pvParameters)
 
 void publish_ota_data(int status)
 {
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ota";
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ota";
   char data[256];
   memset(data,0,256);
 

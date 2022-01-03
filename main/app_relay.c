@@ -96,7 +96,7 @@ void relays_init()
 
 void publish_relay_status(int id)
 {
-  const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/status/relay";
+  const char * relays_topic = CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/evt/status/relay";
   char data[16];
   memset(data,0,16);
   sprintf(data, "%s", relayStatus[id] == RELAY_ON ? "ON" : "OFF");
@@ -110,7 +110,7 @@ void publish_relay_status(int id)
 
 void publish_relay_timeout(int id)
 {
-  const char * relays_topic = CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/evt/sleep/relay";
+  const char * relays_topic = CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/evt/sleep/relay";
   char data[16];
   memset(data,0,16);
   sprintf(data, "%d", relaySleepTimeout[id]);

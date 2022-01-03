@@ -16,7 +16,7 @@ static const char *TAG = "MQTTS_OPS";
 
 void publish_ops_data()
 {
-  const char * topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/ops";
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ops";
   char data[64];
   memset(data,0,64);
 
