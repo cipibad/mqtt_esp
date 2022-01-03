@@ -21,9 +21,9 @@
 #include "app_switch.h"
 #endif //CONFIG_MQTT_SWITCHES_NB
 
-#ifdef CONFIG_MQTT_SENSOR
+#ifdef CONFIG_SENSOR_SUPPORT
 #include "app_sensors.h"
-#endif //CONFIG_MQTT_SENSOR
+#endif //CONFIG_SENSOR_SUPPORT
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
 #include "app_thermostat.h"
@@ -185,7 +185,7 @@ void app_main(void)
     ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
   } else {
 
-#ifdef CONFIG_MQTT_SENSOR
+#ifdef CONFIG_SENSOR_SUPPORT
   #ifdef CONFIG_TARGET_DEVICE_ESP32
     #define SENSORS_READ_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 9)
   #endif //CONFIG_TARGET_DEVICE_ESP32
@@ -194,8 +194,7 @@ void app_main(void)
   #endif //CONFIG_TARGET_DEVICE_ESP8266
 
     xTaskCreate(sensors_read, "sensors_read", SENSORS_READ_TASK_STACK_SIZE, NULL, 10, NULL);
-#endif //CONFIG_MQTT_SENSOR
-
+#endif //CONFIG_SENSOR_SUPPORT
 
 #if CONFIG_MQTT_RELAYS_NB
     xTaskCreate(handle_relay_task, "handle_relay_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);

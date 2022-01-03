@@ -1,6 +1,6 @@
 #!/bin/sh
 
-clientid=`grep CONFIG_MQTT_CLIENT_ID sdkconfig | cut -d '"' -f 2`
+clientid=`grep CONFIG_CLIENT_ID sdkconfig | cut -d '"' -f 2`
 flash_size=`grep CONFIG_ESPTOOLPY_FLASHSIZE= sdkconfig | cut -d '"' -f 2`
 
 if [ "$flash_size" = "1MB" ]; then

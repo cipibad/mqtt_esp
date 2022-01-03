@@ -53,7 +53,7 @@ extern QueueHandle_t relayQueue;
 
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
-#define OTA_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/ota"
+#define OTA_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/ota"
 #define OTA_TOPICS_NB 1
 
 #else // CONFIG_MQTT_OTA
@@ -68,7 +68,7 @@ extern QueueHandle_t otaQueue;
 extern QueueHandle_t thermostatQueue;
 
 #define THERMOSTAT_TOPICS_NB 1
-#define CMD_THERMOSTAT_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/thermostat/+"
+#define CMD_THERMOSTAT_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/+/thermostat/+"
 
 #else // CONFIG_MQTT_THERMOSTATS_NB > 0
 
@@ -80,8 +80,8 @@ esp_mqtt_client_handle_t client = NULL;
 int connect_reason;
 const int mqtt_disconnect = 33; //32+1
 
-const char * available_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/status/available";
-const char * config_topic = CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/evt/config/available";
+const char * available_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/status/available";
+const char * config_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/config/available";
 
 EventGroupHandle_t mqtt_event_group;
 const int MQTT_CONNECTED_BIT = BIT0;
@@ -124,9 +124,9 @@ static const char *TAG = "MQTTS_MQTTS";
 
 #define NB_SUBSCRIPTIONS  (OTA_TOPICS_NB + THERMOSTAT_TOPICS_NB + RELAYS_TOPICS_NB + SCHEDULER_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS)
 
-#define CMD_RELAY_TOPIC CONFIG_MQTT_DEVICE_TYPE "/" CONFIG_MQTT_CLIENT_ID "/cmd/+/relay/+"
+#define CMD_RELAY_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/+/relay/+"
 
-#define SCHEDULER_CFG_TOPIC CONFIG_MQTT_DEVICE_TYPE"/"CONFIG_MQTT_CLIENT_ID"/cfg/scheduler/"
+#define SCHEDULER_CFG_TOPIC CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/cfg/scheduler/"
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -242,7 +242,7 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
 {
 #ifdef CONFIG_MQTT_OTA
   if (strncmp(event->topic, OTA_TOPIC, strlen(OTA_TOPIC)) == 0) {
-    struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_MQTT_CLIENT_ID ".bin"};
+    struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
                     ,( void * )&o
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
@@ -681,7 +681,7 @@ void mqtt_init_and_start()
     .uri = "mqtts://" CONFIG_MQTT_USERNAME ":" CONFIG_MQTT_PASSWORD "@" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
     .event_handle = mqtt_event_handler,
     .cert_pem = (const char *)cert_bundle_pem_start,
-    .client_id = CONFIG_MQTT_CLIENT_ID,
+    .client_id = CONFIG_CLIENT_ID,
     .lwt_topic = available_topic,
     .lwt_msg = lwtmsg,
     .lwt_qos = 1,
@@ -717,10 +717,10 @@ void handle_mqtt_sub_pub(void* pvParameters)
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 #ifdef CONFIG_MQTT_OTA
         publish_ota_data(OTA_READY);
-#endif //CONFIG_MQTT_OTA
-#ifdef CONFIG_MQTT_SENSOR
+#endif // CONFIG_MQTT_OTA
+#ifdef CONFIG_SENSOR_SUPPORT
         publish_sensors_data();
-#endif//
+#endif // CONFIG_SENSOR_SUPPORT
       }
   }
 }

@@ -14,6 +14,7 @@ typedef enum {
     MQTT_EVENT_UNSUBSCRIBED,
     MQTT_EVENT_PUBLISHED,
     MQTT_EVENT_DATA,
+    MQTT_EVENT_BEFORE_CONNECT,
 } esp_mqtt_event_id_t;
 
 
