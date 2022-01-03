@@ -49,6 +49,10 @@ QueueHandle_t otaQueue;
 #include "app_ops.h"
 #endif // CONFIG_MQTT_OPS
 
+#ifdef CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+#include "app_coap_server.h"
+#endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
 
@@ -182,7 +186,14 @@ void app_main(void)
   } else {
 
 #ifdef CONFIG_MQTT_SENSOR
-    xTaskCreate(sensors_read, "sensors_read", configMINIMAL_STACK_SIZE * 9, NULL, 10, NULL);
+  #ifdef CONFIG_TARGET_DEVICE_ESP32
+    #define SENSORS_READ_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 9)
+  #endif //CONFIG_TARGET_DEVICE_ESP32
+  #ifdef CONFIG_TARGET_DEVICE_ESP8266
+    #define SENSORS_READ_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+  #endif //CONFIG_TARGET_DEVICE_ESP8266
+
+    xTaskCreate(sensors_read, "sensors_read", SENSORS_READ_TASK_STACK_SIZE, NULL, 10, NULL);
 #endif //CONFIG_MQTT_SENSOR
 
 
@@ -199,8 +210,22 @@ void app_main(void)
 #endif //CONFIG_MQTT_OTA
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
-  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", configMINIMAL_STACK_SIZE * 9, NULL, 5, NULL);
+  #ifdef CONFIG_TARGET_DEVICE_ESP32
+    #define THERMOSTAT_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 9)
+  #endif //CONFIG_TARGET_DEVICE_ESP32
+  #ifdef CONFIG_TARGET_DEVICE_ESP8266
+    #define THERMOSTAT_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+  #endif //CONFIG_TARGET_DEVICE_ESP8266
+
+  xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", THERMOSTAT_TASK_STACK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
+#ifdef CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+    xTaskCreate(coap_server_thread, "coap_server", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+
+
+
     xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 
     wifi_init();

@@ -90,6 +90,8 @@ esp_err_t read_thermostat_nvs(const char * tag, int * value);
 void handle_thermostat_cmd_task(void* pvParameters);
 void read_nvs_thermostat_data(void);
 
+void thermostat_publish_local_data(int thermostat_id, int value);
+
 #define SENSOR_LIFETIME 10
 
 #endif /* APP_THERMOSTAT_H */

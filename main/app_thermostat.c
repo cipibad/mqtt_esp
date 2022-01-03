@@ -154,6 +154,21 @@ extern QueueHandle_t thermostatQueue;
 
 static const char *TAG = "APP_THERMOSTAT";
 
+void thermostat_publish_local_data(int thermostat_id, int value)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = THERMOSTAT_CURRENT_TEMPERATURE;
+  tm.thermostatId = thermostat_id;
+  tm.data.currentTemperature = value;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
 void publish_thermostat_current_temperature_evt(int id)
 {
   if (currentTemperature[id] == SHRT_MIN)
