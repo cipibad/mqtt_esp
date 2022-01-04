@@ -9,7 +9,7 @@
 using HippoMocks::CString;
 
 extern "C" {
-#include "app_mqtt.h"
+#include "app_publish_data.h"
 }
 
 extern "C" {
@@ -40,7 +40,7 @@ TEST_CASE("publish_thermostat_current_temperature_evt_valid", "[tag]" ) {
   const char* mqtt_data = "10.5";
   currentTemperature[0] = 105;
   currentTemperatureFlag[0] = 1;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_current_temperature_evt(0);
 }
@@ -48,7 +48,7 @@ TEST_CASE("publish_thermostat_current_temperature_evt_valid", "[tag]" ) {
 TEST_CASE("publish_thermostat_current_temperature_evt_invalid", "[tag]" ) {
   MockRepository mocks;
   currentTemperature[0] = SHRT_MIN;
-  mocks.NeverCallFunc(mqtt_publish_data);
+  mocks.NeverCallFunc(publish_persistent_data);
 
   publish_thermostat_current_temperature_evt(0);
 }
@@ -58,7 +58,7 @@ TEST_CASE("publish_thermostat_target_temperature_evt", "[tag]" ) {
   const char* topic = "device_type/client_id/evt/temp/thermostat/0";
   const char* mqtt_data = "12.5";
   targetTemperature[0] = 125;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_target_temperature_evt(0);
 }
@@ -68,7 +68,7 @@ TEST_CASE("publish_thermostat_temperature_tolerance_evt", "[tag]" ) {
   const char* topic = "device_type/client_id/evt/tolerance/thermostat/0";
   const char* mqtt_data = "0.3";
   temperatureTolerance[0] = 3;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_temperature_tolerance_evt(0);
 }
@@ -78,7 +78,7 @@ TEST_CASE("publish_thermostat_mode_evt_unset", "[tag]" ) {
   const char* topic = "device_type/client_id/evt/mode/thermostat/0";
   const char* mqtt_data = "off";
   thermostatMode[0] = THERMOSTAT_MODE_UNSET;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_mode_evt(0);
 }
@@ -88,7 +88,7 @@ TEST_CASE("publish_thermostat_mode_evt_off", "[tag]" ) {
   const char* topic = "device_type/client_id/evt/mode/thermostat/0";
   const char* mqtt_data = "off";
   thermostatMode[0] = THERMOSTAT_MODE_OFF;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_mode_evt(0);
 }
@@ -98,7 +98,7 @@ TEST_CASE("publish_thermostat_mode_evt_heat", "[tag]" ) {
   const char* topic = "device_type/client_id/evt/mode/thermostat/0";
   const char* mqtt_data = "heat";
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_mode_evt(0);
 }
@@ -109,7 +109,7 @@ TEST_CASE("publish_normal_thermostat_action_evt_unset", "[tag]" ) {
   const char* mqtt_data = "off";
   thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatMode[0] = THERMOSTAT_MODE_UNSET;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -120,7 +120,7 @@ TEST_CASE("publish_normal_thermostat_action_evt_off", "[tag]" ) {
   const char* mqtt_data = "off";
   thermostatMode[0] = THERMOSTAT_MODE_OFF;
   thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -132,7 +132,7 @@ TEST_CASE("publish_normal_thermostat_action_evt_heat_idle", "[tag]" ) {
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
   thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatState = THERMOSTAT_STATE_IDLE;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -144,7 +144,7 @@ TEST_CASE("publish_normal_thermostat_action_evt_heat_heating", "[tag]" ) {
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
   thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatState = THERMOSTAT_STATE_HEATING;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -155,7 +155,7 @@ TEST_CASE("publish_circuit_thermostat_action_evt_unset", "[tag]" ) {
   const char* mqtt_data = "off";
   thermostatMode[0] = THERMOSTAT_MODE_UNSET;
   thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -166,7 +166,7 @@ TEST_CASE("publish_circuit_thermostat_action_evt_off", "[tag]" ) {
   const char* mqtt_data = "off";
   thermostatMode[0] = THERMOSTAT_MODE_OFF;
   thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -178,7 +178,7 @@ TEST_CASE("publish_circuit_thermostat_action_evt_heat_idle", "[tag]" ) {
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
   thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
   heatingState = HEATING_STATE_IDLE;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -190,7 +190,7 @@ TEST_CASE("publish_circuit_thermostat_action_evt_heat_heating", "[tag]" ) {
   thermostatMode[0] = THERMOSTAT_MODE_HEAT;
   thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
   heatingState = HEATING_STATE_ENABLED;
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(topic), CString(mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(topic), CString(mqtt_data));
 
   publish_thermostat_action_evt(0);
 }
@@ -205,8 +205,8 @@ TEST_CASE("publish_normal_thermostat_notification_on", "[tag]" ) {
   thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatState = THERMOSTAT_STATE_HEATING;
 
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
   publish_normal_thermostat_notification(thermostatState, 10, "some reason");
   publish_thermostat_action_evt(0);
@@ -222,8 +222,8 @@ TEST_CASE("publish_normal_thermostat_notification_off", "[tag]" ) {
   thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
   thermostatState = THERMOSTAT_STATE_IDLE;
 
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
   publish_normal_thermostat_notification(thermostatState, 10, "some reason");
   publish_thermostat_action_evt(0);
@@ -240,8 +240,8 @@ TEST_CASE("publish_circuit_thermostat_notification_off", "[tag]" ) {
   thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
   heatingState = HEATING_STATE_IDLE;
 
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
   publish_circuit_thermostat_notification(heatingState, 10);
   publish_thermostat_action_evt(0);
@@ -256,8 +256,8 @@ TEST_CASE("publish_circuit_thermostat_notification_on", "[tag]" ) {
   thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
   heatingState = HEATING_STATE_ENABLED;
 
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(notification_topic), CString(notification_mqtt_data), QOS_0, NO_RETAIN);
-  mocks.ExpectCallFunc(mqtt_publish_data).With(CString(action_topic), CString(action_mqtt_data), QOS_1, RETAIN);
+  mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
+  mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
   publish_circuit_thermostat_notification(heatingState, 10);
   publish_thermostat_action_evt(0);

@@ -1,4 +1,6 @@
 #include "esp_system.h"
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
+
 #include "esp_log.h"
 #include "esp_wifi.h"
 
@@ -725,4 +727,5 @@ void handle_mqtt_sub_pub(void* pvParameters)
   }
 }
 
+#endif // CONFIG_NORTH_INTERFACE_MQTT
 

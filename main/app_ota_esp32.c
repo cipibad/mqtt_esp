@@ -18,7 +18,7 @@
 
 #include "app_main.h"
 #include "app_ota.h"
-#include "app_mqtt.h"
+#include "app_publish_data.h"
 
 static const char *TAG = "MQTTS_OTA";
 
@@ -38,8 +38,7 @@ void publish_ota_data(int status)
 
   sprintf(data, "{\"status\":%d}", status);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
-
+  publish_persistent_data(topic, data);
 }
 
 static void http_cleanup(esp_http_client_handle_t client)

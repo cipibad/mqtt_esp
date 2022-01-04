@@ -16,7 +16,9 @@
 #include "app_relay.h"
 #include "app_thermostat.h"
 #include "app_nvs.h"
-#include "app_mqtt.h"
+#include "app_publish_data.h"
+
+#define QUEUE_TIMEOUT (60 * 1000 / portTICK_PERIOD_MS)
 
 enum ThermostatState thermostatState = THERMOSTAT_STATE_IDLE;
 unsigned int thermostatDuration = 0;
@@ -164,7 +166,7 @@ void thermostat_publish_local_data(int thermostat_id, int value)
 
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
-                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                  ,QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send to thermostatQueue");
   }
 }
@@ -182,11 +184,11 @@ void publish_thermostat_current_temperature_evt(int id)
           currentTemperature[id] > 0 ? currentTemperature[id] / 10 : 0,
           currentTemperature[id] > 0 ? abs(currentTemperature[id] % 10) : 0);
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", thermostat_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 
 void publish_all_thermostats_current_temperature_evt()
@@ -205,11 +207,11 @@ void publish_thermostat_target_temperature_evt(int id)
   memset(data,0,16);
   sprintf(data, "%d.%d", targetTemperature[id] / 10, abs(targetTemperature[id] % 10));
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", thermostat_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 
 void publish_all_thermostats_target_temperature_evt()
@@ -228,11 +230,11 @@ void publish_thermostat_temperature_tolerance_evt(int id)
   memset(data,0,16);
   sprintf(data, "%d.%d", temperatureTolerance[id] / 10, abs(temperatureTolerance[id] % 10));
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", thermostat_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 
 void publish_all_thermostats_temperature_tolerance_evt()
@@ -251,11 +253,11 @@ void publish_thermostat_mode_evt(int id)
   memset(data,0,16);
   sprintf(data, "%s", thermostatMode[id] == THERMOSTAT_MODE_HEAT ? "heat" : "off");
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", thermostat_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 
 void publish_all_thermostats_mode_evt()
@@ -313,11 +315,11 @@ void publish_thermostat_action_evt(int id)
     get_circuit_thermostat_action(data, id);
   }
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", thermostat_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 
 void publish_all_normal_thermostats_action_evt()
@@ -361,7 +363,7 @@ void publish_thermostat_data()
 void publish_thermostat_notification_evt(const char* msg)
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/notification/thermostat";
-  mqtt_publish_data(topic, msg, QOS_0, NO_RETAIN);
+  publish_non_persistent_data(topic, msg);
 }
 
 void publish_normal_thermostat_notification(enum ThermostatState state,
@@ -633,7 +635,7 @@ void vThermostatTimerCallback( TimerHandle_t xTimer )
   t.msgType = THERMOSTAT_LIFE_TICK;
   if (xQueueSend( thermostatQueue,
                   ( void * )&t,
-                  MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                  QUEUE_TIMEOUT) != pdPASS) {
   }
 }
 

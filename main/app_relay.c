@@ -13,9 +13,12 @@
 #include "app_relay.h"
 #include "app_nvs.h"
 
-#include "app_mqtt.h"
+#include "app_publish_data.h"
 
 #if CONFIG_MQTT_RELAYS_NB
+
+#define QUEUE_TIMEOUT (60 * 1000 / portTICK_PERIOD_MS)
+
 
 int relayStatus[CONFIG_MQTT_RELAYS_NB];
 int relaySleepTimeout[CONFIG_MQTT_RELAYS_NB];
@@ -73,7 +76,7 @@ void vTimerCallback( TimerHandle_t xTimer )
   struct RelayMessage r = {RELAY_CMD_STATUS, id, RELAY_STATUS_OFF};
   if (xQueueSend( relayQueue
                   ,( void * )&r
-                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                  ,QUEUE_TIMEOUT) != pdPASS) {
     ESP_LOGE(TAG, "Cannot send to relayQueue");
   }
 }
@@ -101,11 +104,11 @@ void publish_relay_status(int id)
   memset(data,0,16);
   sprintf(data, "%s", relayStatus[id] == RELAY_ON ? "ON" : "OFF");
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", relays_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 
 void publish_relay_timeout(int id)
@@ -115,13 +118,12 @@ void publish_relay_timeout(int id)
   memset(data,0,16);
   sprintf(data, "%d", relaySleepTimeout[id]);
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%d", relays_topic, id);
 
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_non_persistent_data(topic, data);
 }
-
 
 void publish_all_relays_status()
 {

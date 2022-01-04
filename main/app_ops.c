@@ -10,7 +10,7 @@
 #include "app_main.h"
 #include "app_ops.h"
 
-#include "app_mqtt.h"
+#include "app_publish_data.h"
 
 static const char *TAG = "MQTTS_OPS";
 
@@ -25,7 +25,7 @@ void publish_ops_data()
           esp_get_minimum_free_heap_size()
           );
 
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_non_persistent_data(topic, data);
 }
 
 

@@ -31,7 +31,7 @@ extern QueueHandle_t otaQueue;
 #include "nvs_flash.h"
 
 #include "app_main.h"
-#include "app_mqtt.h"
+#include "app_publish_data.h"
 
 #define EXAMPLE_SERVER_IP "sw.iot.cipex.ro"
 #define EXAMPLE_SERVER_PORT "8910"
@@ -460,6 +460,6 @@ void publish_ota_data(int status)
   memset(data,0,256);
 
   sprintf(data, "{\"status\":%d}", status);
-  mqtt_publish_data(topic, data, QOS_1, RETAIN);
+  publish_persistent_data(topic, data);
 }
 #endif //CONFIG_TARGET_DEVICE_ESP8266

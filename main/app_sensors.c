@@ -19,7 +19,7 @@
 #include "app_thermostat.h"
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
-#include "app_mqtt.h"
+#include "app_publish_data.h"
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
 #include "dht.h"
@@ -96,7 +96,7 @@ void publish_sensor_data(const char * topic, int value)
   char data[16];
   memset(data,0,16);
   sprintf(data, "%d.%d", value / 10, abs(value % 10));
-  mqtt_publish_data(topic, data, QOS_0, NO_RETAIN);
+  publish_non_persistent_data(topic, data);
 }
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
@@ -126,8 +126,8 @@ void publish_ds18x20_temperature(int sensor_id)
 {
  const char * temperature_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/temperature";
 
-  char topic[MQTT_MAX_TOPIC_LEN];
-  memset(topic,0,MQTT_MAX_TOPIC_LEN);
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
   sprintf(topic, "%s/%08x%08x", temperature_topic,
           (uint32_t)(addrs[sensor_id] >> 32),
           (uint32_t)addrs[sensor_id]);

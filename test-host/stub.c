@@ -87,3 +87,8 @@ int esp_reset_reason()
 void * thermostatQueue;
 void * mqttQueue;
 void * _binary_cert_bundle_pem_start;
+
+void publish_persistent_data(const char * topic, const char * data)
+{}
+void publish_non_persistent_data(const char * topic, const char * data)
+{}

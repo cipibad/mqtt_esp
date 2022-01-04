@@ -113,6 +113,22 @@ menu "MQTT Config"
             Mqtt port
 endmenu # "MQTT CONFIG"
 
+menu "COAP Config"
+    depends on NORTH_INTERFACE_COAP
+
+    config COAP_SERVER
+        string "Coap server"
+        default "192.168.4.1"
+        help
+            Coap server
+
+    config COAP_PORT
+        string "Coap port"
+        default "5684"
+        help
+            Coap port
+endmenu # "Coap CONFIG"
+
 config SENSOR_SUPPORT
     boolean "enable sensor support"
     default n

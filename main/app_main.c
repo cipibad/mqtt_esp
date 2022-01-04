@@ -14,8 +14,16 @@
 #include "app_main.h"
 
 #include "app_wifi.h"
-#include "app_mqtt.h"
 #include "app_nvs.h"
+
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
+#include "app_mqtt.h"
+
+extern EventGroupHandle_t mqtt_event_group;
+extern const int MQTT_CONNECTED_BIT;
+
+#endif // CONFIG_NORTH_INTERFACE_MQTT
+
 
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
@@ -53,14 +61,15 @@ QueueHandle_t otaQueue;
 #include "app_coap_server.h"
 #endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
 
+#ifdef CONFIG_NORTH_INTERFACE_COAP
+#include "app_coap_client.h"
+#endif // CONFIG_NORTH_INTERFACE_COAP
+
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
 
 extern EventGroupHandle_t wifi_event_group;
 extern const int WIFI_CONNECTED_BIT;
-
-extern EventGroupHandle_t mqtt_event_group;
-extern const int MQTT_CONNECTED_BIT;
 
 extern const char * smartconfigTAG;
 extern int smartconfigFlag;
@@ -101,11 +110,14 @@ void blink_task(void *pvParameter)
     }
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_ON);
 
-    bits = xEventGroupGetBits(mqtt_event_group);
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
+  bits = xEventGroupGetBits(mqtt_event_group);
     while ( bits & MQTT_CONNECTED_BIT ) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
       bits = xEventGroupGetBits(mqtt_event_group);
     }
+#endif // CONFIG_NORTH_INTERFACE_MQTT
+
     vTaskDelay(interval / portTICK_PERIOD_MS);
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_OFF);
     vTaskDelay(interval / portTICK_PERIOD_MS);
@@ -130,7 +142,10 @@ void app_main(void)
   // that is called in critical section from DS18X20 driver
   esp_log_level_set("gpio", ESP_LOG_WARN);
 
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
   mqtt_event_group = xEventGroupCreate();
+#endif // CONFIG_NORTH_INTERFACE_MQTT
+
   wifi_event_group = xEventGroupCreate();
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
@@ -223,12 +238,16 @@ void app_main(void)
     xTaskCreate(coap_server_thread, "coap_server", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
 
+#ifdef CONFIG_NORTH_INTERFACE_COAP
+    xTaskCreate(coap_client_thread, "coap_client", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_NORTH_INTERFACE_COAP
 
-
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
     xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    mqtt_init_and_start();
+#endif // CONFIG_NORTH_INTERFACE_MQTT
 
     wifi_init();
-    mqtt_init_and_start();
 
 #ifdef CONFIG_MQTT_OPS
   #ifdef CONFIG_TARGET_DEVICE_ESP32
