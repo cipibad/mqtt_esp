@@ -22,8 +22,9 @@
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_CONNECTED_BIT;
 
+QueueHandle_t mqttQueue;
+SemaphoreHandle_t xSemaphore;
 #endif // CONFIG_NORTH_INTERFACE_MQTT
-
 
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
@@ -63,6 +64,8 @@ QueueHandle_t otaQueue;
 
 #ifdef CONFIG_NORTH_INTERFACE_COAP
 #include "app_coap_client.h"
+
+QueueHandle_t coapClientQueue;
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
 #include "app_smart_config.h"
@@ -73,10 +76,6 @@ extern const int WIFI_CONNECTED_BIT;
 
 extern const char * smartconfigTAG;
 extern int smartconfigFlag;
-
-QueueHandle_t mqttQueue;
-
-SemaphoreHandle_t xSemaphore;
 
 static const char *TAG = "MQTT(S?)_MAIN";
 
@@ -136,6 +135,7 @@ void app_main(void)
   esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
   esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
   esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
+  esp_log_level_set("CoAP_client", ESP_LOG_VERBOSE);
 
 
   //otherwise will crash due to ESP_LOG in GPIO function
@@ -164,8 +164,16 @@ void app_main(void)
 #ifdef CONFIG_MQTT_OTA
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
 #endif //CONFIG_MQTT_OTA
+
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
   mqttQueue = xQueueCreate(1, sizeof(void *) );
   xSemaphore = xSemaphoreCreateMutex();
+#endif // CONFIG_NORTH_INTERFACE_MQTT
+
+#ifdef CONFIG_NORTH_INTERFACE_COAP
+  coapClientQueue = xQueueCreate(4, sizeof(struct CoapMessage) );
+#endif // CONFIG_NORTH_INTERFACE_COAP
+
 
   xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
 
@@ -239,7 +247,7 @@ void app_main(void)
 #endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
 
 #ifdef CONFIG_NORTH_INTERFACE_COAP
-    xTaskCreate(coap_client_thread, "coap_client", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    xTaskCreate(coap_client_thread, "coap_client", configMINIMAL_STACK_SIZE * 4, NULL, 5, NULL);
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
