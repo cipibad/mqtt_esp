@@ -144,6 +144,8 @@ void app_main(void)
 
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
   mqtt_event_group = xEventGroupCreate();
+  mqttQueue = xQueueCreate(1, sizeof(void *) );
+  xSemaphore = xSemaphoreCreateMutex();
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
   wifi_event_group = xEventGroupCreate();
@@ -164,11 +166,6 @@ void app_main(void)
 #ifdef CONFIG_MQTT_OTA
   otaQueue = xQueueCreate(1, sizeof(struct OtaMessage) );
 #endif //CONFIG_MQTT_OTA
-
-#ifdef CONFIG_NORTH_INTERFACE_MQTT
-  mqttQueue = xQueueCreate(1, sizeof(void *) );
-  xSemaphore = xSemaphoreCreateMutex();
-#endif // CONFIG_NORTH_INTERFACE_MQTT
 
 #ifdef CONFIG_NORTH_INTERFACE_COAP
   coapClientQueue = xQueueCreate(4, sizeof(struct CoapMessage) );
@@ -242,6 +239,8 @@ void app_main(void)
   xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", THERMOSTAT_TASK_STACK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
+    wifi_init();
+
 #ifdef CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
     xTaskCreate(coap_server_thread, "coap_server", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
@@ -254,8 +253,6 @@ void app_main(void)
     xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
     mqtt_init_and_start();
 #endif // CONFIG_NORTH_INTERFACE_MQTT
-
-    wifi_init();
 
 #ifdef CONFIG_MQTT_OPS
   #ifdef CONFIG_TARGET_DEVICE_ESP32

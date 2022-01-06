@@ -9,7 +9,7 @@ void coap_publish_data(const char * topic,
 
 struct CoapMessage
 {
-  char resource[32];
+  char resource[48];
   char data[16];
 };
 

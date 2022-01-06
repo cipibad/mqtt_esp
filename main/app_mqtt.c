@@ -19,6 +19,7 @@
 #include "app_main.h"
 
 #include "app_sensors.h"
+#include "app_publish_data.h"
 #include "app_mqtt.h"
 
 #include "cJSON.h"
@@ -163,8 +164,8 @@ extern const char cert_bundle_pem_start[] asm("_binary_cert_bundle_pem_start");
 
 unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
 {
-  char fullTopic[MQTT_MAX_TOPIC_LEN];
-  memset(fullTopic,0,MQTT_MAX_TOPIC_LEN);
+  char fullTopic[MAX_TOPIC_LEN];
+  memset(fullTopic, 0, MAX_TOPIC_LEN);
 
   unsigned char topicId = 0;
   bool found = false;

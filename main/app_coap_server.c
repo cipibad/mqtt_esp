@@ -74,7 +74,7 @@ async_handler_put(coap_context_t *ctx, struct coap_resource_t *resource,
             strncpy(uri, (const char *)resource->uri.s, resource->uri.length);
             uri[resource->uri.length] = 0;
             ESP_LOGI(TAG, "hadling path: %s", uri);
-            int value = atoi((const char *)data);
+            int value = atoi((const char *)data) * 10;
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE, 
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE)) == 0) {
