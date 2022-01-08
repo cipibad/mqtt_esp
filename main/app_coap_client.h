@@ -2,6 +2,8 @@
 #define APP_COAP_CLIENT_H
 
 #define COAP_QUEUE_TIMEOUT (60 * 1000 / portTICK_PERIOD_MS)
+#define COAP_MAX_RESOURCE_SIZE 48
+#define COAP_MAX_DATA_SIZE 64
 
 void coap_client_thread(void *p);
 void coap_publish_data(const char * topic,
@@ -9,8 +11,8 @@ void coap_publish_data(const char * topic,
 
 struct CoapMessage
 {
-  char resource[48];
-  char data[16];
+  char resource[COAP_MAX_RESOURCE_SIZE];
+  char data[COAP_MAX_DATA_SIZE];
 };
 
 #endif /* APP_COAP_CLIENT_H */

@@ -33,6 +33,15 @@ extern QueueHandle_t coapClientQueue;
 void coap_publish_data(const char * topic,
                        const char * data)
 {
+    if (strlen(topic) > COAP_MAX_RESOURCE_SIZE - 1) {
+        ESP_LOGW(TAG, "Topic size(%d) is greater than max accepted(%d), cannot send message",
+            strlen(topic), COAP_MAX_RESOURCE_SIZE - 1);
+    }
+    if (strlen(data) > COAP_MAX_DATA_SIZE - 1) {
+    ESP_LOGW(TAG, "Data size(%d) is greater than max accepted(%d), cannot send message",
+        strlen(data), COAP_MAX_DATA_SIZE - 1);
+    }
+
     struct CoapMessage msg;
     strcpy(msg.resource, topic);
     strcpy(msg.data, data);
@@ -44,9 +53,9 @@ void coap_publish_data(const char * topic,
     }
 }
 
-static void message_handler(struct coap_context_t *ctx, const coap_endpoint_t *local_interface, const coap_address_t *remote,
-              coap_pdu_t *sent, coap_pdu_t *received,
-                const coap_tid_t id)
+static void message_handler(struct coap_context_t *ctx, const coap_endpoint_t *local_interface,
+                const coap_address_t *remote, coap_pdu_t *sent,
+                coap_pdu_t *received, const coap_tid_t id)
 {
     unsigned char* data = NULL;
     size_t data_len;
@@ -71,16 +80,33 @@ void coap_client_thread(void *p)
     coap_pdu_t*       request = NULL;
     coap_tid_t tid = COAP_INVALID_TID;
 
-    const int URI_HOSTNAME_SIZE = 32;
-    char uri_hostname[URI_HOSTNAME_SIZE];
-
     const int BUFSIZE = 64;
     unsigned char _buf[BUFSIZE];
     unsigned char *buf;
     size_t buflen;
 
-    char server_uri[URI_HOSTNAME_SIZE + 128];
+    char server_uri[128];
 
+    /* Wait for the callback to set the CONNECTED_BIT in the
+    event group.
+    */
+    xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT,
+                        false, true, portMAX_DELAY);
+    ESP_LOGI(TAG, "AP is connected");
+
+    hp = gethostbyname(CONFIG_COAP_SERVER);
+
+    while (hp == NULL) {
+        ESP_LOGE(TAG, "DNS lookup failed for " CONFIG_COAP_SERVER ", will retry in 10 seconds");
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        continue;
+    }
+
+    /* Code to print the resolved IP.
+
+    Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
+    ip4_addr = (struct ip4_addr *)hp->h_addr;
+    ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*ip4_addr));
 
     while (1) {
         //wait new message on  coapClientQueue
@@ -88,48 +114,20 @@ void coap_client_thread(void *p)
         struct CoapMessage receivedMsg;
         if (xQueueReceive(coapClientQueue, &receivedMsg, timeout_in_seconds)) {
 
-            // ESP_LOGI(TAG, "sending fake message");
-            // strcpy(receivedMsg.resource, "sonoffb/ground59/evt/temperature/dht22");
-            // strcpy(receivedMsg.data, "12345");
-
             strcpy(server_uri, "coap://" CONFIG_COAP_SERVER ":" CONFIG_COAP_PORT "/");
             strcat(server_uri, receivedMsg.resource);
             ESP_LOGI(TAG, "Publishing data: %s to uri: %s", receivedMsg.data, server_uri);
-            
+
             /* Wait for the callback to set the CONNECTED_BIT in the
             event group.
             */
-            
             xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT,
                                 false, true, portMAX_DELAY);
-            ESP_LOGI(TAG, "AP is connected");
 
             if (coap_split_uri((const uint8_t *)server_uri, strlen(server_uri), &uri) == -1) {
                 ESP_LOGE(TAG, "CoAP server uri error");
                 continue;
             }
-
-            if (uri.host.length >= URI_HOSTNAME_SIZE) {
-                ESP_LOGE(TAG, "CoAP server uri host length to big");
-                continue;
-            }
-
-            strncpy(uri_hostname, (const char *)uri.host.s, uri.host.length);
-            uri_hostname[uri.host.length] = 0;
-
-            hp = gethostbyname(uri_hostname);
-
-            if (hp == NULL) {
-                ESP_LOGE(TAG, "DNS lookup failed for %s", uri_hostname);
-                vTaskDelay(1000 / portTICK_PERIOD_MS);
-                continue;
-            }
-
-            /* Code to print the resolved IP.
-
-            Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
-            ip4_addr = (struct ip4_addr *)hp->h_addr;
-            ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*ip4_addr));
 
             coap_address_init(&src_addr);
             src_addr.addr.sin.sin_family      = AF_INET;
@@ -165,15 +163,19 @@ void coap_client_thread(void *p)
                     } else {
                         ESP_LOGI(TAG,"uri.path.length is not set");
                     }
-                
+
                     coap_add_data(request, strlen(receivedMsg.data), (unsigned char *)receivedMsg.data);
 
                     coap_show_pdu(request);
 
                     coap_register_response_handler(ctx, message_handler);
-                    coap_send_confirmed(ctx, ctx->endpoint, &dst_addr, request);
-
                     ESP_LOGI(TAG, "sending coap message");
+                    tid = coap_send_confirmed(ctx, ctx->endpoint, &dst_addr, request);
+                    if (tid == COAP_INVALID_TID) {
+                        ESP_LOGI(TAG,"error sending coap message");
+                        coap_delete_pdu(request);
+                        continue;
+                    }
 
                     flags = fcntl(ctx->sockfd, F_GETFL, 0);
                     fcntl(ctx->sockfd, F_SETFL, flags|O_NONBLOCK);
