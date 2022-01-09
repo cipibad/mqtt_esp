@@ -330,6 +330,20 @@ config MQTT_OPS
     help
         Enable OPS support
 
+config MQTT_OPS_HEAP
+    boolean "enable OPS heap"
+    default n
+    depends on MQTT_OPS
+    help
+        Enable OPS heap support
+
+config MQTT_OPS_STACK
+    boolean "enable OPS stack"
+    default n
+    depends on MQTT_OPS
+    help
+        Enable OPS stack support
+
 config MQTT_THERMOSTATS_NB
     int "number of virtual thermostats"
     default 0

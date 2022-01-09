@@ -3,7 +3,7 @@
 
 #define COAP_QUEUE_TIMEOUT (60 * 1000 / portTICK_PERIOD_MS)
 #define COAP_MAX_RESOURCE_SIZE 48
-#define COAP_MAX_DATA_SIZE 64
+#define COAP_MAX_DATA_SIZE 256
 
 void coap_client_thread(void *p);
 void coap_publish_data(const char * topic,
