@@ -227,6 +227,19 @@ menu "Sensors configuration"
     endmenu # "BME280 sensor"
 endmenu # "Sensors configuration"
 
+config COAP_SERVER_SUPPORT
+    boolean "enable COAP server"
+    default n
+    help
+        Enable COAP server. Needed for COAP proxy or COAP thermostat sensor
+
+config COAP_PROXY_SUPPORT
+    boolean "enable COAP proxy"
+    default n
+    depends on COAP_SERVER_SUPPORT
+    help
+        Enable COAP proxy
+
 config MQTT_RELAYS_NB
     int "number of relays to control"
     default 0
@@ -324,13 +337,6 @@ config MQTT_THERMOSTATS_NB
     help
         Number of virtual thermostats
 
-config MQTT_THERMOSTAT_COAP_SUPPORT
-    boolean "enable COAP support"
-    default n
-    depends on MQTT_THERMOSTATS_NB > 0
-    help
-        Enable COAP temperature sensor support
-
 config MQTT_THERMOSTAT_RELAY_ID
    int "Thermostat Relay Id"
    default 0
@@ -388,7 +394,7 @@ config MQTT_THERMOSTATS_NB0_SENSOR_TYPE_LOCAL
    bool "Local sensor"
 config MQTT_THERMOSTATS_NB0_SENSOR_TYPE_COAP
    bool "Coap sensor"
-   depends on MQTT_THERMOSTAT_COAP_SUPPORT
+   depends on COAP_SERVER_SUPPORT
 endchoice
 
 config MQTT_THERMOSTATS_NB0_MQTT_SENSOR_TOPIC
@@ -430,7 +436,7 @@ config MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
 config MQTT_THERMOSTATS_NB1_SENSOR_TYPE_LOCAL
    bool "Local sensor"
 config MQTT_THERMOSTATS_NB1_SENSOR_TYPE_COAP
-   depends on MQTT_THERMOSTAT_COAP_SUPPORT
+   depends on COAP_SERVER_SUPPORT
    bool "Coap sensor"
 
 endchoice
@@ -475,7 +481,7 @@ config MQTT_THERMOSTATS_NB2_SENSOR_TYPE_LOCAL
    bool "Local sensor"
 config MQTT_THERMOSTATS_NB2_SENSOR_TYPE_COAP
    bool "Coap sensor"
-   depends on MQTT_THERMOSTAT_COAP_SUPPORT
+   depends on COAP_SERVER_SUPPORT
 endchoice
 
 config MQTT_THERMOSTATS_NB2_MQTT_SENSOR_TOPIC
@@ -518,7 +524,7 @@ config MQTT_THERMOSTATS_NB3_SENSOR_TYPE_LOCAL
    bool "Local sensor"
 config MQTT_THERMOSTATS_NB3_SENSOR_TYPE_COAP
    bool "Coap sensor"
-   depends on MQTT_THERMOSTAT_COAP_SUPPORT
+   depends on COAP_SERVER_SUPPORT
 endchoice
 
 config MQTT_THERMOSTATS_NB3_MQTT_SENSOR_TOPIC

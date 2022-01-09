@@ -61,7 +61,9 @@ static void message_handler(struct coap_context_t *ctx, const coap_endpoint_t *l
     size_t data_len;
     if (COAP_RESPONSE_CLASS(received->hdr->code) == 2) {
         if (coap_get_data(received, &data_len, &data)) {
-            ESP_LOGI(TAG, "Received: %s", data);
+            if(data_len) {
+                ESP_LOGI(TAG, "Received: %.*s", data_len, data);
+            }
         }
     }
 }
