@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#ifdef CONFIG_COAP_SERVER
+#ifdef CONFIG_COAP_SERVER_SUPPORT
 
 #include "app_coap_server.h"
 
@@ -208,4 +208,4 @@ void coap_server_thread(void *p)
     vTaskDelete(NULL);
 }
 
-#endif // CONFIG_COAP_SERVER
+#endif // CONFIG_COAP_SERVER_SUPPORT

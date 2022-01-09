@@ -58,9 +58,9 @@ QueueHandle_t otaQueue;
 #include "app_ops.h"
 #endif // CONFIG_MQTT_OPS
 
-#ifdef CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+#ifdef CONFIG_COAP_SERVER_SUPPORT
 #include "app_coap_server.h"
-#endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+#endif // CONFIG_COAP_SERVER_SUPPORT
 
 #ifdef CONFIG_NORTH_INTERFACE_COAP
 #include "app_coap_client.h"
@@ -241,9 +241,9 @@ void app_main(void)
 
     wifi_init();
 
-#ifdef CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+#ifdef CONFIG_COAP_SERVER_SUPPORT
     xTaskCreate(coap_server_thread, "coap_server", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
-#endif // CONFIG_MQTT_THERMOSTAT_COAP_SUPPORT
+#endif // CONFIG_COAP_SERVER_SUPPORT
 
 #ifdef CONFIG_NORTH_INTERFACE_COAP
     xTaskCreate(coap_client_thread, "coap_client", configMINIMAL_STACK_SIZE * 4, NULL, 5, NULL);
