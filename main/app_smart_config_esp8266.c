@@ -156,14 +156,21 @@ void smartconfig_cmd_task(void* pvParameters)
     TickType_t pushTick = 0;
     TickType_t lastRead = 0;
     const TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
+    const TickType_t startupTicks = xTaskGetTickCount();
+
     ESP_LOGI(TAG, "ticksToWait: " TICKS_FORMAT, ticksToWait);
     while (1) {
       if( xQueueReceive( smartconfigQueue, &scm , portMAX_DELAY) )
         {
           ESP_LOGI(TAG, "received switch event at: %d", scm.ticks);
           if (scm.ticks - lastRead < 5) {
-            ESP_LOGI(TAG, "duplicate call, ignored ");
             lastRead = scm.ticks;
+            ESP_LOGI(TAG, "duplicate call, ignored");
+            continue;
+          }
+          if (scm.ticks < startupTicks) {
+            lastRead = scm.ticks;
+            ESP_LOGI(TAG, "ignore signals at startup");
             continue;
           }
           lastRead = scm.ticks;
