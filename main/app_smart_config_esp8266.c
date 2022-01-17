@@ -15,6 +15,8 @@
 #include "app_wifi.h"
 #include "app_nvs.h"
 #include "app_smart_config.h"
+#include "smartconfig_ack.h"
+
 
 #include "app_main.h"
 #include "app_relay.h"
@@ -75,9 +77,19 @@ static void sc_callback(smartconfig_status_t status, void *pdata)
   case SC_STATUS_LINK_OVER:
     ESP_LOGI(TAG, "SC_STATUS_LINK_OVER");
     if (pdata != NULL) {
-      uint8_t phone_ip[4] = { 0 };
-      memcpy(phone_ip, (uint8_t* )pdata, 4);
-      ESP_LOGI(TAG, "Phone ip: %d.%d.%d.%d\n", phone_ip[0], phone_ip[1], phone_ip[2], phone_ip[3]);
+      sc_callback_data_t *sc_callback_data = (sc_callback_data_t *)pdata;
+      switch (sc_callback_data->type) {
+        case SC_ACK_TYPE_ESPTOUCH:
+          ESP_LOGI(TAG, "Phone ip: %d.%d.%d.%d", sc_callback_data->ip[0], sc_callback_data->ip[1], sc_callback_data->ip[2], sc_callback_data->ip[3]);
+          ESP_LOGI(TAG, "TYPE: ESPTOUCH");
+          break;
+        case SC_ACK_TYPE_AIRKISS:
+          ESP_LOGI(TAG, "TYPE: AIRKISS");
+          break;
+        default:
+          ESP_LOGE(TAG, "TYPE: ERROR");
+          break;
+      }
     }
     xEventGroupSetBits(smartconfig_event_group, ESPTOUCH_DONE_BIT);
     break;
@@ -88,15 +100,24 @@ static void sc_callback(smartconfig_status_t status, void *pdata)
 
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
+  /* For accessing reason codes in case of disconnection */
+  system_event_info_t *info = &event->event_info;
+
   switch(event->event_id) {
   case SYSTEM_EVENT_STA_START:
-    ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH) );
+    ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH_AIRKISS) );
     ESP_ERROR_CHECK( esp_smartconfig_start(sc_callback) );
     break;
   case SYSTEM_EVENT_STA_GOT_IP:
     xEventGroupSetBits(smartconfig_event_group, CONNECTED_BIT);
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
+    ESP_LOGE(TAG, "Disconnect reason : %d", info->disconnected.reason);
+    if (info->disconnected.reason == WIFI_REASON_BASIC_RATE_NOT_SUPPORT) {
+        /*Switch to 802.11 bgn mode */
+        esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+    }
+
     esp_wifi_connect();
     xEventGroupClearBits(smartconfig_event_group, CONNECTED_BIT);
     break;
