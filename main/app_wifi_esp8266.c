@@ -101,7 +101,7 @@ void wifi_init(void)
     .ap = {
       .max_connection = 5,
       .ssid = CONFIG_WIFI_AP_SSID,
-      .password = CONFIG_WIFI_PASSWORD,
+      .password = CONFIG_WIFI_AP_PASSWORD,
       .authmode = WIFI_AUTH_WPA_WPA2_PSK,
     },
   };

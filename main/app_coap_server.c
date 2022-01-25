@@ -1,6 +1,7 @@
 #include "esp_system.h"
 #ifdef CONFIG_COAP_SERVER_SUPPORT
 
+#include "app_coap.h"
 #include "app_coap_server.h"
 
 #include "esp_log.h"
@@ -11,6 +12,9 @@
 
 #include "coap_config.h"
 #include "coap.h"
+
+#include "app_publish_data.h"
+
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
 #include "app_thermostat.h"
@@ -60,50 +64,53 @@ async_handler_put(coap_context_t *ctx, struct coap_resource_t *resource,
     async = coap_register_async(ctx, peer, request, COAP_ASYNC_SEPARATE | COAP_ASYNC_CONFIRM, (void*)"no data");
 
     size_t coap_data_size;
-    unsigned char * copa_data;
+    unsigned char * coap_data;
     char data[COAP_MAX_DATA_SIZE];
     char uri[COAP_MAX_RESOURCE_SIZE];
 
     /* coap_get_data() sets data_size to 0 on error */
-    if (coap_get_data(request, &coap_data_size, &data)){
+    if (coap_get_data(request, &coap_data_size, &coap_data)){
         if (coap_data_size != 0) {
-            strncpy(data, coap_data, coap_data_size);
+            memcpy(data, coap_data, coap_data_size);
             data[coap_data_size] = 0;
             ESP_LOGI(TAG, "received data for %.*s: %s",
                 resource->uri.length, resource->uri.s, data);
-            if (resource->uri.length >= URI_SIZE) {
+            if (resource->uri.length >= COAP_MAX_RESOURCE_SIZE) {
                 ESP_LOGE(TAG, "coap message path longer than expected, it will be ignored");
                 return;
             }
             strncpy(uri, (const char *)resource->uri.s, resource->uri.length);
             uri[resource->uri.length] = 0;
             ESP_LOGI(TAG, "hadling path: %s", uri);
-            int value = atoi((const char *)data) * 10;
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE)) == 0) {
+                int value = atoi((const char *)data) * 10;
                 thermostat_publish_local_data(0, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE)) == 0) {
+                int value = atoi((const char *)data) * 10;
                 thermostat_publish_local_data(1, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE)) == 0) {
+                int value = atoi((const char *)data) * 10;
                 thermostat_publish_local_data(2, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE)) == 0) {
+                int value = atoi((const char *)data) * 10;
                 thermostat_publish_local_data(3, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
-            *publish_non_persistent_data(uri, data);
+            publish_non_persistent_data(uri, data);
         }
     }
 }
@@ -112,7 +119,6 @@ void coap_server_thread(void *p)
 {
     coap_context_t*  ctx = NULL;
     coap_address_t   serv_addr;
-    coap_resource_t* resource = NULL;
     fd_set           readfds;
     struct timeval tv;
     int flags = 0;
@@ -141,7 +147,7 @@ void coap_server_thread(void *p)
             tv.tv_sec = COAP_DEFAULT_TIME_SEC;
             /* Initialize the resource */
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
-            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
+            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE);
@@ -151,7 +157,7 @@ void coap_server_thread(void *p)
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
-            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
+            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE);
@@ -161,7 +167,7 @@ void coap_server_thread(void *p)
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
-            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
+            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE);
@@ -171,7 +177,7 @@ void coap_server_thread(void *p)
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
-            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
+            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE);

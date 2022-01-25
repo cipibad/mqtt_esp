@@ -140,7 +140,7 @@ void coap_client_thread(void *p)
             if (ctx) {
                 coap_address_init(&dst_addr);
                 dst_addr.addr.sin.sin_family      = AF_INET;
-                dst_addr.addr.sin.sin_port        = htons(atoi(COAP_DEFAULT_PORT));
+                dst_addr.addr.sin.sin_port        = htons(COAP_DEFAULT_PORT);
                 dst_addr.addr.sin.sin_addr.s_addr = ip4_addr->addr;
 
                 request            = coap_new_pdu();
