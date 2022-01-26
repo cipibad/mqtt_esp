@@ -8,6 +8,11 @@
 void coap_client_thread(void *p);
 void coap_publish_data(const char * topic,
                        const char * data);
+short coap_connection_status();
+
+#define COAP_LAST_MESSAGE_UNKNOWN 0
+#define COAP_LAST_MESSAGE_FAILED  1
+#define COAP_LAST_MESSAGE_PASSED  2
 
 struct CoapMessage
 {

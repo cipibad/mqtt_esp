@@ -30,6 +30,11 @@ const static char *TAG = "CoAP_client";
 
 extern QueueHandle_t coapClientQueue;
 
+short _coap_connection_status = COAP_LAST_MESSAGE_UNKNOWN;
+inline short coap_connection_status(){
+    return _coap_connection_status;
+}
+
 void coap_publish_data(const char * topic,
                        const char * data)
 {
@@ -194,12 +199,15 @@ void coap_client_thread(void *p)
                             if (FD_ISSET( ctx->sockfd, &readfds ))
                                 coap_read(ctx);
                             ESP_LOGI(TAG, "received answer");
+                            _coap_connection_status = COAP_LAST_MESSAGE_PASSED;
                             break;
                         } else if (result < 0) {
                             ESP_LOGE(TAG, "select error");
+                            _coap_connection_status = COAP_LAST_MESSAGE_FAILED;
                             break;
                         } else {
                             ESP_LOGE(TAG, "select timeout");
+                            _coap_connection_status = COAP_LAST_MESSAGE_FAILED;
                             break;
                         }
                     }

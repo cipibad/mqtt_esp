@@ -117,6 +117,12 @@ void blink_task(void *pvParameter)
     }
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
+#ifdef CONFIG_NORTH_INTERFACE_COAP
+  while(coap_connection_status() == COAP_LAST_MESSAGE_PASSED){
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+#endif // CONFIG_NORTH_INTERFACE_COAP
+
     vTaskDelay(interval / portTICK_PERIOD_MS);
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_OFF);
     vTaskDelay(interval / portTICK_PERIOD_MS);
@@ -220,10 +226,6 @@ void app_main(void)
     xTaskCreate(handle_relay_task, "handle_relay_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif //CONFIG_MQTT_RELAYS_NB
 
-#if CONFIG_MQTT_SWITCHES_NB
-    gpio_switch_init(NULL);
-#endif //CONFIG_MQTT_SWITCHES_NB
-
 #ifdef CONFIG_MQTT_OTA
    xTaskCreate(handle_ota_update_task, "handle_ota_update_task", configMINIMAL_STACK_SIZE * 7, NULL, 5, NULL);
 #endif //CONFIG_MQTT_OTA
@@ -238,6 +240,11 @@ void app_main(void)
 
   xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", THERMOSTAT_TASK_STACK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
+#if CONFIG_MQTT_SWITCHES_NB
+    gpio_switch_init(NULL);
+#endif //CONFIG_MQTT_SWITCHES_NB
+
 
     wifi_init();
 
