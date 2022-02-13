@@ -28,6 +28,16 @@ static void gpio_isr_handler(void *arg)
 
 void gpio_switch_init (void *arg)
 {
+
+// FIXME: hack for esp01 thermostat button on GPIO1 pullup
+// we probably have to decide pull up/down status of others button GPIOs
+// decision is based on using GPIO1 as button input
+// normally GPIO01 is serial TX, but on ESP01 we lack GPIOs and we used all of them
+if (CONFIG_MQTT_SWITCHES_NB0_GPIO == GPIO_NUM_1) {
+  ESP_ERROR_CHECK(gpio_set_pull_mode(CONFIG_MQTT_SWITCHES_NB0_GPIO, GPIO_PULLUP_ONLY));
+}
+
+
   gpio_config_t io_conf;
 //interrupt of rising edge
   io_conf.intr_type = GPIO_INTR_ANYEDGE;
