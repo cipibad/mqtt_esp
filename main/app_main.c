@@ -148,6 +148,10 @@ void app_main(void)
   // that is called in critical section from DS18X20 driver
   esp_log_level_set("gpio", ESP_LOG_WARN);
 
+#if CONFIG_MQTT_RELAYS_NB
+  relays_init();
+#endif // CONFIG_MQTT_RELAYS_NB
+
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
   mqtt_event_group = xEventGroupCreate();
   mqttQueue = xQueueCreate(1, sizeof(void *) );
@@ -190,10 +194,6 @@ void app_main(void)
   ESP_ERROR_CHECK( err );
 
   ESP_LOGI(TAG, "nvs_flash_init done");
-
-#if CONFIG_MQTT_RELAYS_NB
-  relays_init();
-#endif // CONFIG_MQTT_RELAYS_NB
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
   read_nvs_thermostat_data();
