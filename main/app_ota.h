@@ -6,6 +6,8 @@
 #define OTA_ONGOING 1
 #define OTA_READY 2
 
+#define OTA_QUEUE_TIMEOUT (60 * 1000 / portTICK_PERIOD_MS)
+
 struct OtaMessage
 {
   char url[64];

@@ -248,7 +248,7 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
     struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin"};
     if (xQueueSend( otaQueue
                     ,( void * )&o
-                    ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+                    ,OTA_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to otaQueue");
 
     }

@@ -19,7 +19,6 @@
 
 
 #include "app_main.h"
-#include "app_relay.h"
 
 static const char *TAG = "MQTTS_SMARTCONFIG";
 
@@ -45,9 +44,15 @@ extern QueueHandle_t smartconfigQueue;
 EventGroupHandle_t smartconfig_event_group;
 
 #if CONFIG_MQTT_RELAYS_NB
+#include "app_relay.h"
 extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
 extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_MQTT_OTA
+#include "app_ota.h"
+extern QueueHandle_t otaQueue;
+#endif // CONFIG_MQTT_OTA
 
 #define TICKS_FORMAT "%ld"
 
@@ -176,10 +181,10 @@ void smartconfig_cmd_task(void* pvParameters)
     ESP_LOGI(TAG, "smartconfig not enabled, waiting request");
     TickType_t pushTick = 0;
     TickType_t lastRead = 0;
-    const TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
-    const TickType_t startupTicks = xTaskGetTickCount();
+    const TickType_t three_seconds = 3 * 1000 / portTICK_PERIOD_MS;
+    const TickType_t seven_seconds = 7 * 1000 / portTICK_PERIOD_MS;
 
-    ESP_LOGI(TAG, "ticksToWait: " TICKS_FORMAT, ticksToWait);
+    const TickType_t startupTicks = xTaskGetTickCount();
     while (1) {
       if( xQueueReceive( smartconfigQueue, &scm , portMAX_DELAY) )
         {
@@ -200,20 +205,28 @@ void smartconfig_cmd_task(void* pvParameters)
             pushTick = scm.ticks;
           } else {
             ESP_LOGI(TAG, "up ");
-            if ((scm.ticks - pushTick ) < ticksToWait) {
+            if ((scm.ticks - pushTick ) < three_seconds) {
 #if CONFIG_MQTT_RELAYS_NB
               struct RelayMessage r={RELAY_CMD_STATUS, scm.relayId, !(relayStatus[(int)scm.relayId] == RELAY_ON)};
               xQueueSend(relayQueue,
                          ( void * )&r,
                          RELAY_QUEUE_TIMEOUT);
 #endif //CONFIG_MQTT_RELAYS_NB
-            }
-            else {
+            } else if ((scm.ticks - pushTick ) >= three_seconds &&
+                       (scm.ticks - pushTick ) < seven_seconds) {
               ESP_LOGI(TAG, "received smartconfig request:");
               ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
               ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
-              vTaskDelay(10000 / portTICK_PERIOD_MS);
+              vTaskDelay(2   / portTICK_PERIOD_MS);
               esp_restart();
+            } else { // (scm.ticks - pushTick ) >= seven_seconds
+              //trigger OTA
+              struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin"};
+              if (xQueueSend( otaQueue
+                    ,( void * )&o
+                    ,OTA_QUEUE_TIMEOUT) != pdPASS) {
+                ESP_LOGE(TAG, "Cannot send to otaQueue");
+              }
             }
             pushTick = 0;
           }
