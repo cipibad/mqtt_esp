@@ -146,8 +146,9 @@ void coap_server_thread(void *p)
             tv.tv_usec = COAP_DEFAULT_TIME_USEC;
             tv.tv_sec = COAP_DEFAULT_TIME_SEC;
             /* Initialize the resource */
+            coap_resource_t* resource = NULL;
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
-            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
+            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE);
@@ -157,7 +158,7 @@ void coap_server_thread(void *p)
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
-            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
+            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE);
@@ -167,7 +168,7 @@ void coap_server_thread(void *p)
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
-            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
+            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE);
@@ -177,7 +178,7 @@ void coap_server_thread(void *p)
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
-            coap_resource_t* resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
+            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE), 0);
             if (resource){
                 ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE);
@@ -186,6 +187,29 @@ void coap_server_thread(void *p)
                 if (resource_registered == false) { resource_registered = true;}
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
+
+#if CONFIG_COAP_PROXY_PATHS_NB > 0
+            resource = coap_resource_init((unsigned char *)CONFIG_COAP_PROXY_PATH_NB0,
+                strlen(CONFIG_COAP_PROXY_PATH_NB0), 0);
+            if (resource){
+                ESP_LOGI(TAG, "registering resource " CONFIG_COAP_PROXY_PATH_NB0);
+                coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
+                coap_add_resource(ctx, resource);
+                if (resource_registered == false) { resource_registered = true;}
+            }
+
+#if CONFIG_COAP_PROXY_PATHS_NB > 1
+            resource = coap_resource_init((unsigned char *)CONFIG_COAP_PROXY_PATH_NB1,
+                strlen(CONFIG_COAP_PROXY_PATH_NB1), 0);
+            if (resource){
+                ESP_LOGI(TAG, "registering resource " CONFIG_COAP_PROXY_PATH_NB1);
+                coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
+                coap_add_resource(ctx, resource);
+                if (resource_registered == false) { resource_registered = true;}
+            }
+
+#endif // CONFIG_COAP_PROXY_PATHS_NB > 1
+#endif // CONFIG_COAP_PROXY_PATHS_NB > 0
             if (resource_registered) {
                 /*For incoming connections*/
                 for (;;) {

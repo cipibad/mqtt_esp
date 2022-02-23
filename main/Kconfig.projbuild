@@ -232,13 +232,36 @@ config COAP_SERVER_SUPPORT
     default n
     help
         Enable COAP server. Needed for COAP proxy or COAP thermostat sensor
-
-config COAP_PROXY_SUPPORT
-    boolean "enable COAP proxy"
-    default n
+menu "COAP server config"
     depends on COAP_SERVER_SUPPORT
-    help
-        Enable COAP proxy
+
+    config COAP_PROXY_SUPPORT
+        boolean "enable COAP proxy"
+        default n
+        help
+            Enable COAP proxy
+    menu "COAP proxy paths"
+        depends on COAP_PROXY_SUPPORT
+        config COAP_PROXY_PATHS_NB
+            int "number of COAP paths to proxy"
+            default 0
+            range 0 2
+            help
+                number of COAP paths to proxy
+        config COAP_PROXY_PATH_NB0
+            string "COAP path 0 to proxy"
+            depends on COAP_PROXY_PATHS_NB > 0
+            default ""
+            help
+                COAP path 0 to proxy
+        config COAP_PROXY_PATH_NB1
+            string "COAP path 1 to proxy"
+            depends on COAP_PROXY_PATHS_NB > 1
+            default ""
+            help
+                COAP path 1 to proxy
+    endmenu # "COAP proxy paths"
+endmenu # "COAP server config"
 
 config MQTT_RELAYS_NB
     int "number of relays to control"
