@@ -268,6 +268,29 @@ void publish_all_thermostats_mode_evt()
   }
 }
 
+void publish_thermostat_status_evt(int id)
+{
+  const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/status/thermostat";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%s", currentTemperatureFlag[id] == 0 ? "offline" : "online");
+
+  char topic[MAX_TOPIC_LEN];
+  memset(topic,0,MAX_TOPIC_LEN);
+  sprintf(topic, "%s/%d", thermostat_topic, id);
+
+  publish_persistent_data(topic, data);
+}
+
+void publish_all_thermostats_status_evt()
+{
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    publish_thermostat_status_evt(id);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
+
 void get_normal_thermostat_action(char * data, int id)
 {
   if (thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
@@ -356,6 +379,7 @@ void publish_thermostat_data()
   publish_all_thermostats_target_temperature_evt();
   publish_all_thermostats_temperature_tolerance_evt();
   publish_all_thermostats_mode_evt();
+  publish_all_thermostats_status_evt();
   publish_all_thermostats_action_evt();
 }
 
@@ -687,7 +711,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
             if (currentTemperatureFlag[id] > 0) {
               currentTemperatureFlag[id] -= 1;
               if (currentTemperatureFlag[id] == 0) {
-                publish_thermostat_current_temperature_evt(id);
+                publish_thermostat_status_evt(id);
               }
             }
           }
@@ -698,7 +722,11 @@ void handle_thermostat_cmd_task(void* pvParameters)
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
           ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
           if (t.data.currentTemperature != SHRT_MIN) {
+            bool shouldSendStatusUpdate = (currentTemperatureFlag[t.thermostatId] == 0);
             currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
+            if (shouldSendStatusUpdate) {
+              publish_thermostat_status_evt(t.thermostatId);
+            }
           }
 
           if (circuitThermostatId == t.thermostatId) {
