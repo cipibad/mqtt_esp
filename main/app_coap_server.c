@@ -85,28 +85,28 @@ async_handler_put(coap_context_t *ctx, struct coap_resource_t *resource,
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE)) == 0) {
-                int value = atoi((const char *)data) * 10;
+                int value = atof(data) * 10;
                 thermostat_publish_local_data(0, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE)) == 0) {
-                int value = atoi((const char *)data) * 10;
+                int value = atof(data) * 10;
                 thermostat_publish_local_data(1, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE)) == 0) {
-                int value = atoi((const char *)data) * 10;
+                int value = atof(data) * 10;
                 thermostat_publish_local_data(2, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
 #ifdef CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE)) == 0) {
-                int value = atoi((const char *)data) * 10;
+                int value = atof(data) * 10;
                 thermostat_publish_local_data(3, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE

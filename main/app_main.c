@@ -94,21 +94,22 @@ void blink_task(void *pvParameter)
   gpio_set_direction(CONFIG_MQTT_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
   int interval;
+  EventBits_t bits;
   while(1) {
-    EventBits_t bits;
+
     if(smartconfigFlag) {
       interval=150;
     } else {
       interval=250;
       bits = xEventGroupGetBits(wifi_event_group);
-      if( ( bits & WIFI_CONNECTED_BIT ) != 0 ) {
+      if(bits & WIFI_CONNECTED_BIT) {
         interval=500;
       }
     }
     gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_ON);
 
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
-  bits = xEventGroupGetBits(mqtt_event_group);
+    bits = xEventGroupGetBits(mqtt_event_group);
     while ( bits & MQTT_CONNECTED_BIT ) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
       bits = xEventGroupGetBits(mqtt_event_group);
@@ -117,6 +118,11 @@ void blink_task(void *pvParameter)
 
 #ifdef CONFIG_NORTH_INTERFACE_COAP
   while(coap_connection_status() == COAP_LAST_MESSAGE_PASSED){
+    bits = xEventGroupGetBits(wifi_event_group);
+    if( !(wifi_bits & WIFI_CONNECTED_BIT)) {
+      break;
+    }
+
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 #endif // CONFIG_NORTH_INTERFACE_COAP
