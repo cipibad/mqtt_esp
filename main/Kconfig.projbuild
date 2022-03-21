@@ -422,7 +422,7 @@ endchoice
 choice MQTT_THERMOSTATS_NB0_SENSOR_TYPE
    bool "Thermostat 0 sensor type"
    depends on MQTT_THERMOSTATS_NB > 0
-   default MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
+   default MQTT_THERMOSTATS_NB0_SENSOR_TYPE_LOCAL
    help
        Thermostat sensor type
 config MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
@@ -465,7 +465,7 @@ config MQTT_THERMOSTATS_NB0_FRIENDLY_NAME
 choice MQTT_THERMOSTATS_NB1_SENSOR_TYPE
    bool "Thermostat 1 sensor type"
    depends on MQTT_THERMOSTATS_NB > 1
-   default MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
+   default MQTT_THERMOSTATS_NB1_SENSOR_TYPE_LOCAL
    help
        Thermostat sensor type
 config MQTT_THERMOSTATS_NB1_SENSOR_TYPE_MQTT
@@ -509,7 +509,7 @@ config MQTT_THERMOSTATS_NB1_FRIENDLY_NAME
 choice MQTT_THERMOSTATS_NB2_SENSOR_TYPE
    bool "Thermostat 2 sensor type"
    depends on MQTT_THERMOSTATS_NB > 2
-   default MQTT_THERMOSTATS_NB2_SENSOR_TYPE_MQTT
+   default MQTT_THERMOSTATS_NB2_SENSOR_TYPE_LOCAL
    help
        Thermostat sensor type
 config MQTT_THERMOSTATS_NB2_SENSOR_TYPE_MQTT
@@ -552,7 +552,7 @@ config MQTT_THERMOSTATS_NB2_FRIENDLY_NAME
 choice MQTT_THERMOSTATS_NB3_SENSOR_TYPE
    bool "Thermostat 3 sensor type"
    depends on MQTT_THERMOSTATS_NB > 3
-   default MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
+   default MQTT_THERMOSTATS_NB3_SENSOR_TYPE_LOCAL
    help
        Thermostat sensor type
 config MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
