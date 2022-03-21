@@ -661,18 +661,20 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
   int msg_id;
 
   for (int i = 0; i < NB_SUBSCRIPTIONS; i++) {
-    xEventGroupClearBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT);
-    msg_id = esp_mqtt_client_subscribe(client, SUBSCRIPTIONS[i], 1);
-    if (msg_id > 0) {
-      ESP_LOGI(TAG, "sent subscribe %s successful, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
-      EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-      if (bits & MQTT_SUBSCRIBED_BIT) {
-        ESP_LOGI(TAG, "subscribe ack received, msg_id=%d", msg_id);
+    if (strlen(SUBSCRIPTIONS[i])) {
+      xEventGroupClearBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT);
+      msg_id = esp_mqtt_client_subscribe(client, SUBSCRIPTIONS[i], 1);
+      if (msg_id > 0) {
+        ESP_LOGI(TAG, "sent subscribe %s successful, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
+        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+        if (bits & MQTT_SUBSCRIBED_BIT) {
+          ESP_LOGI(TAG, "subscribe ack received, msg_id=%d", msg_id);
+        } else {
+          ESP_LOGW(TAG, "subscribe ack not received, msg_id=%d", msg_id);
+        }
       } else {
-        ESP_LOGW(TAG, "subscribe ack not received, msg_id=%d", msg_id);
+        ESP_LOGW(TAG, "failed to subscribe %s, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
       }
-    } else {
-      ESP_LOGW(TAG, "failed to subscribe %s, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
     }
   }
 }
