@@ -138,6 +138,11 @@ void app_main(void)
   ESP_LOGI(TAG, "[APP] Startup..");
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+  ESP_LOGI(TAG, "[APP] Client ID: " CONFIG_CLIENT_ID);
+
+  uint8_t mac[6];
+  esp_efuse_mac_get_default(mac);
+  ESP_LOGI(TAG, "[APP] MAC Address: " MACSTR, MAC2STR(mac) );
 
   esp_log_level_set("*", ESP_LOG_INFO);
   esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
