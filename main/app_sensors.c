@@ -100,6 +100,13 @@ void publish_sensor_data(const char * topic, int value)
 }
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
+void publish_dht22_log(const char* log_message)
+{
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/log/dht22";
+  publish_non_persistent_data(topic, log_message);
+
+}
+
 void publish_dht22_mean_temperature()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/temperature/dht22";
@@ -225,14 +232,14 @@ void sensors_read(void* pvParameters)
           if (dht22_mean_temperature == SHRT_MIN) {
             dht22_mean_temperature = dht22_temperature;
           } else {
-            dht22_mean_temperature = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_temperature) 
+            dht22_mean_temperature = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_temperature)
               + dht22_temperature) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
           }
 
           if (dht22_mean_humidity == SHRT_MIN) {
             dht22_mean_humidity = dht22_humidity;
           } else {
-            dht22_mean_humidity = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_humidity) 
+            dht22_mean_humidity = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_humidity)
               + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
           }
 
@@ -243,7 +250,9 @@ void sensors_read(void* pvParameters)
         }
       else
         {
-          ESP_LOGE(TAG, "Could not read data from DHT sensor");
+          const char msg = "Error: Could not read data from DHT sensor";
+          ESP_LOGE(TAG, msg);
+          publish_dht22_log(msg);
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
