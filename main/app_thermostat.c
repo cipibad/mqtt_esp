@@ -390,16 +390,15 @@ void publish_thermostat_notification_evt(const char* msg)
   publish_non_persistent_data(topic, msg);
 }
 
-void publish_normal_thermostat_notification(enum ThermostatState state,
-                                            unsigned int duration,
+void publish_normal_thermostat_notification(unsigned int duration,
                                             const char *reason)
 {
   char data[256];
   memset(data,0,256);
 
   sprintf(data, "Thermostat changed to %s due to %s. It was %s for %u minutes",
-          state == THERMOSTAT_STATE_HEATING ? "on"  : "off", reason,
-          state == THERMOSTAT_STATE_HEATING ? "off" : "on", duration);
+          thermostatState == THERMOSTAT_STATE_HEATING ? "on"  : "off", reason,
+          thermostatState == THERMOSTAT_STATE_HEATING ? "off" : "on", duration);
 
   publish_thermostat_notification_evt(data);
 }
@@ -407,12 +406,13 @@ void publish_normal_thermostat_notification(enum ThermostatState state,
 
 void disableThermostat(const char * reason)
 {
+  ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
   thermostatState=THERMOSTAT_STATE_IDLE;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
 
   publish_all_normal_thermostats_action_evt();
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
-  publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
+  publish_normal_thermostat_notification(thermostatDuration, reason);
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   thermostatDuration = 0;
@@ -421,12 +421,13 @@ void disableThermostat(const char * reason)
 
 void enableThermostat(const char * reason)
 {
+  ESP_LOGI(TAG, "Turning thermostat on, reason: %s", reason);
   thermostatState=THERMOSTAT_STATE_HEATING;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
 
   publish_all_normal_thermostats_action_evt();
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
-  publish_normal_thermostat_notification(thermostatState, thermostatDuration, reason);
+  publish_normal_thermostat_notification(thermostatDuration, reason);
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   thermostatDuration = 0;
@@ -614,7 +615,6 @@ void update_thermostat()
   if (!sensor_reporting()) {
     ESP_LOGI(TAG, "no live sensor is reporting => no thermostat handling");
     if (thermostatState==THERMOSTAT_STATE_HEATING) {
-      ESP_LOGI(TAG, "stop thermostat as no live sensor is reporting");
       disableThermostat("No live sensor is reporting");
     }
     return;
@@ -631,22 +631,18 @@ void update_thermostat()
 
   if (thermostatState == THERMOSTAT_STATE_HEATING &&
       heatingToggledOff) {
-    ESP_LOGI(TAG, "reason: Heating is toggled off");
     disableThermostat("Heating is toggled off");
   }
-
 
   char reason[256];
   memset(reason,0,256);
 
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
     if (tooHot(reason)) {
-      ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
       disableThermostat(reason);
     }
   } else if (circuitColdEnough()) {
     if (tooCold(reason)) {
-      ESP_LOGI(TAG, "Turning thermostat on, reason: %s", reason);
       enableThermostat(reason);
     }
   }
