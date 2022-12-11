@@ -553,6 +553,17 @@ bool circuitColdEnough()
     return true;
 }
 
+bool circuitTooHot()
+{
+  ESP_LOGI(TAG, "checking circuit %d to hot", circuitThermostatId);
+  if (circuitThermostatId == -1)
+    return false;
+  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT)
+    return  (currentTemperature[circuitThermostatId] >= temperatureTolerance[circuitThermostatId]);
+  else
+    return false;
+}
+
 bool tooHot(char* reason)
 {
   bool tooHot = true;
@@ -620,8 +631,12 @@ void update_thermostat()
     return;
   }
 
-  bool heatingToggledOff = false;
+  if (thermostatState == THERMOSTAT_STATE_HEATING &&
+      circuitTooHot()) {
+    disableThermostat("Circuit is too hot");
+  }
 
+  bool heatingToggledOff = false;
   if ((heatingState == HEATING_STATE_IDLE) && heating()) {
     enableHeating();
   } else if ((heatingState == HEATING_STATE_ENABLED) && not_heating()) {
