@@ -18,6 +18,8 @@
 #include "app_nvs.h"
 #include "app_publish_data.h"
 
+#include "app_waterpump.h"
+
 #define QUEUE_TIMEOUT (60 * 1000 / portTICK_PERIOD_MS)
 
 enum ThermostatState thermostatState = THERMOSTAT_STATE_IDLE;
@@ -27,6 +29,8 @@ enum HeatingState heatingState = HEATING_STATE_IDLE;
 unsigned int heatingDuration = 0;
 int circuitThermostatId = -1;
 
+
+enum WaterPumpState waterPumpState = WATERPUMP_STATE_IDLE;
 
 enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {
   THERMOSTAT_MODE_UNSET,
@@ -145,6 +149,34 @@ const char* thermostatFriendlyName[CONFIG_MQTT_THERMOSTATS_NB] = {
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
+bool waterPumpOn[CONFIG_MQTT_THERMOSTATS_NB] = {
+  #ifdef CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_ON
+    true,
+  #else // CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_OFF
+    false,
+  #endif // CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_ON
+#if CONFIG_MQTT_THERMOSTATS_NB > 1
+  #ifdef CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_ON
+    true,
+  #else // CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_OFF
+    false,
+  #endif // CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_ON
+#if CONFIG_MQTT_THERMOSTATS_NB > 2
+  #ifdef CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_ON
+    true,
+  #else // CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_OFF
+    false,
+  #endif // CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_ON
+#if CONFIG_MQTT_THERMOSTATS_NB > 3
+  #ifdef CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_ON
+    true,
+  #else // CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_OFF
+    false,
+  #endif // CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_ON
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
+};
 
 short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB] = {0};
 
@@ -404,11 +436,43 @@ void publish_normal_thermostat_notification(unsigned int duration,
 }
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
+bool heatingTermostatsNeedWaterPump()
+{
+  bool pumpNeeded = false;
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (thermostatMode[id] == THERMOSTAT_MODE_HEAT && waterPumpOn[id]) {
+      pumpNeeded = true;
+      break;
+    }
+  }
+  return pumpNeeded;
+}
+
+void enable_water_pump(){
+  if (waterPumpState == WATERPUMP_STATE_IDLE){
+    if (heatingTermostatsNeedWaterPump()){
+      waterPumpState = WATERPUMP_STATE_ENABLED;
+      enableWaterPump();
+    }
+  }
+}
+
+void disable_water_pump(){
+  if (waterPumpState == WATERPUMP_STATE_ENABLED){
+    if (! heatingTermostatsNeedWaterPump()) {
+      waterPumpState = WATERPUMP_STATE_IDLE;
+      disableWaterPump();
+    }
+  }
+}
+
 void disableThermostat(const char * reason)
 {
   ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
   thermostatState=THERMOSTAT_STATE_IDLE;
+
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
+  disable_water_pump();
 
   publish_all_normal_thermostats_action_evt();
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
@@ -416,6 +480,7 @@ void disableThermostat(const char * reason)
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   thermostatDuration = 0;
+
   ESP_LOGI(TAG, "thermostat disabled");
 }
 
@@ -423,6 +488,8 @@ void enableThermostat(const char * reason)
 {
   ESP_LOGI(TAG, "Turning thermostat on, reason: %s", reason);
   thermostatState=THERMOSTAT_STATE_HEATING;
+
+  enable_water_pump();
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
 
   publish_all_normal_thermostats_action_evt();
@@ -435,15 +502,14 @@ void enableThermostat(const char * reason)
 }
 
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
-void publish_circuit_thermostat_notification(enum HeatingState state,
-                                             unsigned int duration)
+void publish_circuit_thermostat_notification(unsigned int duration)
 {
   char data[256];
   memset(data,0,256);
 
   sprintf(data, "Heating state changed to %s. It was %s for %u minutes",
-          state == HEATING_STATE_ENABLED ? "on"  : "off",
-          state == HEATING_STATE_ENABLED ? "off" : "on", duration);
+          heatingState == HEATING_STATE_ENABLED ? "on"  : "off",
+          heatingState == HEATING_STATE_ENABLED ? "off" : "on", duration);
 
   publish_thermostat_notification_evt(data);
 }
@@ -451,11 +517,9 @@ void publish_circuit_thermostat_notification(enum HeatingState state,
 
 void enableHeating()
 {
-  heatingState = HEATING_STATE_ENABLED;
-
   publish_all_circuit_thermostats_action_evt();
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
-  publish_circuit_thermostat_notification(heatingState, heatingDuration);
+  publish_circuit_thermostat_notification(heatingDuration);
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
@@ -464,11 +528,9 @@ void enableHeating()
 
 void disableHeating()
 {
-  heatingState = HEATING_STATE_IDLE;
-
   publish_all_circuit_thermostats_action_evt();
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
-  publish_circuit_thermostat_notification(heatingState, heatingDuration);
+  publish_circuit_thermostat_notification(heatingDuration);
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
@@ -479,6 +541,8 @@ void dump_data()
 {
   ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
   ESP_LOGI(TAG, "heating state is %d", heatingState);
+  ESP_LOGI(TAG, "waterPump state is %d", waterPumpState);
+
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     ESP_LOGI(TAG, "thermostatMode[%d] is %d", id, thermostatMode[id]);
     ESP_LOGI(TAG, "currentTemperature[%d] is %d", id, currentTemperature[id]);
@@ -649,8 +713,8 @@ void update_thermostat()
     disableThermostat("Heating is toggled off");
   }
 
-  char reason[256];
-  memset(reason,0,256);
+    char reason[256];
+    memset(reason,0,256);
 
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
     if (tooHot(reason)) {
