@@ -173,7 +173,7 @@ void smartconfig_cmd_task(void* pvParameters)
             ESP_LOGI(TAG, "up ");
             if ((scm.ticks - pushTick ) < ticksToWait) {
 #if CONFIG_MQTT_RELAYS_NB
-              struct RelayMessage r={RELAY_CMD_STATUS, scm.relayId, !(relayStatus[(int)scm.relayId] == RELAY_ON)};
+              struct RelayMessage r={RELAY_CMD_STATUS, scm.relayId, !(relayStatus[(int)scm.relayId] == GPIO_HIGH)};
               xQueueSend(relayQueue,
                          ( void * )&r,
                          RELAY_QUEUE_TIMEOUT);
