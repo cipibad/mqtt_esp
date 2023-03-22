@@ -32,6 +32,7 @@ extern QueueHandle_t schedulerCfgQueue;
 extern struct SchedulerCfgMessage schedulerCfg;
 //FIXME end hack until decide if queue+thread really usefull
 
+#define SCHEDULER_CFG_TOPIC CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/cfg/scheduler/"
 #define SCHEDULER_TOPICS_NB 1
 
 #else // CONFIG_MQTT_SCHEDULERS
@@ -44,12 +45,6 @@ extern struct SchedulerCfgMessage schedulerCfg;
 #include "app_relay.h"
 extern QueueHandle_t relayQueue;
 
-#define RELAYS_TOPICS_NB 1 //
-
-#else //CONFIG_MQTT_RELAYS_NB
-
-#define RELAYS_TOPICS_NB 0 //CMD and CFG
-
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -59,25 +54,12 @@ extern QueueHandle_t relayQueue;
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/ota"
-#define OTA_TOPICS_NB 1
-
-#else // CONFIG_MQTT_OTA
-
-#define OTA_TOPICS_NB 0
-
 #endif // CONFIG_MQTT_OTA
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
-
-#define THERMOSTAT_TOPICS_NB 1
-#define CMD_THERMOSTAT_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/+/thermostat/+"
-
-#else // CONFIG_MQTT_THERMOSTATS_NB > 0
-
-#define THERMOSTAT_TOPICS_NB 0
 
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
@@ -127,26 +109,17 @@ static const char *TAG = "MQTTS_MQTTS";
 
 #define CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS (CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_MQTT + CONFIG_MQTT_THERMOSTATS_NB1_SENSOR_MQTT + CONFIG_MQTT_THERMOSTATS_NB2_SENSOR_MQTT + CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_MQTT)
 
-#define NB_SUBSCRIPTIONS  (OTA_TOPICS_NB + THERMOSTAT_TOPICS_NB + RELAYS_TOPICS_NB + SCHEDULER_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS)
+#define CMD_ACTION_TYPE_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/#"
+#define CMD_ACTION_TYPE_TOPICS_NB 1
 
-#define CMD_RELAY_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/+/relay/+"
-
-#define SCHEDULER_CFG_TOPIC CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/cfg/scheduler/"
+#define NB_SUBSCRIPTIONS  (CMD_ACTION_TYPE_TOPICS_NB + SCHEDULER_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS)
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
-#ifdef CONFIG_MQTT_OTA
-    OTA_TOPIC,
-#endif //CONFIG_MQTT_OTA
+    CMD_ACTION_TYPE_TOPIC,
 #ifdef CONFIG_MQTT_SCHEDULERS
     SCHEDULER_CFG_TOPIC "+",
 #endif // CONFIG_MQTT_SCHEDULERS
-#if CONFIG_MQTT_RELAYS_NB
-    CMD_RELAY_TOPIC,
-#endif //CONFIG_MQTT_RELAYS_NB
-#if CONFIG_MQTT_THERMOSTATS_NB > 0
-    CMD_THERMOSTAT_TOPIC,
-#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
     CONFIG_MQTT_THERMOSTATS_NB0_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
@@ -560,13 +533,14 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       return;
     }
 #endif // CONFIG_MQTT_RELAYS_NB
-
+  ESP_LOGE(TAG, "Unhandled service %s for cmd action", service);
   }
 
   if (handle_scheduler_mqtt_event(event))
     return;
   if (handle_ota_mqtt_event(event))
     return;
+  ESP_LOGI(TAG, "Unhandled topic %.*s", event->topic_len, event->topic);
 }
 
 void mqtt_publish_data(const char * topic,
