@@ -29,9 +29,6 @@ enum HeatingState heatingState = HEATING_STATE_IDLE;
 unsigned int heatingDuration = 0;
 int circuitThermostatId = -1;
 
-
-enum WaterPumpState waterPumpState = WATERPUMP_STATE_IDLE;
-
 enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {
   THERMOSTAT_MODE_UNSET,
 #if CONFIG_MQTT_THERMOSTATS_NB > 1
@@ -458,19 +455,11 @@ void update_water_pump_state()
 {
   if (heatingTermostatsNeedWaterPump())
   {
-    if (waterPumpState == WATERPUMP_STATE_IDLE)
-    {
-      waterPumpState = WATERPUMP_STATE_ENABLED;
-      enableWaterPump();
-    }
+    updateWaterPumpState(WATERPUMP_STATUS_ON);
   }
   else
   { // ! heatingTermostatsNeedWaterPump()
-    if (waterPumpState == WATERPUMP_STATE_ENABLED)
-    {
-      waterPumpState = WATERPUMP_STATE_IDLE;
-      disableWaterPump();
-    }
+    updateWaterPumpState(WATERPUMP_STATUS_OFF);
   }
 }
 
@@ -547,7 +536,7 @@ void dump_data()
 {
   ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
   ESP_LOGI(TAG, "heating state is %d", heatingState);
-  ESP_LOGI(TAG, "waterPump state is %d", waterPumpState);
+  ESP_LOGI(TAG, "waterPump state is %d", getWaterPumpStatus());
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     ESP_LOGI(TAG, "thermostatMode[%d] is %d", id, thermostatMode[id]);

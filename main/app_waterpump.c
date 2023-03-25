@@ -64,6 +64,73 @@ void closeValveTimerCallback( TimerHandle_t xTimer )
   ESP_LOGI(TAG, "waterpump is now disabled");
 }
 
+void enableWaterPump()
+{
+    if (valveOnTimer == NULL) {
+      ESP_LOGE(TAG, "No valveOnTimer found");
+      return;
+    }
+    if( xTimerStart( valveOnTimer, 0 ) != pdPASS )
+    {
+      ESP_LOGE(TAG, "Cannot start valveOnTimer");
+      return;
+    }
+    updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_ON);
+    waterPumpStatus = WATERPUMP_STATUS_OFF_ON_TRANSITION;
+    ESP_LOGI(TAG, "waterpump enabling is on-going");
+
+}
+
+void disableWaterPump()
+{
+    if (valveOffTimer == NULL)
+    {
+      ESP_LOGE(TAG, "No valveOffTimer found");
+      return;
+    }
+    if( xTimerStart( valveOffTimer, 0 ) != pdPASS )
+    {
+      ESP_LOGE(TAG, "Cannot start valveOffTimer");
+      return;
+    }
+    update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_OFF);
+    updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_ON);
+    waterPumpStatus = WATERPUMP_STATUS_ON_OFF_TRANSITION;
+}
+
+void updateWaterPumpState(int new_waterpump_state)
+{
+  if (new_waterpump_state == WATERPUMP_STATUS_ON) {
+    if (waterPumpStatus == WATERPUMP_STATUS_ON) {
+      ESP_LOGE(TAG, "waterpump is already enabled");
+      return;
+    }
+    if (waterPumpStatus == WATERPUMP_STATUS_OFF_ON_TRANSITION) {
+      ESP_LOGE(TAG, "waterpump enabling is on-going");
+      return;
+    }
+    if (waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION) {
+      ESP_LOGE(TAG, "waterpump disabling is on-going");
+      return;
+    }
+    enableWaterPump();
+  } else if (new_waterpump_state == WATERPUMP_STATUS_OFF) {
+    if (waterPumpStatus == WATERPUMP_STATUS_OFF) {
+      ESP_LOGE(TAG, "waterpump is already disabled");
+      return;
+    }
+    if (waterPumpStatus == WATERPUMP_STATUS_OFF_ON_TRANSITION) {
+      ESP_LOGE(TAG, "waterpump enabling is on-going");
+      return;
+    }
+    if (waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION) {
+      ESP_LOGE(TAG, "waterpump disabling is on-going");
+      return;
+    }
+    disableWaterPump();
+  }
+}
+
 void initWaterPump()
 {
     // we assume no init for relay
@@ -83,61 +150,4 @@ void initWaterPump()
     initMotorControlPin(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus);
     initMotorControlPin(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus);
     disableWaterPump();
-}
-
-void enableWaterPump()
-{
-    if (waterPumpStatus == WATERPUMP_STATUS_ON) {
-     ESP_LOGE(TAG, "waterpump is already enabled");
-     return;
-   }
-   if (waterPumpStatus == WATERPUMP_STATUS_OFF_ON_TRANSITION) {
-     ESP_LOGE(TAG, "waterpump enabling is on-going");
-     return;
-   }
-    if (waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION) {
-     ESP_LOGE(TAG, "waterpump disabling is on-going");
-     return;
-   }
-
-    if (valveOnTimer == NULL) {
-      ESP_LOGE(TAG, "No valveOnTimer found");
-      return;
-    }
-    if( xTimerStart( valveOnTimer, 0 ) != pdPASS )
-    {
-      ESP_LOGE(TAG, "Cannot start valveOnTimer");
-      return;
-    }
-    waterPumpStatus = WATERPUMP_STATUS_OFF_ON_TRANSITION;
-    updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_ON);
-    ESP_LOGI(TAG, "waterpump enabling is on-going");
-
-}
-
-void disableWaterPump()
-{
-    if (waterPumpStatus == WATERPUMP_STATUS_OFF) {
-     ESP_LOGE(TAG, "waterpump is already disabled");
-     return;
-   }
-   if (waterPumpStatus == WATERPUMP_STATUS_OFF_ON_TRANSITION) {
-     ESP_LOGE(TAG, "waterpump enabling is on-going");
-     return;
-   }
-   if (waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION) {
-     ESP_LOGE(TAG, "waterpump disabling is on-going");
-     return;
-   }
-    if (valveOffTimer == NULL) {
-      ESP_LOGE(TAG, "No valveOffTimer found");
-      return;
-    }
-    if( xTimerStart( valveOffTimer, 0 ) != pdPASS )
-    {
-      ESP_LOGE(TAG, "Cannot start valveOffTimer");
-      return;
-    }
-    update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_OFF);
-    updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_ON);
 }

@@ -28,11 +28,6 @@ enum HeatingState {
   HEATING_STATE_ENABLED = 3,
 };
 
-enum WaterPumpState {
-  WATERPUMP_STATE_IDLE = 1,
-  WATERPUMP_STATE_ENABLED = 3,
-};
-
 enum HoldOffMode {
   HOLD_OFF_DISABLED = 1,
   HOLD_OFF_ENABLED,
