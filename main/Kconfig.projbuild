@@ -651,19 +651,19 @@ menu "Waterpump configuration"
 
     config WATERPUMP_VALVE_OPEN_GPIO
         int "GPIO to open the valve"
-        default 5
+        default 25
         help
             GPIO to open the valve
 
     config WATERPUMP_VALVE_CLOSE_GPIO
         int "GPIO to close the valve"
-        default 5
+        default 26
         help
             GPIO to close the valve
 
-    config WATERPUMP_RELAY_GPIO
-        int "GPIO to start/stop the water pump"
-        default 5
+    config WATERPUMP_RELAY_ID
+        int "relay id to start/stop the water pump"
+        default 1
         help
             GPIO to start/stop the water pump
 

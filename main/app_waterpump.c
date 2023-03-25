@@ -6,7 +6,6 @@
 
 #include "driver/gpio.h"
 
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -50,7 +49,7 @@ void openValveTimerCallback( TimerHandle_t xTimer )
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
   ESP_LOGI(TAG, "timer %s expired", pcTimerName);
   updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_OFF);
-  update_relay_status(CONFIG_WATERPUMP_RELAY_GPIO, RELAY_STATUS_ON);
+  update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_ON);
   waterPumpStatus = WATERPUMP_STATUS_ON;
   ESP_LOGI(TAG, "waterpump is now enabled");
 }
@@ -59,7 +58,7 @@ void closeValveTimerCallback( TimerHandle_t xTimer )
 {
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
   ESP_LOGI(TAG, "timer %s expired", pcTimerName);
-  updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_ON);
+  updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_OFF);
 
   waterPumpStatus = WATERPUMP_STATUS_OFF;
   ESP_LOGI(TAG, "waterpump is now disabled");
@@ -69,7 +68,7 @@ void initWaterPump()
 {
     // we assume no init for relay
 
-    waterPumpStatus = WATERPUMP_STATUS_OFF;
+    waterPumpStatus = WATERPUMP_STATUS_INIT;
     valveOnTimer = xTimerCreate( "valveOnTimer",           /* Text name. */
                       pdMS_TO_TICKS(15*1000),  /* Period. */
                       pdFALSE,                /* Autoreload. */
@@ -79,10 +78,11 @@ void initWaterPump()
                       pdMS_TO_TICKS(15*1000),  /* Period. */
                       pdFALSE,                /* Autoreload. */
                       (void *)2,                  /* ID. */
-                      openValveTimerCallback );  /* Callback function. */
+                      closeValveTimerCallback );  /* Callback function. */
 
     initMotorControlPin(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus);
     initMotorControlPin(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus);
+    disableWaterPump();
 }
 
 void enableWaterPump()
@@ -138,6 +138,6 @@ void disableWaterPump()
       ESP_LOGE(TAG, "Cannot start valveOffTimer");
       return;
     }
-    update_relay_status(CONFIG_WATERPUMP_RELAY_GPIO, RELAY_STATUS_OFF);
+    update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_OFF);
     updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_ON);
 }

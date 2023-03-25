@@ -39,6 +39,8 @@ SemaphoreHandle_t xSemaphore;
 QueueHandle_t thermostatQueue;
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
+#include "app_waterpump.h"
+
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 QueueHandle_t relayQueue;
@@ -248,6 +250,8 @@ void app_main(void)
 
   xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", THERMOSTAT_TASK_STACK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
+initWaterPump();
 
 #if CONFIG_MQTT_SWITCHES_NB
     gpio_switch_init(NULL);
