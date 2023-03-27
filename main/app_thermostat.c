@@ -303,7 +303,7 @@ void publish_thermostat_status_evt(int id)
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%s", currentTemperatureFlag[id] == SENSOR_LIFETIME ? "online" : "offline");
+  sprintf(data, "%s", currentTemperatureFlag[id] <= (SENSOR_LIFETIME / 2)  ? "offline" : "online");
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -772,12 +772,13 @@ void handle_thermostat_cmd_task(void* pvParameters)
           heatingDuration += 1; //fixme heatingControlStillNotClear4Me
 
           for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-            if (currentTemperatureFlag[id] != SENSOR_LIFETIME) {
-              publish_thermostat_status_evt(id);
-            }
             if (currentTemperatureFlag[id] > 0) {
               currentTemperatureFlag[id] -= 1;
             }
+            if (currentTemperatureFlag[id] == (SENSOR_LIFETIME / 2)) {
+              publish_thermostat_status_evt(id);
+            }
+
           }
           update_thermostat();
         }
@@ -786,7 +787,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
           ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
           if (t.data.currentTemperature != SHRT_MIN) {
-            bool shouldSendStatusUpdate = (currentTemperatureFlag[t.thermostatId] < SENSOR_LIFETIME - 1);
+            bool shouldSendStatusUpdate = (currentTemperatureFlag[t.thermostatId] <= (SENSOR_LIFETIME / 2));
             currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
             if (shouldSendStatusUpdate) {
               publish_thermostat_status_evt(t.thermostatId);
