@@ -2,12 +2,16 @@
 #include "app_waterpump.h"
 #include "app_relay.h"
 
+#include "app_publish_data.h"
+
 #include "esp_log.h"
 
 #include "driver/gpio.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+
+#include <string.h>
 
 static const char *TAG = "APP_WATERPUMP";
 
@@ -43,6 +47,38 @@ void updateMotorControlPinStatus(int pin, int* status, int value)
   }
 }
 
+void publish_waterpump_status()
+{
+  const char* waterpump_status_topic = CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/evt/status/waterpump";
+  char data[16];
+
+  memset(data,0,16);
+  switch (waterPumpStatus)
+  {
+  case WATERPUMP_STATUS_INIT:
+    ESP_LOGW(TAG, "no notification in idle status");
+    break;
+  case WATERPUMP_STATUS_OFF:
+    strcat(data, "off");
+    break;
+  case WATERPUMP_STATUS_OFF_ON_TRANSITION:
+    strcat(data, "off->on");
+    break;
+  case WATERPUMP_STATUS_ON:
+    strcat(data, "on");
+    break;
+  case WATERPUMP_STATUS_ON_OFF_TRANSITION:
+    strcat(data, "off->on");
+    break;
+  default:
+    ESP_LOGE(TAG, "no notification in unknown status %d", waterPumpStatus);
+    break;
+  }
+
+  if (strlen(data) > 0) {
+    publish_persistent_data(waterpump_status_topic, data);
+  }
+}
 
 void openValveTimerCallback( TimerHandle_t xTimer )
 {
@@ -51,6 +87,7 @@ void openValveTimerCallback( TimerHandle_t xTimer )
   updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_OFF);
   update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_ON);
   waterPumpStatus = WATERPUMP_STATUS_ON;
+  publish_waterpump_status();
   ESP_LOGI(TAG, "waterpump is now enabled");
 }
 
@@ -61,6 +98,7 @@ void closeValveTimerCallback( TimerHandle_t xTimer )
   updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_OFF);
 
   waterPumpStatus = WATERPUMP_STATUS_OFF;
+  publish_waterpump_status();
   ESP_LOGI(TAG, "waterpump is now disabled");
 }
 
@@ -77,6 +115,7 @@ void enableWaterPump()
     }
     updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_ON);
     waterPumpStatus = WATERPUMP_STATUS_OFF_ON_TRANSITION;
+    publish_waterpump_status();
     ESP_LOGI(TAG, "waterpump enabling is on-going");
 
 }
@@ -96,6 +135,8 @@ void disableWaterPump()
     update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_OFF);
     updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_ON);
     waterPumpStatus = WATERPUMP_STATUS_ON_OFF_TRANSITION;
+    publish_waterpump_status();
+    ESP_LOGI(TAG, "waterpump disabling is on-going");
 }
 
 void updateWaterPumpState(int new_waterpump_state)
