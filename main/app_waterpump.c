@@ -68,7 +68,7 @@ void publish_waterpump_status()
     strcat(data, "on");
     break;
   case WATERPUMP_STATUS_ON_OFF_TRANSITION:
-    strcat(data, "off->on");
+    strcat(data, "on->off");
     break;
   default:
     ESP_LOGE(TAG, "no notification in unknown status %d", waterPumpStatus);
