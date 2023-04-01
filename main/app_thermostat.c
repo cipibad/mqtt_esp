@@ -175,7 +175,21 @@ bool waterPumpOn[CONFIG_MQTT_THERMOSTATS_NB] = {
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
-short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB] = {0};
+#define TEMPERATURE_SENSOR_ONLINE             0
+#define TEMPERATURE_SENSOR_OFFLINE            1
+#define TEMPERATURE_SENSOR_OBSOLETE           2
+
+short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB] = {TEMPERATURE_SENSOR_OBSOLETE};
+
+int inline temperatureSensorState(int id){
+  if (currentTemperatureFlag[id] > (SENSOR_LIFETIME / 2)) {
+    return TEMPERATURE_SENSOR_ONLINE;
+  }
+  if (currentTemperatureFlag[id] > 0) {
+    return TEMPERATURE_SENSOR_OFFLINE;
+  }
+  return TEMPERATURE_SENSOR_OBSOLETE;
+}
 
 short currentTemperature_1 = SHRT_MIN;
 short currentTemperature_2 = SHRT_MIN;
@@ -303,7 +317,7 @@ void publish_thermostat_status_evt(int id)
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%s", currentTemperatureFlag[id] <= (SENSOR_LIFETIME / 2)  ? "offline" : "online");
+  sprintf(data, "%s", temperatureSensorState(id) == TEMPERATURE_SENSOR_ONLINE ? "online" : "offline");
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -438,7 +452,7 @@ bool heatingTermostatsNeedWaterPump()
   bool pumpNeeded = false;
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
     for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-      if (waterPumpOn[id] && (currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+      if (waterPumpOn[id] && temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
         if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
           if (currentTemperature[id] <= (targetTemperature[id] + temperatureTolerance[id])) {
             pumpNeeded = true;
@@ -558,12 +572,12 @@ bool sensor_is_reporting(char* reason)
 {
   bool sensorReporting = false;
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL && currentTemperatureFlag[id] != 0) {
-      sprintf(reason, "No live sensor is reporting");
+    if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL && temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE) {
       sensorReporting = true;
       break;
     }
   }
+  sprintf(reason, "No live sensor is reporting");
   return sensorReporting;
 }
 
@@ -572,7 +586,7 @@ bool heating()
   if (circuitThermostatId == -1)
     return false;
   bool heating = false;
-  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
+  if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
     if (currentTemperature_3 < currentTemperature_2 &&
         currentTemperature_2 < currentTemperature_1 &&
         currentTemperature_1 < currentTemperature[circuitThermostatId]) {
@@ -587,7 +601,7 @@ bool not_heating()
   if (circuitThermostatId == -1)
     return false;
   bool not_heating = false;
-  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
+  if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
     if (currentTemperature_3 >= currentTemperature_2 &&
         currentTemperature_2 >= currentTemperature_1 &&
         currentTemperature_1 >= currentTemperature[circuitThermostatId]) {
@@ -607,7 +621,7 @@ bool circuitColdEnough()
   ESP_LOGI(TAG, "checking circuit %d cold enough", circuitThermostatId);
   if (circuitThermostatId == -1)
     return true;
-  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT)
+  if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT)
     return  (currentTemperature[circuitThermostatId] <= targetTemperature[circuitThermostatId]);
   else
     return true;
@@ -618,7 +632,7 @@ bool circuitTooHot(char * reason)
   ESP_LOGI(TAG, "checking circuit %d to hot", circuitThermostatId);
   if (circuitThermostatId == -1)
     return false;
-  if ((currentTemperatureFlag[circuitThermostatId] > 0) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
+  if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
     if (currentTemperature[circuitThermostatId] >= temperatureTolerance[circuitThermostatId]) {
       sprintf(reason, "Circuit is too hot");
       return true;
@@ -634,7 +648,7 @@ bool tooHot(char* reason)
   bool reasonUpdated = false;
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+    if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OFFLINE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
           ESP_LOGI(TAG, "thermostat[%d] is hot enough", id);
@@ -662,7 +676,7 @@ bool tooCold(char* reason)
   bool tooCold = false;
   char tstr[64];
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((currentTemperatureFlag[id] > 0) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+    if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OFFLINE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
           ESP_LOGI(TAG, "thermostat[%d] is too cold", id);
@@ -772,10 +786,11 @@ void handle_thermostat_cmd_task(void* pvParameters)
           heatingDuration += 1; //fixme heatingControlStillNotClear4Me
 
           for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-            if (currentTemperatureFlag[id] > 0) {
+            const int prevTempSensorState = temperatureSensorState(id);
+            if (prevTempSensorState != TEMPERATURE_SENSOR_OBSOLETE) {
               currentTemperatureFlag[id] -= 1;
             }
-            if (currentTemperatureFlag[id] == (SENSOR_LIFETIME / 2)) {
+            if (temperatureSensorState(id) != prevTempSensorState) {
               publish_thermostat_status_evt(id);
             }
 
@@ -787,9 +802,9 @@ void handle_thermostat_cmd_task(void* pvParameters)
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
           ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
           if (t.data.currentTemperature != SHRT_MIN) {
-            bool shouldSendStatusUpdate = (currentTemperatureFlag[t.thermostatId] <= (SENSOR_LIFETIME / 2));
+            const int prevTempSensorState = temperatureSensorState(t.thermostatId);
             currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
-            if (shouldSendStatusUpdate) {
+            if (temperatureSensorState(t.thermostatId) != prevTempSensorState) {
               publish_thermostat_status_evt(t.thermostatId);
             }
           }
