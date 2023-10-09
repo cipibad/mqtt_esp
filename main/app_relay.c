@@ -1,7 +1,6 @@
 #include "esp_log.h"
 
 #include "driver/gpio.h"
-#include "rom/gpio.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -85,11 +84,11 @@ void relays_init()
 {
   esp_err_t err;
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
-    relayStatus[i] = RELAY_OFF;
+    relayStatus[i] = GPIO_LOW;
     gpio_pad_select_gpio(relayToGpioMap[i]);
     gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
     gpio_set_level(relayToGpioMap[i], relayStatus[i]);
-    
+
     err=read_nvs_integer(relaySleepTag[i], &relaySleepTimeout[i]);
     ESP_ERROR_CHECK( err );
 
@@ -102,7 +101,7 @@ void publish_relay_status(int id)
   const char * relays_topic = CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/evt/status/relay";
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%s", relayStatus[id] == RELAY_ON ? "ON" : "OFF");
+  sprintf(data, "%s", relayStatus[id] == GPIO_HIGH ? "ON" : "OFF");
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -150,7 +149,7 @@ void update_timer(int id)
       xTimerStop( relaySleepTimer[id], portMAX_DELAY );
     }
   }
-  if ((relayStatus[id] == RELAY_ON) && relaySleepTimeout[id] != 0) {
+  if ((relayStatus[id] == GPIO_HIGH) && relaySleepTimeout[id] != 0) {
     if (relaySleepTimer[id] == NULL) {
       ESP_LOGI(TAG, "No Timer found for %d, creating one", id);
       relaySleepTimer[id] =
@@ -173,14 +172,14 @@ void update_timer(int id)
 void update_relay_status(int id, char value)
 {
   ESP_LOGI(TAG, "update_relay_status: id: %d, value: %d", id, value);
-  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id] == RELAY_ON);
-  if (value != (relayStatus[id] == RELAY_ON)) {
+  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id] == GPIO_HIGH);
+  if (value != (relayStatus[id] == GPIO_HIGH)) {
     if (value == RELAY_STATUS_ON) {
-      relayStatus[id] = RELAY_ON;
+      relayStatus[id] = GPIO_HIGH;
       ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
     }
     if (value == RELAY_STATUS_OFF) {
-      relayStatus[id] = RELAY_OFF;
+      relayStatus[id] = GPIO_LOW;
       ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
     }
     gpio_set_level(relayToGpioMap[id], relayStatus[id]);

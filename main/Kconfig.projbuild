@@ -418,6 +418,24 @@ config MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
    depends on MQTT_THERMOSTATS_NB > 3
 endchoice
 
+config MQTT_THERMOSTATS_NB0_FRIENDLY_NAME
+   string "Thermostat 0 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 0
+   default "t0"
+   help
+       Thermostat 0 friendly name
+
+choice MQTT_THERMOSTATS_NB0_WATERPUMP
+   bool "Thermostat 0 water pump"
+   depends on MQTT_THERMOSTATS_NB > 0 && WATERPUMP_SUPPORT
+   default MQTT_THERMOSTATS_NB0_WATERPUMP_OFF
+   help
+       Thermostat water pump
+config MQTT_THERMOSTATS_NB0_WATERPUMP_OFF
+   bool "Water pump off"
+config MQTT_THERMOSTATS_NB0_WATERPUMP_ON
+   bool "Water pump on"
+endchoice
 
 choice MQTT_THERMOSTATS_NB0_SENSOR_TYPE
    bool "Thermostat 0 sensor type"
@@ -455,12 +473,24 @@ config MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
    help
        Sensor coap resource
 
-config MQTT_THERMOSTATS_NB0_FRIENDLY_NAME
-   string "Thermostat 0 friendly name"
-   depends on MQTT_THERMOSTATS_NB > 0
-   default "t0"
+config MQTT_THERMOSTATS_NB1_FRIENDLY_NAME
+   string "Thermostat 1 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 1
+   default "t1"
    help
-       Thermostat 0 friendly name
+       Thermostat 1 friendly name
+
+choice MQTT_THERMOSTATS_NB1_WATERPUMP
+   bool "Thermostat 1 water pump"
+   depends on MQTT_THERMOSTATS_NB > 1 && WATERPUMP_SUPPORT
+   default MQTT_THERMOSTATS_NB1_WATERPUMP_OFF
+   help
+       Thermostat water pump
+config MQTT_THERMOSTATS_NB1_WATERPUMP_OFF
+   bool "Water pump off"
+config MQTT_THERMOSTATS_NB1_WATERPUMP_ON
+   bool "Water pump on"
+endchoice
 
 choice MQTT_THERMOSTATS_NB1_SENSOR_TYPE
    bool "Thermostat 1 sensor type"
@@ -499,12 +529,24 @@ config MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE
    help
        Sensor coap resource
 
-config MQTT_THERMOSTATS_NB1_FRIENDLY_NAME
-   string "Thermostat 1 friendly name"
-   depends on MQTT_THERMOSTATS_NB > 1
-   default "t1"
+config MQTT_THERMOSTATS_NB2_FRIENDLY_NAME
+   string "Thermostat 2 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 2
+   default "t2"
    help
-       Thermostat 1 friendly name
+       Thermostat 2 friendly name
+
+choice MQTT_THERMOSTATS_NB2_WATERPUMP
+   bool "Thermostat 2 water pump"
+   depends on MQTT_THERMOSTATS_NB > 2 && WATERPUMP_SUPPORT
+   default MQTT_THERMOSTATS_NB2_WATERPUMP_OFF
+   help
+       Thermostat water pump
+config MQTT_THERMOSTATS_NB2_WATERPUMP_OFF
+   bool "Water pump off"
+config MQTT_THERMOSTATS_NB2_WATERPUMP_ON
+   bool "Water pump on"
+endchoice
 
 choice MQTT_THERMOSTATS_NB2_SENSOR_TYPE
    bool "Thermostat 2 sensor type"
@@ -542,12 +584,24 @@ config MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE
    help
        Sensor coap resource
 
-config MQTT_THERMOSTATS_NB2_FRIENDLY_NAME
-   string "Thermostat 2 friendly name"
-   depends on MQTT_THERMOSTATS_NB > 2
-   default "t2"
+config MQTT_THERMOSTATS_NB3_FRIENDLY_NAME
+   string "Thermostat 3 friendly name"
+   depends on MQTT_THERMOSTATS_NB > 3
+   default "t3"
    help
-       Thermostat 2 friendly name
+       Thermostat 3 friendly name
+
+choice MQTT_THERMOSTATS_NB3_WATERPUMP
+   bool "Thermostat 3 water pump"
+   depends on MQTT_THERMOSTATS_NB > 3 && WATERPUMP_SUPPORT
+   default MQTT_THERMOSTATS_NB3_WATERPUMP_OFF
+   help
+       Thermostat water pump
+config MQTT_THERMOSTATS_NB3_WATERPUMP_OFF
+   bool "Water pump off"
+config MQTT_THERMOSTATS_NB3_WATERPUMP_ON
+   bool "Water pump on"
+endchoice
 
 choice MQTT_THERMOSTATS_NB3_SENSOR_TYPE
    bool "Thermostat 3 sensor type"
@@ -585,12 +639,39 @@ config MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
    help
        Sensor coap resource
 
-config MQTT_THERMOSTATS_NB3_FRIENDLY_NAME
-   string "Thermostat 3 friendly name"
-   depends on MQTT_THERMOSTATS_NB > 3
-   default "t3"
-   help
-       Thermostat 3 friendly name
+#######################
+config WATERPUMP_SUPPORT
+    boolean "enable external waterpump support"
+    default n
+    help
+        Enable external waterpump support
+
+menu "Waterpump configuration"
+    depends on WATERPUMP_SUPPORT
+
+    config WATERPUMP_VALVE_OPEN_GPIO
+        int "GPIO to open the valve"
+        default 25
+        help
+            GPIO to open the valve
+
+    config WATERPUMP_VALVE_CLOSE_GPIO
+        int "GPIO to close the valve"
+        default 26
+        help
+            GPIO to close the valve
+
+    config WATERPUMP_RELAY_ID
+        int "relay id to start/stop the water pump"
+        default 1
+        help
+            GPIO to start/stop the water pump
+
+endmenu # "Sensors configuration"
+
+
+#######################
+
 
 config MQTT_SCHEDULERS
     boolean "enable schedulers support"
