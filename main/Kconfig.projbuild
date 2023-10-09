@@ -667,7 +667,12 @@ menu "Waterpump configuration"
         help
             GPIO to start/stop the water pump
 
-endmenu # "Sensors configuration"
+    config WATERPUMP_ENABLE_NOTIFICATIONS
+        bool "Enable waterpump notifications"
+        default n
+        help
+            There is partial implementation for user friendly notifications
+endmenu # "Waterpump"
 
 
 #######################

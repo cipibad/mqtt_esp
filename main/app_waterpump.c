@@ -80,6 +80,14 @@ void publish_waterpump_status()
   }
 }
 
+#if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+void publish_waterpump_notification_evt(const char* msg)
+{
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/notification/waterpump";
+  publish_non_persistent_data(topic, msg);
+}
+#endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+
 void openValveTimerCallback( TimerHandle_t xTimer )
 {
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
@@ -89,6 +97,10 @@ void openValveTimerCallback( TimerHandle_t xTimer )
   waterPumpStatus = WATERPUMP_STATUS_ON;
   publish_waterpump_status();
   ESP_LOGI(TAG, "waterpump is now enabled");
+  #if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+  publish_waterpump_notification_evt("Waterpump is now enabled");
+  #endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+
 }
 
 void closeValveTimerCallback( TimerHandle_t xTimer )
@@ -100,6 +112,10 @@ void closeValveTimerCallback( TimerHandle_t xTimer )
   waterPumpStatus = WATERPUMP_STATUS_OFF;
   publish_waterpump_status();
   ESP_LOGI(TAG, "waterpump is now disabled");
+  #if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+  publish_waterpump_notification_evt("Waterpump is now disabled");
+  #endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+
 }
 
 void enableWaterPump()
