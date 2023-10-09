@@ -250,9 +250,8 @@ void sensors_read(void* pvParameters)
         }
       else
         {
-          const char msg = "Error: Could not read data from DHT sensor";
-          ESP_LOGE(TAG, msg);
-          publish_dht22_log(msg);
+          ESP_LOGE(TAG, "Error: Could not read data from DHT sensor");
+          publish_dht22_log( "Error: Could not read data from DHT sensor");
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
@@ -288,7 +287,7 @@ void sensors_read(void* pvParameters)
         }
       else
         {
-          ESP_LOGE(TAG, "Could not read data from BME sensor\n");
+          ESP_LOGE(TAG, "Could not read data from BME sensor");
         }
 #endif //CONFIG_BME280_SENSOR
 

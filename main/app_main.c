@@ -157,6 +157,17 @@ void app_main(void)
   // that is called in critical section from DS18X20 driver
   esp_log_level_set("gpio", ESP_LOG_WARN);
 
+  esp_err_t err = nvs_flash_init();
+  if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
+    // NVS partition was truncated and needs to be erased
+    // Retry nvs_flash_init
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    err = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK( err );
+
+  ESP_LOGI(TAG, "nvs_flash_init done");
+
 #if CONFIG_MQTT_RELAYS_NB
   relays_init();
 #endif // CONFIG_MQTT_RELAYS_NB
@@ -190,19 +201,7 @@ void app_main(void)
   coapClientQueue = xQueueCreate(4, sizeof(struct CoapMessage) );
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
-
   xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
-
-  esp_err_t err = nvs_flash_init();
-  if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
-    // NVS partition was truncated and needs to be erased
-    // Retry nvs_flash_init
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    err = nvs_flash_init();
-  }
-  ESP_ERROR_CHECK( err );
-
-  ESP_LOGI(TAG, "nvs_flash_init done");
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
   read_nvs_thermostat_data();

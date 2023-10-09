@@ -54,6 +54,8 @@ extern QueueHandle_t relayQueue;
 
 #ifdef CONFIG_MQTT_OTA
 
+#include "app_system.h"
+
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/ota"
@@ -307,6 +309,18 @@ signed char getServiceId(const char* topic, int topic_len)
   return serviceId;
 }
 
+
+void handle_system_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+    if (strcmp(action, "restart") == 0) {
+      system_restart();
+      return;
+    }
+  ESP_LOGW(TAG, "unhandled system action: %s", action);
+}
+
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
 
 void handle_thermostat_mqtt_mode_cmd(signed char thermostatId, const char *payload)
@@ -527,6 +541,11 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 
     char service[16];
     getService(service, event->topic, event->topic_len);
+
+    if (strcmp(service, "system") == 0) {
+      handle_system_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
     if (strcmp(service, "thermostat") == 0) {
