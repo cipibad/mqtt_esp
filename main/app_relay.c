@@ -160,7 +160,7 @@ void update_timer(int id)
                       vTimerCallback );  /* Callback function. */
     }
     if (relaySleepTimer[id] == NULL) {
-      ESP_LOGE(TAG, "No Timer found for %d, cannot handle timeout", id);
+      ESP_LOGE(TAG, "No Timer can be created for %d, cannot handle timeout", id);
       return;
     }
     if (xTimerChangePeriod(relaySleepTimer[id], pdMS_TO_TICKS(relaySleepTimeout[id]*1000), portMAX_DELAY) != pdPASS) {

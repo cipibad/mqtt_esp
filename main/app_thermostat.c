@@ -557,9 +557,14 @@ void dump_data()
     ESP_LOGI(TAG, "currentTemperature[%d] is %d", id, currentTemperature[id]);
     ESP_LOGI(TAG, "currentTemperatureFlag[%d] is %d", id, currentTemperatureFlag[id]);
     ESP_LOGI(TAG, "targetTemperature[%d] is %d", id, targetTemperature[id]);
+    ESP_LOGI(TAG, "temperatureTolerance[%d] is %d", id, temperatureTolerance[id]);
+
     if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
-      ESP_LOGI(TAG, "temperatureTolerance[%d] is %d", id, temperatureTolerance[id]);
+      ESP_LOGI(TAG, "thermostatType[%d] is THERMOSTAT_TYPE_NORMAL(%d)", id, thermostatType[id]);
+    } else if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
+      ESP_LOGI(TAG, "thermostatType[%d] is THERMOSTAT_TYPE_CIRCUIT(%d)", id, thermostatType[id]);
     }
+
     if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
       ESP_LOGI(TAG, "currentTemperature_1[%d] is %d", id, currentTemperature_1);
       ESP_LOGI(TAG, "currentTemperature_2[%d] is %d", id, currentTemperature_2);
@@ -577,7 +582,9 @@ bool sensor_is_reporting(char* reason)
       break;
     }
   }
-  sprintf(reason, "No live sensor is reporting");
+  if (sensorReporting == false) {
+    sprintf(reason, "No live sensor is reporting");
+  }
   return sensorReporting;
 }
 
