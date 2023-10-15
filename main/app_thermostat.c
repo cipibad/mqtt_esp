@@ -474,11 +474,15 @@ void update_water_pump_state()
 {
   if (heatingTermostatsNeedWaterPump() || thermostat_was_bumped)
   {
-    updateWaterPumpState(WATERPUMP_STATUS_ON);
+    if(waterPumpStatus != WATERPUMP_STATUS_ON) {
+      updateWaterPumpState(WATERPUMP_STATUS_ON);
+    }
   }
   else
   { // ! heatingTermostatsNeedWaterPump()
-    updateWaterPumpState(WATERPUMP_STATUS_OFF);
+    if (waterPumpStatus != WATERPUMP_STATUS_OFF) {
+      updateWaterPumpState(WATERPUMP_STATUS_OFF);
+    }
   }
 }
 #endif // CONFIG_WATERPUMP_SUPPORT
