@@ -29,6 +29,9 @@ enum HeatingState heatingState = HEATING_STATE_IDLE;
 unsigned int heatingDuration = 0;
 int circuitThermostatId = -1;
 
+bool thermostat_bump = false;
+bool thermostat_was_bumped = false;
+
 enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {
   THERMOSTAT_MODE_UNSET,
 #if CONFIG_MQTT_THERMOSTATS_NB > 1
@@ -469,7 +472,7 @@ bool heatingTermostatsNeedWaterPump()
 
 void update_water_pump_state()
 {
-  if (heatingTermostatsNeedWaterPump())
+  if (heatingTermostatsNeedWaterPump() || thermostat_was_bumped)
   {
     updateWaterPumpState(WATERPUMP_STATUS_ON);
   }
@@ -555,6 +558,8 @@ void dump_data()
   ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
   ESP_LOGI(TAG, "heating state is %d", heatingState);
   ESP_LOGI(TAG, "waterPump state is %d", getWaterPumpStatus());
+  ESP_LOGI(TAG, "thermostat_bump is %s", thermostat_bump ? "true" : "false");
+  ESP_LOGI(TAG, "thermostat_was_bumped is %s", thermostat_was_bumped ? "true" : "false");
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     ESP_LOGI(TAG, "thermostatMode[%d] is %d", id, thermostatMode[id]);
@@ -728,12 +733,27 @@ void update_thermostat()
   bool heatingToggledOff = update_heating(reason);
 
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
-    if ((!sensor_is_reporting(reason)) || circuitTooHot(reason) || heatingToggledOff || tooHot(reason)) {
+    if ((!sensor_is_reporting(reason)) || circuitTooHot(reason) || heatingToggledOff) {
+      disableThermostat(reason);
+      if (thermostat_was_bumped) {
+        thermostat_was_bumped = false;
+      }
+    } else if (thermostat_was_bumped) { // let's have a limit for max bump running
+      if (thermostatDuration > 120) { // 2h bump should be more than enough
+        disableThermostat("Thermostat bump limit of 2h was reached");
+        thermostat_was_bumped = false;
+      }
+    } else if (tooHot(reason)) { // if thermostat_was_bumped check temperatures at the end
       disableThermostat(reason);
     }
   } else { //   thermostatState == THERMOSTAT_STATE_IDLE
-    if (circuitColdEnough() && tooCold(reason)) {
-      enableThermostat(reason);
+    if (circuitColdEnough()) {
+      if (tooCold(reason)) {
+        enableThermostat(reason);
+      } else if (thermostat_bump){
+        enableThermostat("Thermostat was bumped");
+        thermostat_was_bumped = true;
+      }
     }
   }
 
@@ -742,6 +762,10 @@ void update_thermostat()
     update_water_pump_state();
   }
   #endif // CONFIG_WATERPUMP_SUPPORT
+
+  if (thermostat_bump){
+    thermostat_bump = false;
+  }
 }
 
 void vThermostatTimerCallback( TimerHandle_t xTimer )
@@ -812,7 +836,10 @@ void handle_thermostat_cmd_task(void* pvParameters)
           update_thermostat();
         }
 
-        //new messages
+        if (t.msgType == THERMOSTAT_CMD_BUMP) {
+          thermostat_bump = true;
+        }
+
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
           ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
           if (t.data.currentTemperature != SHRT_MIN) {

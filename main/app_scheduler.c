@@ -27,7 +27,7 @@ void update_time_from_ntp()
     const int retry_count = 10;
 
     // wait for time to be set
-    while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
+    while (timeinfo.tm_year < (2022 - 1900) && ++retry < retry_count) {
       ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
       vTaskDelay(2000 / portTICK_PERIOD_MS);
       time(&now);
@@ -61,6 +61,9 @@ void vSchedulerCallback( TimerHandle_t xTimer )
 void start_scheduler_timer()
 {
   ESP_LOGI(TAG, "Initializing SNTP");
+  setenv("TZ", "EEST", 1);
+  tzset();
+
   sntp_setoperatingmode(SNTP_OPMODE_POLL);
   sntp_setservername(0, "pool.ntp.org");
   sntp_init();
@@ -81,54 +84,54 @@ void start_scheduler_timer()
   }
 }
 
-void log_scheduler(const struct SchedulerCfgMessage *msg)
-{
-  ESP_LOGI(TAG, "schId: %d, ts: %ld, aId: %d, aState: %d",
-           msg->schedulerId,
-           msg->timestamp,
-           msg->actionId,
-           msg->actionState);
-  if (msg->actionId == RELAY_ACTION) {
-    ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
-             msg->data.relayActionData.relayId,
-             msg->data.relayActionData.data);
-  }
-}
+// void log_scheduler(const struct SchedulerCfgMessage *msg)
+// {
+//   ESP_LOGI(TAG, "schId: %d, ts: %ld, aId: %d, aState: %d",
+//            msg->schedulerId,
+//            msg->timestamp,
+//            msg->actionId,
+//            msg->actionState);
+//   if (msg->actionId == RELAY_ACTION) {
+//     ESP_LOGI(TAG, "realyId: %d, relayValue: %d",
+//              msg->data.relayActionData.relayId,
+//              msg->data.relayActionData.data);
+//   }
+// }
 
-void handle_relay_action_trigger(struct SchedulerCfgMessage *msg, int nowMinutes) {
-  int schedulerMinutes = msg->timestamp / 60;
-  ESP_LOGI(TAG, "schedulerMinutes: %d", schedulerMinutes);
+// void handle_relay_action_trigger(struct SchedulerCfgMessage *msg, int nowMinutes) {
+//   int schedulerMinutes = msg->timestamp / 60;
+//   ESP_LOGI(TAG, "schedulerMinutes: %d", schedulerMinutes);
 
-  if (schedulerMinutes == nowMinutes ||
-      schedulerMinutes == (nowMinutes - 1)) {
-    ESP_LOGI(TAG, "Executing scheduleId: %d",
-             msg->schedulerId);
-    struct RelayMessage r=msg->data.relayActionData;
-    if (xQueueSend( relayQueue,
-                    ( void * )&r,
-                    RELAY_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to relayQueue");
-    }
-  }
+//   if (schedulerMinutes == nowMinutes ||
+//       schedulerMinutes == (nowMinutes - 1)) {
+//     ESP_LOGI(TAG, "Executing scheduleId: %d",
+//              msg->schedulerId);
+//     struct RelayMessage r=msg->data.relayActionData;
+//     if (xQueueSend( relayQueue,
+//                     ( void * )&r,
+//                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
+//       ESP_LOGE(TAG, "Cannot send to relayQueue");
+//     }
+//   }
 
-  if (schedulerMinutes <= nowMinutes) {
-    ESP_LOGI(TAG, "Disabling scheduleId: %d",
-             msg->schedulerId);
-    msg->actionState = ACTION_STATE_DISABLED;
-  }
-}
+//   if (schedulerMinutes <= nowMinutes) {
+//     ESP_LOGI(TAG, "Disabling scheduleId: %d",
+//              msg->schedulerId);
+//     msg->actionState = ACTION_STATE_DISABLED;
+//   }
+// }
 
 
-void handle_action_trigger(struct SchedulerCfgMessage *schedulerCfg, int nowMinutes)
-{
-  for (int i = 0; i < MAX_SCHEDULER_NB; ++i) {
-    log_scheduler(&schedulerCfg[i]);
-    if (schedulerCfg[i].actionId    == RELAY_ACTION &&
-        schedulerCfg[i].actionState == ACTION_STATE_ENABLED) {
-      handle_relay_action_trigger(&schedulerCfg[i], nowMinutes);
-    }
-  }
-}
+// void handle_action_trigger(struct SchedulerCfgMessage *schedulerCfg, int nowMinutes)
+// {
+//   for (int i = 0; i < MAX_SCHEDULER_NB; ++i) {
+//     log_scheduler(&schedulerCfg[i]);
+//     if (schedulerCfg[i].actionId    == RELAY_ACTION &&
+//         schedulerCfg[i].actionState == ACTION_STATE_ENABLED) {
+//       handle_relay_action_trigger(&schedulerCfg[i], nowMinutes);
+//     }
+//   }
+// }
 
 void handle_scheduler(void* pvParameters)
 {
@@ -136,8 +139,8 @@ void handle_scheduler(void* pvParameters)
 
   start_scheduler_timer();
 
-  struct SchedulerCfgMessage schedulerCfg[MAX_SCHEDULER_NB];
-  memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(struct SchedulerCfgMessage));
+  // struct SchedulerCfgMessage schedulerCfg[MAX_SCHEDULER_NB];
+  // memset (schedulerCfg, 0, MAX_SCHEDULER_NB * sizeof(struct SchedulerCfgMessage));
   struct SchedulerCfgMessage tempSchedulerCfg;
   while(1) {
     if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg, portMAX_DELAY)) {
@@ -149,18 +152,18 @@ void handle_scheduler(void* pvParameters)
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
         ESP_LOGI(TAG, "Current time is: %s", strftime_buf);
 
-        int nowMinutes =  tempSchedulerCfg.data.triggerActionData.now/ 60;
-        ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
-        handle_action_trigger(schedulerCfg, nowMinutes);
-      } else if (tempSchedulerCfg.actionId == ADD_RELAY_ACTION) {
-        if (tempSchedulerCfg.schedulerId < MAX_SCHEDULER_NB) {
-          ESP_LOGI(TAG, "Updating schedulerId: %d",
-                   tempSchedulerCfg.schedulerId);
-          schedulerCfg[tempSchedulerCfg.schedulerId] = tempSchedulerCfg;
-        } else {
-              ESP_LOGE(TAG, "Wrong schedulerId: %d",
-                       tempSchedulerCfg.schedulerId);
-        }
+      //   int nowMinutes =  tempSchedulerCfg.data.triggerActionData.now/ 60;
+      //   ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
+      //   handle_action_trigger(schedulerCfg, nowMinutes);
+      // } else if (tempSchedulerCfg.actionId == ADD_RELAY_ACTION) {
+      //   if (tempSchedulerCfg.schedulerId < MAX_SCHEDULER_NB) {
+      //     ESP_LOGI(TAG, "Updating schedulerId: %d",
+      //              tempSchedulerCfg.schedulerId);
+      //     schedulerCfg[tempSchedulerCfg.schedulerId] = tempSchedulerCfg;
+      //   } else {
+      //         ESP_LOGE(TAG, "Wrong schedulerId: %d",
+      //                  tempSchedulerCfg.schedulerId);
+      //   }
       } else {
         ESP_LOGE(TAG, "Unknown actionId: %d",
                  tempSchedulerCfg.actionId);

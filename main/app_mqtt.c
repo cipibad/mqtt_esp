@@ -295,6 +295,18 @@ void handle_system_mqtt_cmd(const char* topic, int topic_len, const char* payloa
 }
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
+void handle_thermostat_mqtt_bump_cmd(const char *payload)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = THERMOSTAT_CMD_BUMP;
+  tm.thermostatId = -1;
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
 
 void handle_thermostat_mqtt_mode_cmd(signed char thermostatId, const char *payload)
 {
@@ -354,19 +366,23 @@ void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* pa
 {
   char action[16];
   getAction(action, topic, topic_len);
-  signed char thermostatId = getServiceId(topic, topic_len);
-  if (thermostatId != -1) {
-    if (strcmp(action, "mode") == 0) {
-      handle_thermostat_mqtt_mode_cmd(thermostatId, payload);
-      return;
-    }
-    if (strcmp(action, "temp") == 0) {
-      handle_thermostat_mqtt_temp_cmd(thermostatId, payload);
-      return;
-    }
-    if (strcmp(action, "tolerance") == 0) {
-      handle_thermostat_mqtt_tolerance_cmd(thermostatId, payload);
-      return;
+  if (strcmp(action, "bump") == 0) {
+    handle_thermostat_mqtt_bump_cmd(payload);
+  } else {
+    signed char thermostatId = getServiceId(topic, topic_len);
+    if (thermostatId != -1) {
+      if (strcmp(action, "mode") == 0) {
+        handle_thermostat_mqtt_mode_cmd(thermostatId, payload);
+        return;
+      }
+      if (strcmp(action, "temp") == 0) {
+        handle_thermostat_mqtt_temp_cmd(thermostatId, payload);
+        return;
+      }
+      if (strcmp(action, "tolerance") == 0) {
+        handle_thermostat_mqtt_tolerance_cmd(thermostatId, payload);
+        return;
+      }
     }
   }
   ESP_LOGW(TAG, "unhandled water thermostat: %s", action);
