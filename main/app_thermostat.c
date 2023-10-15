@@ -470,19 +470,17 @@ bool heatingTermostatsNeedWaterPump()
 }
 
 #ifdef CONFIG_WATERPUMP_SUPPORT
-
 void update_water_pump_state()
 {
-  if (waterPumpStatus != WATERPUMP_STATUS_ON && (heatingTermostatsNeedWaterPump() || thermostat_was_bumped))
+  if (heatingTermostatsNeedWaterPump() || thermostat_was_bumped)
   {
     updateWaterPumpState(WATERPUMP_STATUS_ON);
   }
-  else if (waterPumpStatus != WATERPUMP_STATUS_OFF)
+  else
   { // ! heatingTermostatsNeedWaterPump()
     updateWaterPumpState(WATERPUMP_STATUS_OFF);
   }
 }
-
 #endif // CONFIG_WATERPUMP_SUPPORT
 
 void disableThermostat(const char * reason)
