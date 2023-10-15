@@ -197,6 +197,7 @@ int inline temperatureSensorState(int id){
 short currentTemperature_1 = SHRT_MIN;
 short currentTemperature_2 = SHRT_MIN;
 short currentTemperature_3 = SHRT_MIN;
+short currentTemperature_4 = SHRT_MIN;
 
 extern QueueHandle_t thermostatQueue;
 
@@ -472,11 +473,11 @@ bool heatingTermostatsNeedWaterPump()
 
 void update_water_pump_state()
 {
-  if (heatingTermostatsNeedWaterPump() || thermostat_was_bumped)
+  if (waterPumpStatus != WATERPUMP_STATUS_ON && (heatingTermostatsNeedWaterPump() || thermostat_was_bumped))
   {
     updateWaterPumpState(WATERPUMP_STATUS_ON);
   }
-  else
+  else if (waterPumpStatus != WATERPUMP_STATUS_OFF)
   { // ! heatingTermostatsNeedWaterPump()
     updateWaterPumpState(WATERPUMP_STATUS_OFF);
   }
@@ -550,7 +551,7 @@ void disableHeating()
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
-  ESP_LOGI(TAG, "heating2 disabled");
+  ESP_LOGI(TAG, "heating disabled");
 }
 
 void dump_data()
@@ -578,6 +579,7 @@ void dump_data()
       ESP_LOGI(TAG, "currentTemperature_1[%d] is %d", id, currentTemperature_1);
       ESP_LOGI(TAG, "currentTemperature_2[%d] is %d", id, currentTemperature_2);
       ESP_LOGI(TAG, "currentTemperature_3[%d] is %d", id, currentTemperature_3);
+      ESP_LOGI(TAG, "currentTemperature_4[%d] is %d", id, currentTemperature_4);
     }
   }
 }
@@ -603,7 +605,8 @@ bool heating()
     return false;
   bool heating = false;
   if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
-    if (currentTemperature_3 < currentTemperature_2 &&
+    if (currentTemperature_4 < currentTemperature_3 &&
+        currentTemperature_3 < currentTemperature_2 &&
         currentTemperature_2 < currentTemperature_1 &&
         currentTemperature_1 < currentTemperature[circuitThermostatId]) {
       heating = true;
@@ -618,7 +621,8 @@ bool not_heating()
     return false;
   bool not_heating = false;
   if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
-    if (currentTemperature_3 >= currentTemperature_2 &&
+    if (currentTemperature_4 >= currentTemperature_3 &&
+        currentTemperature_3 >= currentTemperature_2 &&
         currentTemperature_2 >= currentTemperature_1 &&
         currentTemperature_1 >= currentTemperature[circuitThermostatId]) {
       not_heating = true;
@@ -743,7 +747,7 @@ void update_thermostat()
         disableThermostat("Thermostat bump limit of 2h was reached");
         thermostat_was_bumped = false;
       }
-    } else if (tooHot(reason)) { // if thermostat_was_bumped check temperatures at the end
+    } else if (tooHot(reason)) { // check thermostats temps if not thermostat_was_bumped
       disableThermostat(reason);
     }
   } else { //   thermostatState == THERMOSTAT_STATE_IDLE
@@ -851,6 +855,9 @@ void handle_thermostat_cmd_task(void* pvParameters)
           }
 
           if (circuitThermostatId == t.thermostatId) {
+            if (currentTemperature_4 != currentTemperature_3) {
+              currentTemperature_4 = currentTemperature_3;
+            }
             if (currentTemperature_3 != currentTemperature_2) {
               currentTemperature_3 = currentTemperature_2;
             }

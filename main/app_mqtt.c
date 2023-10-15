@@ -368,6 +368,7 @@ void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* pa
   getAction(action, topic, topic_len);
   if (strcmp(action, "bump") == 0) {
     handle_thermostat_mqtt_bump_cmd(payload);
+    return;
   } else {
     signed char thermostatId = getServiceId(topic, topic_len);
     if (thermostatId != -1) {
