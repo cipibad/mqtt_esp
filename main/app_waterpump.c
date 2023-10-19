@@ -23,6 +23,8 @@ int waterPumpStatus;
 int valveOnPinStatus;
 int valveOffPinStatus;
 
+#ifdef CONFIG_WATERPUMP_SUPPORT
+
 void initMotorControlPin(int pin, int* status)
 {
     *status = GPIO_LOW;
@@ -208,3 +210,5 @@ void initWaterPump()
     initMotorControlPin(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus);
     disableWaterPump();
 }
+
+#endif // CONFIG_WATERPUMP_SUPPORT

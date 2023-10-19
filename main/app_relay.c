@@ -1,6 +1,8 @@
 #include "esp_log.h"
 
 #include "driver/gpio.h"
+#include "rom/gpio.h"
+
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"

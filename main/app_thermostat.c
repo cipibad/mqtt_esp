@@ -465,6 +465,8 @@ bool heatingTermostatsNeedWaterPump()
   return pumpNeeded;
 }
 
+#ifdef CONFIG_WATERPUMP_SUPPORT
+
 void update_water_pump_state()
 {
   if (heatingTermostatsNeedWaterPump())
@@ -476,6 +478,8 @@ void update_water_pump_state()
     updateWaterPumpState(WATERPUMP_STATUS_OFF);
   }
 }
+
+#endif // CONFIG_WATERPUMP_SUPPORT
 
 void disableThermostat(const char * reason)
 {
@@ -732,9 +736,12 @@ void update_thermostat()
       enableThermostat(reason);
     }
   }
+
+  #ifdef CONFIG_WATERPUMP_SUPPORT
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
     update_water_pump_state();
   }
+  #endif // CONFIG_WATERPUMP_SUPPORT
 }
 
 void vThermostatTimerCallback( TimerHandle_t xTimer )

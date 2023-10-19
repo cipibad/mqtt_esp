@@ -251,7 +251,9 @@ void app_main(void)
   xTaskCreate(handle_thermostat_cmd_task, "handle_thermostat_cmd_task", THERMOSTAT_TASK_STACK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
+#ifdef CONFIG_WATERPUMP_SUPPORT
 initWaterPump();
+#endif // CONFIG_WATERPUMP_SUPPORT
 
 #if CONFIG_MQTT_SWITCHES_NB
     gpio_switch_init(NULL);
