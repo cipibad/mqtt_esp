@@ -27,20 +27,8 @@
 #include "app_system.h"
 
 #ifdef CONFIG_MQTT_SCHEDULERS
-
 #include "app_scheduler.h"
 extern QueueHandle_t schedulerCfgQueue;
-//FIXME hack until decide if queue+thread really usefull
-extern struct SchedulerCfgMessage schedulerCfg;
-//FIXME end hack until decide if queue+thread really usefull
-
-#define SCHEDULER_CFG_TOPIC CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/cfg/scheduler/"
-#define SCHEDULER_TOPICS_NB 1
-
-#else // CONFIG_MQTT_SCHEDULERS
-
-#define SCHEDULER_TOPICS_NB 0
-
 #endif // CONFIG_MQTT_SCHEDULERS
 
 #if CONFIG_MQTT_RELAYS_NB
@@ -111,14 +99,11 @@ static const char *TAG = "MQTTS_MQTTS";
 #define CMD_ACTION_TYPE_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/#"
 #define CMD_ACTION_TYPE_TOPICS_NB 1
 
-#define NB_SUBSCRIPTIONS  (CMD_ACTION_TYPE_TOPICS_NB + SCHEDULER_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS)
+#define NB_SUBSCRIPTIONS  (CMD_ACTION_TYPE_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS)
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
     CMD_ACTION_TYPE_TOPIC,
-#ifdef CONFIG_MQTT_SCHEDULERS
-    SCHEDULER_CFG_TOPIC "+",
-#endif // CONFIG_MQTT_SCHEDULERS
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
     CONFIG_MQTT_THERMOSTATS_NB0_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
@@ -156,64 +141,6 @@ unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const c
   }
   return topicId;
 }
-
-bool handle_scheduler_mqtt_event(esp_mqtt_event_handle_t event)
-{
-#ifdef CONFIG_MQTT_SCHEDULERS
-  unsigned char schedulerId = get_topic_id(event, MAX_SCHEDULER_NB, SCHEDULER_CFG_TOPIC);
-
-  if (schedulerId != JSON_BAD_TOPIC_ID) {
-    if (event->data_len >= MAX_MQTT_DATA_SCHEDULER) {
-      ESP_LOGI(TAG, "unexpected scheduler cfg payload length");
-      return true;
-    }
-    struct SchedulerCfgMessage s = {0, 0, 0, 0, {{0}}};
-    s.schedulerId = schedulerId;
-
-    char tmpBuf[MAX_MQTT_DATA_SCHEDULER];
-    memcpy(tmpBuf, event->data, event->data_len);
-    tmpBuf[event->data_len] = 0;
-    cJSON * root   = cJSON_Parse(tmpBuf);
-    if (root) {
-      cJSON * timestamp = cJSON_GetObjectItem(root,"ts");
-      if (timestamp) {
-        s.timestamp = timestamp->valueint;
-      }
-      cJSON * actionId = cJSON_GetObjectItem(root,"aId");
-      if (actionId) {
-        s.actionId = actionId->valueint;
-      }
-      cJSON * actionState = cJSON_GetObjectItem(root,"aState");
-      if (actionState) {
-        s.actionState = actionState->valueint;
-      }
-      cJSON * data = cJSON_GetObjectItem(root,"data");
-      if (data) {
-        if (s.actionId == ADD_RELAY_ACTION) {
-          cJSON * relayId = cJSON_GetObjectItem(data,"relayId");
-          if (relayId) {
-            s.data.relayActionData.relayId = relayId->valueint;
-          }
-          cJSON * relayValue = cJSON_GetObjectItem(data,"relayValue");
-          if (relayValue) {
-            s.data.relayActionData.data = relayValue->valueint;
-          }
-        }
-      }
-      cJSON_Delete(root);
-
-      if (xQueueSend(schedulerCfgQueue
-                     ,( void * )&s
-                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-        ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue");
-      }
-    }
-    return true;
-  }
-#endif // CONFIG_MQTT_SCHEDULERS
-  return false;
-}
-
 
 bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
 {
@@ -451,6 +378,125 @@ void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload
 
 #endif // CONFIG_MQTT_RELAYS_NB
 
+#if CONFIG_MQTT_SCHEDULERS
+void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *payload)
+{
+  struct SchedulerCfgMessage sm;
+  memset(&sm, 0, sizeof(struct RelayMessage));
+  sm.msgType = SCHEDULER_CMD_ACTION;
+  sm.schedulerId = schedulerId;
+
+  if (strcmp(payload, "relay_on") == 0)
+    sm.data.action = SCHEDULER_ACTION_RELAY_ON;
+  else if (strcmp(payload, "relay_off") == 0)
+    sm.data.action = SCHEDULER_ACTION_RELAY_OFF;
+  else if (strcmp(payload, "ow_on") == 0)
+    sm.data.action = SCHEDULER_ACTION_OW_ON;
+  else if (strcmp(payload, "ow_off") == 0)
+    sm.data.action = SCHEDULER_ACTION_OW_OFF;
+  else {
+    ESP_LOGW(TAG, "unhandled scheduler action: %s", payload);
+    return;
+  }
+  if (xQueueSend( schedulerCfgQueue
+                  ,( void * )&sm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to schedulerCfgQueue");
+  }
+}
+
+void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload)
+{
+  struct SchedulerCfgMessage sm;
+  memset(&sm, 0, sizeof(struct RelayMessage));
+  sm.msgType = SCHEDULER_CMD_TIME;
+  sm.schedulerId = schedulerId;
+
+  char str[16];
+  strncpy(str, payload, 15);
+  str[15] = '\0';
+
+  char *token = strtok(str, " ");
+  if (!token) {
+    ESP_LOGW(TAG, "unhandled scheduler time: %s", payload);
+    return;
+  }
+
+  sm.data.time.dow = atoi(token);
+
+  token = strtok(NULL, "/");
+  if (!token) {
+    ESP_LOGW(TAG, "unhandled scheduler time: %s", payload);
+    return;
+  }
+
+  sm.data.time.hour = atoi(token);
+
+  token = strtok(NULL, "/");
+  if (!token) {
+    ESP_LOGW(TAG, "unhandled scheduler time: %s", payload);
+    return;
+  }
+  sm.data.time.minute = atoi(token);
+
+  if (xQueueSend( schedulerCfgQueue
+                  ,( void * )&sm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to schedulerCfgQueue");
+  }
+}
+
+void handle_scheduler_mqtt_status_cmd(signed char schedulerId, const char *payload)
+{
+  struct SchedulerCfgMessage sm;
+  memset(&sm, 0, sizeof(struct RelayMessage));
+  sm.msgType = SCHEDULER_CMD_STATUS;
+  sm.schedulerId = schedulerId;
+
+  if (strcmp(payload, "ON") == 0)
+    sm.data.status = SCHEDULER_STATUS_ON;
+  else if (strcmp(payload, "OFF") == 0)
+    sm.data.status = SCHEDULER_STATUS_OFF;
+  else {
+    ESP_LOGW(TAG, "unhandled scheduler status: %s", payload);
+    return;
+  }
+
+  if (xQueueSend( schedulerCfgQueue
+                  ,( void * )&sm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to schedulerCfgQueue");
+  }
+}
+
+void handle_scheduler_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+
+  signed char schedulerId = getServiceId(topic, topic_len);
+  if (schedulerId != -1) {
+    if (strcmp(action, "action") == 0) {
+      handle_scheduler_mqtt_action_cmd(schedulerId, payload);
+      return;
+    }
+    if (strcmp(action, "time") == 0) {
+      handle_scheduler_mqtt_time_cmd(schedulerId, payload);
+      return;
+    }
+    if (strcmp(action, "status") == 0) {
+      handle_scheduler_mqtt_status_cmd(schedulerId, payload);
+      return;
+    }
+    ESP_LOGW(TAG, "unhandled relay action: %s", action);
+    return;
+  }
+  ESP_LOGW(TAG, "unhandled relay id: %d", schedulerId);
+}
+
+#endif // CONFIG_MQTT_SCHEDULERS
+
+
 #if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
 void thermostat_publish_data(int thermostat_id, const char * payload)
 {
@@ -549,11 +595,16 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       return;
     }
 #endif // CONFIG_MQTT_RELAYS_NB
+
+#if CONFIG_MQTT_SCHEDULERS
+    if (strcmp(service, "scheduler") == 0) {
+      handle_scheduler_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
+#endif // CONFIG_MQTT_SCHEDULERS
   ESP_LOGE(TAG, "Unhandled service %s for cmd action", service);
   }
 
-  if (handle_scheduler_mqtt_event(event))
-    return;
   if (handle_ota_mqtt_event(event))
     return;
   ESP_LOGI(TAG, "Unhandled topic %.*s", event->topic_len, event->topic);

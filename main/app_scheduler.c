@@ -47,8 +47,8 @@ void vSchedulerCallback( TimerHandle_t xTimer )
 
   //trigerring
   struct SchedulerCfgMessage s;
-  s.actionId = TRIGGER_ACTION;
-  time(&s.data.triggerActionData.now);
+  s.msgType = SCHEDULER_CMD_TRIGGER;
+  time(&s.data.now);
   if (xQueueSend(schedulerCfgQueue
                  ,( void * )&s
                  ,SCHEDULE_QUEUE_TIMEOUT) != pdPASS) {
@@ -61,8 +61,6 @@ void vSchedulerCallback( TimerHandle_t xTimer )
 void start_scheduler_timer()
 {
   ESP_LOGI(TAG, "Initializing SNTP");
-  setenv("TZ", "EEST", 1);
-  tzset();
 
   sntp_setoperatingmode(SNTP_OPMODE_POLL);
   sntp_setservername(0, "pool.ntp.org");
@@ -144,13 +142,13 @@ void handle_scheduler(void* pvParameters)
   struct SchedulerCfgMessage tempSchedulerCfg;
   while(1) {
     if( xQueueReceive(schedulerCfgQueue, &tempSchedulerCfg, portMAX_DELAY)) {
-      if (tempSchedulerCfg.actionId == TRIGGER_ACTION) {
+      if (tempSchedulerCfg.msgType == SCHEDULER_CMD_TRIGGER) {
         struct tm timeinfo = { 0 };
-        localtime_r(&tempSchedulerCfg.data.triggerActionData.now, &timeinfo);
+        localtime_r(&tempSchedulerCfg.data.now, &timeinfo);
 
         char strftime_buf[64];
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-        ESP_LOGI(TAG, "Current time is: %s", strftime_buf);
+        ESP_LOGI(TAG, "Current scheduler trigger time is: %s", strftime_buf);
 
       //   int nowMinutes =  tempSchedulerCfg.data.triggerActionData.now/ 60;
       //   ESP_LOGI(TAG, "nowMinutes: %d", nowMinutes);
@@ -166,7 +164,7 @@ void handle_scheduler(void* pvParameters)
       //   }
       } else {
         ESP_LOGE(TAG, "Unknown actionId: %d",
-                 tempSchedulerCfg.actionId);
+                 tempSchedulerCfg.msgType);
       }
     }
   }
