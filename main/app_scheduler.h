@@ -6,28 +6,46 @@
 void start_scheduler_timer(void);
 void handle_scheduler(void* pvParameters);
 
-#define RELAY_ACTION 1
-#define ADD_RELAY_ACTION 1
-#define TRIGGER_ACTION 255
-#define MAX_SCHEDULER_NB 8
-
-#define ACTION_STATE_DISABLED 0
-#define ACTION_STATE_ENABLED 1
+#define MAX_SCHEDULER_NB 2
 
 //FIXME basic structure only
 
-union Data {
-  struct RelayMessage relayActionData;
-  struct TriggerData {time_t now;} triggerActionData;
+enum SchedulerCfgMessageType {
+  SCHEDULER_CMD_ACTION,
+  SCHEDULER_CMD_TIME,
+  SCHEDULER_CMD_STATUS,
+  SCHEDULER_CMD_TRIGGER,
 };
 
-struct SchedulerCfgMessage
-{
+enum SchedulerAction {
+  SCHEDULER_ACTION_RELAY_ON,
+  SCHEDULER_ACTION_RELAY_OFF,
+  SCHEDULER_ACTION_OW_ON,
+  SCHEDULER_ACTION_OW_OFF,
+};
+
+struct SchedulerTime {
+  short dow;
+  short hour;
+  short minute;
+};
+
+enum SchedulerStatus {
+  SCHEDULER_STATUS_ON,
+  SCHEDULER_STATUS_OFF
+};
+
+union SchedulerCfgData {
+  enum SchedulerAction action;
+  struct SchedulerTime time;
+  enum SchedulerStatus status;
+  time_t now;
+};
+
+struct SchedulerCfgMessage {
+  enum SchedulerCfgMessageType msgType;
   unsigned char schedulerId;
-  time_t timestamp;
-  unsigned char actionId;
-  unsigned char actionState;
-  union Data data;
+  union SchedulerCfgData data;
 };
 
 #define SCHEDULE_TIMEOUT 30
