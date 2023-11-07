@@ -110,6 +110,20 @@ async_handler_put(coap_context_t *ctx, struct coap_resource_t *resource,
                 thermostat_publish_local_data(3, value);
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
+#ifdef CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE
+            if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE,
+                strlen(CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE)) == 0) {
+                int value = atof(data) * 10;
+                thermostat_publish_local_data(4, value);
+            }
+#endif // CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE
+#ifdef CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE
+            if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE,
+                strlen(CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE)) == 0) {
+                int value = atof(data) * 10;
+                thermostat_publish_local_data(5, value);
+            }
+#endif // CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE
             publish_non_persistent_data(uri, data);
         }
     }
@@ -187,6 +201,26 @@ void coap_server_thread(void *p)
                 if (resource_registered == false) { resource_registered = true;}
             }
 #endif // CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
+#ifdef CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE
+            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE,
+                strlen(CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE), 0);
+            if (resource){
+                ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE);
+                coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
+                coap_add_resource(ctx, resource);
+                if (resource_registered == false) { resource_registered = true;}
+            }
+#endif // CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE
+#ifdef CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE
+            resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE,
+                strlen(CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE), 0);
+            if (resource){
+                ESP_LOGI(TAG, "registering resource " CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE);
+                coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
+                coap_add_resource(ctx, resource);
+                if (resource_registered == false) { resource_registered = true;}
+            }
+#endif // CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE
 
 #if CONFIG_COAP_PROXY_PATHS_NB > 0
             resource = coap_resource_init((unsigned char *)CONFIG_COAP_PROXY_PATH_NB0,

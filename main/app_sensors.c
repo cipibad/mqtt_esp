@@ -105,6 +105,18 @@ void publish_data_to_thermostat(const char * topic, int value)
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB3_SENSOR_TYPE_MQTT
 
+#ifdef CONFIG_MQTT_THERMOSTATS_NB4_SENSOR_TYPE_LOCAL
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB4_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB4_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(4, value);
+  }
+#endif //CONFIG_MQTT_THERMOSTATS_NB4_SENSOR_TYPE_MQTT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB5_SENSOR_TYPE_LOCAL
+  if (strncmp(topic, CONFIG_MQTT_THERMOSTATS_NB5_LOCAL_SENSOR_TOPIC, strlen(CONFIG_MQTT_THERMOSTATS_NB5_LOCAL_SENSOR_TOPIC)) == 0) {
+    thermostat_publish_local_data(5, value);
+  }
+#endif //CONFIG_MQTT_THERMOSTATS_NB5_SENSOR_TYPE_MQTT
+
 }
 
 void publish_sensor_data(const char * topic, int value)

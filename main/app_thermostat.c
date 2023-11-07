@@ -32,18 +32,7 @@ int circuitThermostatId = -1;
 bool thermostat_bump = false;
 bool thermostat_was_bumped = false;
 
-enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB] = {
-  THERMOSTAT_MODE_UNSET,
-#if CONFIG_MQTT_THERMOSTATS_NB > 1
-  THERMOSTAT_MODE_UNSET,
-#if CONFIG_MQTT_THERMOSTATS_NB > 2
-  THERMOSTAT_MODE_UNSET,
-#if CONFIG_MQTT_THERMOSTATS_NB > 3
-  THERMOSTAT_MODE_UNSET,
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
-};
+enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB];
 
 const char * thermostatModeTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "thermMode0",
@@ -53,23 +42,18 @@ const char * thermostatModeTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "thermMode2",
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
   "thermMode3",
+#if CONFIG_MQTT_THERMOSTATS_NB > 4
+  "thermMode4",
+#if CONFIG_MQTT_THERMOSTATS_NB > 5
+  "thermMode5",
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 5
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 4
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
-short targetTemperature[CONFIG_MQTT_THERMOSTATS_NB] = {
-  21*10,
-#if CONFIG_MQTT_THERMOSTATS_NB > 1
-  21*10,
-#if CONFIG_MQTT_THERMOSTATS_NB > 2
-  21*10,
-#if CONFIG_MQTT_THERMOSTATS_NB > 3
-  21*10,
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
-};
+short targetTemperature[CONFIG_MQTT_THERMOSTATS_NB];
 
 const char * targetTemperatureTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "targetTemp0",
@@ -79,23 +63,18 @@ const char * targetTemperatureTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "targetTemp2",
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
   "targetTemp3",
+#if CONFIG_MQTT_THERMOSTATS_NB > 4
+  "targetTemp4",
+#if CONFIG_MQTT_THERMOSTATS_NB > 5
+  "targetTemp5",
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 5
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 4
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
-short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB] = {
-  5,
-#if CONFIG_MQTT_THERMOSTATS_NB > 1
-  5,
-#if CONFIG_MQTT_THERMOSTATS_NB > 2
-  5,
-#if CONFIG_MQTT_THERMOSTATS_NB > 3
-  5,
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
-}; //0.5
+short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
 
 const char * temperatureToleranceTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "tempToler0",
@@ -105,36 +84,20 @@ const char * temperatureToleranceTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
   "tempToler2",
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
   "tempToler3",
+#if CONFIG_MQTT_THERMOSTATS_NB > 4
+  "tempToler4",
+#if CONFIG_MQTT_THERMOSTATS_NB > 5
+  "tempToler5",
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 5
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 4
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
-enum ThermostatType thermostatType[CONFIG_MQTT_THERMOSTATS_NB] = {
-  THERMOSTAT_TYPE_NORMAL,
-#if CONFIG_MQTT_THERMOSTATS_NB > 1
-  THERMOSTAT_TYPE_NORMAL,
-#if CONFIG_MQTT_THERMOSTATS_NB > 2
-  THERMOSTAT_TYPE_NORMAL,
-#if CONFIG_MQTT_THERMOSTATS_NB > 3
-  THERMOSTAT_TYPE_NORMAL,
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
-};
+enum ThermostatType thermostatType[CONFIG_MQTT_THERMOSTATS_NB];
 
-short currentTemperature[CONFIG_MQTT_THERMOSTATS_NB] = {
-  SHRT_MIN,
-#if CONFIG_MQTT_THERMOSTATS_NB > 1
-  SHRT_MIN,
-#if CONFIG_MQTT_THERMOSTATS_NB > 2
-  SHRT_MIN,
-#if CONFIG_MQTT_THERMOSTATS_NB > 3
-  SHRT_MIN,
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
-};
+short currentTemperature[CONFIG_MQTT_THERMOSTATS_NB];
 
 const char* thermostatFriendlyName[CONFIG_MQTT_THERMOSTATS_NB] = {
   CONFIG_MQTT_THERMOSTATS_NB0_FRIENDLY_NAME,
@@ -144,45 +107,24 @@ const char* thermostatFriendlyName[CONFIG_MQTT_THERMOSTATS_NB] = {
   CONFIG_MQTT_THERMOSTATS_NB2_FRIENDLY_NAME,
 #if CONFIG_MQTT_THERMOSTATS_NB > 3
   CONFIG_MQTT_THERMOSTATS_NB3_FRIENDLY_NAME,
+#if CONFIG_MQTT_THERMOSTATS_NB > 4
+  CONFIG_MQTT_THERMOSTATS_NB4_FRIENDLY_NAME,
+#if CONFIG_MQTT_THERMOSTATS_NB > 5
+  CONFIG_MQTT_THERMOSTATS_NB5_FRIENDLY_NAME,
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 5
+#endif //CONFIG_MQTT_THERMOSTATS_NB > 4
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 3
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 2
 #endif //CONFIG_MQTT_THERMOSTATS_NB > 1
 };
 
-bool waterPumpOn[CONFIG_MQTT_THERMOSTATS_NB] = {
-  #ifdef CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_ON
-    true,
-  #else // CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_OFF
-    false,
-  #endif // CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_ON
-#if CONFIG_MQTT_THERMOSTATS_NB > 1
-  #ifdef CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_ON
-    true,
-  #else // CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_OFF
-    false,
-  #endif // CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_ON
-#if CONFIG_MQTT_THERMOSTATS_NB > 2
-  #ifdef CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_ON
-    true,
-  #else // CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_OFF
-    false,
-  #endif // CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_ON
-#if CONFIG_MQTT_THERMOSTATS_NB > 3
-  #ifdef CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_ON
-    true,
-  #else // CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_OFF
-    false,
-  #endif // CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_ON
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 3
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 2
-#endif //CONFIG_MQTT_THERMOSTATS_NB > 1
-};
+bool waterPumpOn[CONFIG_MQTT_THERMOSTATS_NB];
 
 #define TEMPERATURE_SENSOR_ONLINE             0
 #define TEMPERATURE_SENSOR_OFFLINE            1
 #define TEMPERATURE_SENSOR_OBSOLETE           2
 
-short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB] = {TEMPERATURE_SENSOR_OBSOLETE};
+short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB];
 
 int inline temperatureSensorState(int id){
   if (currentTemperatureFlag[id] > (SENSOR_LIFETIME / 2)) {
@@ -202,6 +144,78 @@ short currentTemperature_4 = SHRT_MIN;
 extern QueueHandle_t thermostatQueue;
 
 static const char *TAG = "APP_THERMOSTAT";
+
+void init_data(){
+  for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    thermostatMode[id] = THERMOSTAT_MODE_UNSET;
+    targetTemperature[id] = 21*10; //21
+    temperatureTolerance[id] = 5;  //0.5
+    thermostatType[id] = THERMOSTAT_TYPE_NORMAL;
+    currentTemperature[id] = SHRT_MIN;
+    currentTemperatureFlag[id] = TEMPERATURE_SENSOR_OBSOLETE;
+    waterPumpOn[id] = false;
+  }
+}
+
+void update_thermostat_type() {
+#ifdef CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
+  thermostatType[0]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=0;
+#endif // CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
+  thermostatType[1]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=1;
+#endif // CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
+  thermostatType[2]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=2;
+#endif // CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
+  thermostatType[3]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=3;
+#endif // CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB4_TYPE_CIRCUIT
+  thermostatType[4]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=4;
+#endif // CONFIG_MQTT_THERMOSTATS_NB4_TYPE_CIRCUIT
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB5_TYPE_CIRCUIT
+  thermostatType[5]=THERMOSTAT_TYPE_CIRCUIT;
+  circuitThermostatId=5;
+#endif // CONFIG_MQTT_THERMOSTATS_NB5_TYPE_CIRCUIT
+
+}
+
+void update_waterpump_on() {
+#ifdef CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_ON
+  waterPumpOn[0] = true;
+#endif // CONFIG_MQTT_THERMOSTATS_NB0_WATERPUMP_ON
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_ON
+  waterPumpOn[1] = true;
+#endif // CONFIG_MQTT_THERMOSTATS_NB1_WATERPUMP_ON
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_ON
+  waterPumpOn[2] = true;
+#endif // CONFIG_MQTT_THERMOSTATS_NB2_WATERPUMP_ON
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_ON
+  waterPumpOn[3] = true;
+#endif // CONFIG_MQTT_THERMOSTATS_NB3_WATERPUMP_ON
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB4_WATERPUMP_ON
+  waterPumpOn[4] = true;
+#endif // CONFIG_MQTT_THERMOSTATS_NB4_WATERPUMP_ON
+
+#ifdef CONFIG_MQTT_THERMOSTATS_NB5_WATERPUMP_ON
+  waterPumpOn[5] = true;
+#endif // CONFIG_MQTT_THERMOSTATS_NB5_WATERPUMP_ON
+
+}
 
 void thermostat_publish_local_data(int thermostat_id, int value)
 {
@@ -787,26 +801,10 @@ void vThermostatTimerCallback( TimerHandle_t xTimer )
 
 void handle_thermostat_cmd_task(void* pvParameters)
 {
-  //init remaining variables
-#ifdef CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
-  thermostatType[0]=THERMOSTAT_TYPE_CIRCUIT;
-  circuitThermostatId=0;
-#endif // CONFIG_MQTT_THERMOSTATS_NB0_TYPE_CIRCUIT
+  init_data();
+  update_thermostat_type();
+  update_waterpump_on();
 
-#ifdef CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
-  thermostatType[1]=THERMOSTAT_TYPE_CIRCUIT;
-  circuitThermostatId=1;
-#endif // CONFIG_MQTT_THERMOSTATS_NB1_TYPE_CIRCUIT
-
-#ifdef CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
-  thermostatType[2]=THERMOSTAT_TYPE_CIRCUIT;
-  circuitThermostatId=2;
-#endif // CONFIG_MQTT_THERMOSTATS_NB2_TYPE_CIRCUIT
-
-#ifdef CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
-  thermostatType[3]=THERMOSTAT_TYPE_CIRCUIT;
-  circuitThermostatId=3;
-#endif // CONFIG_MQTT_THERMOSTATS_NB3_TYPE_CIRCUIT
 
   //create period read timer
   TimerHandle_t th =
