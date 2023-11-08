@@ -801,7 +801,6 @@ void vThermostatTimerCallback( TimerHandle_t xTimer )
 
 void handle_thermostat_cmd_task(void* pvParameters)
 {
-  init_data();
   update_thermostat_type();
   update_waterpump_on();
 
@@ -910,6 +909,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
 
 void read_nvs_thermostat_data()
 {
+  init_data();
   esp_err_t err;
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
