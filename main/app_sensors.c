@@ -58,6 +58,15 @@ int32_t bme280_temperature;
 int32_t bme280_humidity;
 #endif //CONFIG_BME280_SENSOR
 
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+#include "driver/adc.h"
+short soil_moisture = SHRT_MIN;
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+short soil_moisture_threshold = SHRT_MIN;
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 static const char *TAG = "app_sensors";
 
 void publish_data_to_thermostat(const char * topic, int value)
@@ -90,7 +99,6 @@ void publish_data_to_thermostat(const char * topic, int value)
 
 void publish_sensor_data(const char * topic, int value)
 {
-
   publish_data_to_thermostat(topic, value);
 
   char data[16];
@@ -182,10 +190,28 @@ void publish_bme280_data()
 }
 #endif // CONFIG_BME280_SENSOR
 
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+void publish_soil_moisture_adc()
+{
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/moisture/adc";
+  publish_sensor_data(topic, soil_moisture * 10);
+}
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+void publish_soil_moisture_th()
+{
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/moisture/th";
+  publish_sensor_data(topic, soil_moisture_threshold * 10);
+}
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
+
 void publish_sensors_data()
 {
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
-  void publish_dht22_data();
+  publish_dht22_data();
 #endif // CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
@@ -193,8 +219,17 @@ void publish_sensors_data()
 #endif // CONFIG_DS18X20_SENSOR
 
 #ifdef CONFIG_BME280_SENSOR
-  void publish_bme280_data();
+  publish_bme280_data();
 #endif // CONFIG_BME280_SENSOR
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+  publish_soil_moisture_adc();
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+  publish_soil_moisture_th();
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 }
 
 void sensors_read(void* pvParameters)
@@ -221,6 +256,20 @@ void sensors_read(void* pvParameters)
   gpio_set_direction(CONFIG_DHT22_SENSOR_GPIO, GPIO_MODE_OUTPUT_OD);
   gpio_set_level(CONFIG_DHT22_SENSOR_GPIO, 1);
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+  // 1. init adc
+  adc_config_t adc_config;
+
+  // Depend on menuconfig->Component config->PHY->vdd33_const value
+  // When measuring system voltage(ADC_READ_VDD_MODE), vdd33_const must be set to 255.
+  adc_config.mode = ADC_READ_TOUT_MODE;
+  adc_config.clk_div = 8; // ADC sample collection clock = 80MHz/clk_div = 10MHz
+  ESP_ERROR_CHECK(adc_init(&adc_config));
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+    gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_GPIO, GPIO_MODE_INPUT);
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
   while (1)
     {
@@ -290,6 +339,23 @@ void sensors_read(void* pvParameters)
           ESP_LOGE(TAG, "Could not read data from BME sensor");
         }
 #endif //CONFIG_BME280_SENSOR
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+    uint16_t soil_moisture_data = 0;
+    if (ESP_OK == adc_read(&soil_moisture_data)) {
+        soil_moisture = 1023 - soil_moisture_data;
+        ESP_LOGI(TAG, "adc read: %d", soil_moisture);
+        publish_soil_moisture_adc();
+    } else {
+      ESP_LOGE(TAG, "Could not read data from adc");
+    }
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+    soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
+    ESP_LOGI(TAG, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
+    publish_soil_moisture_th();
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
       vTaskDelay(CONFIG_SENSOR_READING_INTERVAL * 1000 / portTICK_PERIOD_MS);
     }

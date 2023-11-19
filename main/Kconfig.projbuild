@@ -225,6 +225,32 @@ menu "Sensors configuration"
                 SCL Gpio port of dht22 sensor
 
     endmenu # "BME280 sensor"
+
+    config SOIL_MOISTURE_SENSOR
+        boolean "enable soil moisture sensor"
+        default n
+        depends on SENSOR_SUPPORT
+        help
+            Enable soil moisture MQTT sensor
+    menu "Soil moisture sensor"
+        depends on SOIL_MOISTURE_SENSOR
+        config SOIL_MOISTURE_SENSOR_ADC
+            boolean "Soil moisture sensor reading using adc"
+            default n
+            help
+                Soil moisture sensor reading using adc
+        config SOIL_MOISTURE_SENSOR_DIGITAL
+            boolean "Soil moisture sensor reading using digital pin"
+            default n
+            help
+                Soil moisture sensor reading using digital pin
+        config SOIL_MOISTURE_SENSOR_GPIO
+            int "Soil moisture sensor GPIO"
+            default 3
+            depends on SOIL_MOISTURE_SENSOR_DIGITAL
+            help
+                Soil moisture sensor GPIO
+    endmenu # "Soil moisture sensor"
 endmenu # "Sensors configuration"
 
 config COAP_SERVER_SUPPORT
