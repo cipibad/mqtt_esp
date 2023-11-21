@@ -90,10 +90,11 @@ void restart_in_3_minutes_task(void *pvParameter)
   esp_restart();
 }
 
+#ifdef CONFIG_STATUS_LED
 void blink_task(void *pvParameter)
 {
-  gpio_pad_select_gpio(CONFIG_MQTT_STATUS_LED_GPIO);
-  gpio_set_direction(CONFIG_MQTT_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
+  gpio_pad_select_gpio(CONFIG_STATUS_LED_GPIO);
+  gpio_set_direction(CONFIG_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
   int interval;
   EventBits_t bits;
@@ -108,7 +109,7 @@ void blink_task(void *pvParameter)
         interval=500;
       }
     }
-    gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_ON);
+    gpio_set_level(CONFIG_STATUS_LED_GPIO, LED_ON);
 
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
     bits = xEventGroupGetBits(mqtt_event_group);
@@ -130,11 +131,12 @@ void blink_task(void *pvParameter)
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
     vTaskDelay(interval / portTICK_PERIOD_MS);
-    gpio_set_level(CONFIG_MQTT_STATUS_LED_GPIO, LED_OFF);
+    gpio_set_level(CONFIG_STATUS_LED_GPIO, LED_OFF);
     vTaskDelay(interval / portTICK_PERIOD_MS);
   }
 }
 
+#endif // CONFIG_STATUS_LED
 void app_main(void)
 {
   ESP_LOGI(TAG, "[APP] Startup..");
@@ -203,7 +205,9 @@ void app_main(void)
   coapClientQueue = xQueueCreate(4, sizeof(struct CoapMessage) );
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
+#ifdef CONFIG_STATUS_LED
   xTaskCreate(blink_task, "blink_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
+#endif // CONFIG_STATUS_LED
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
   read_nvs_thermostat_data();
