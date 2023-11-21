@@ -1,3 +1,5 @@
+#include "esp_system.h"
+#ifdef CONFIG_WATERPUMP_SUPPORT
 #include "app_main.h"
 #include "app_waterpump.h"
 #include "app_relay.h"
@@ -23,7 +25,6 @@ int waterPumpStatus;
 int valveOnPinStatus;
 int valveOffPinStatus;
 
-#ifdef CONFIG_WATERPUMP_SUPPORT
 
 void initMotorControlPin(int pin, int* status)
 {

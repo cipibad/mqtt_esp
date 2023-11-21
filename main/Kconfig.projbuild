@@ -253,7 +253,24 @@ menu "Sensors configuration"
     endmenu # "Soil moisture sensor"
 endmenu # "Sensors configuration"
 
+
+config DEEP_SLEEP_MODE
+    boolean "enable deep sleep mode"
+    default n
+    help
+        Enable deep sleep mode
+menu "Deep sleep config"
+    depends on DEEP_SLEEP_MODE
+    config DEEP_SLEEP_MODE_PERIOD
+        int "number of seconds to sleep"
+        default 60
+        help
+            number of seconds to sleep
+endmenu # "Deep sleep config"
+
+
 config COAP_SERVER_SUPPORT
+    depends on !DEEP_SLEEP_MODE
     boolean "enable COAP server"
     default n
     help
@@ -291,6 +308,7 @@ endmenu # "COAP server config"
 
 config MQTT_RELAYS_NB
     int "number of relays to control"
+    depends on !DEEP_SLEEP_MODE
     default 0
     range 0 4
     help
@@ -369,12 +387,15 @@ config MQTT_SWITCHES_NB3_GPIO
 
 config MQTT_OTA
     boolean "enable OTA support"
+    depends on !DEEP_SLEEP_MODE
     default y
     help
         Enable OTA support
 
 config MQTT_OPS
     boolean "enable OPS support"
+    depends on !DEEP_SLEEP_MODE
+
     default n
     help
         Enable OPS support
@@ -395,6 +416,8 @@ config MQTT_OPS_STACK
 
 config MQTT_THERMOSTATS_NB
     int "number of virtual thermostats"
+    depends on !DEEP_SLEEP_MODE
+
     default 0
     range 0 4
     help
@@ -668,6 +691,7 @@ config MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE
 #######################
 config WATERPUMP_SUPPORT
     boolean "enable external waterpump support"
+    depends on !DEEP_SLEEP_MODE
     default n
     help
         Enable external waterpump support
@@ -706,6 +730,7 @@ endmenu # "Waterpump"
 
 config MQTT_SCHEDULERS
     boolean "enable schedulers support"
+    depends on !DEEP_SLEEP_MODE
     default n
     help
         Enable schedulers support

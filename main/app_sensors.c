@@ -20,6 +20,12 @@
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #include "app_publish_data.h"
+extern EventGroupHandle_t mqtt_event_group;
+extern const int MQTT_CONNECTED_BIT;
+
+#include "esp_sleep.h"
+#include "esp_wifi.h"
+
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
 #include "dht.h"
@@ -210,6 +216,9 @@ void publish_soil_moisture_th()
 
 void publish_sensors_data()
 {
+
+#ifndef CONFIG_DEEP_SLEEP_MODE
+
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
   publish_dht22_data();
 #endif // CONFIG_DHT22_SENSOR_SUPPORT
@@ -229,6 +238,8 @@ void publish_sensors_data()
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
   publish_soil_moisture_th();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
+#endif // CONFIG_DEEP_SLEEP_MODE
 
 }
 
@@ -273,6 +284,16 @@ void sensors_read(void* pvParameters)
 
   while (1)
     {
+#ifdef CONFIG_DEEP_SLEEP_MODE
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
+  EventBits_t bits = xEventGroupGetBits(mqtt_event_group);
+  while ( !(bits & MQTT_CONNECTED_BIT) ) {
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    bits = xEventGroupGetBits(mqtt_event_group);
+  }
+#endif // CONFIG_NORTH_INTERFACE_MQTT
+#endif // CONFIG_DEEP_SLEEP_MODE
+
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
       dht22_temperature = SHRT_MIN;
       dht22_humidity = SHRT_MIN;
@@ -356,6 +377,20 @@ void sensors_read(void* pvParameters)
     ESP_LOGI(TAG, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
     publish_soil_moisture_th();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
+#ifdef CONFIG_DEEP_SLEEP_MODE
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
+  bits = xEventGroupGetBits(mqtt_event_group);
+  if (bits & MQTT_CONNECTED_BIT) {
+    ESP_LOGI(TAG, "Going deepsleep");
+    esp_deep_sleep_set_rf_option(2);
+    esp_wifi_stop();
+    esp_deep_sleep(CONFIG_DEEP_SLEEP_MODE_PERIOD * 1000 * 1000);
+  } else {
+    continue;
+  }
+#endif // CONFIG_NORTH_INTERFACE_MQTT
+#endif // CONFIG_DEEP_SLEEP_MODE
 
       vTaskDelay(CONFIG_SENSOR_READING_INTERVAL * 1000 / portTICK_PERIOD_MS);
     }

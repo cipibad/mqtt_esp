@@ -220,6 +220,7 @@ void smartconfig_cmd_task(void* pvParameters)
               vTaskDelay(2   / portTICK_PERIOD_MS);
               esp_restart();
             } else { // (scm.ticks - pushTick ) >= seven_seconds
+              #ifdef CONFIG_MQTT_OTA
               //trigger OTA
               struct OtaMessage o={"https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin"};
               if (xQueueSend( otaQueue
@@ -227,6 +228,7 @@ void smartconfig_cmd_task(void* pvParameters)
                     ,OTA_QUEUE_TIMEOUT) != pdPASS) {
                 ESP_LOGE(TAG, "Cannot send to otaQueue");
               }
+              #endif // CONFIG_MQTT_OTA
             }
             pushTick = 0;
           }

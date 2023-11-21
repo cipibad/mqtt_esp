@@ -24,6 +24,8 @@
 
 #include "cJSON.h"
 
+#include "app_system.h"
+
 #ifdef CONFIG_MQTT_SCHEDULERS
 
 #include "app_scheduler.h"
@@ -48,9 +50,6 @@ extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
-
-#include "app_system.h"
-
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/ota"
@@ -666,6 +665,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   return ESP_OK;
 }
 
+#ifndef CONFIG_DEEP_SLEEP_MODE
 static void mqtt_subscribe(esp_mqtt_client_handle_t client)
 {
   int msg_id;
@@ -688,6 +688,8 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
     }
   }
 }
+#endif // CONFIG_DEEP_SLEEP_MODE
+
 
 void mqtt_init_and_start()
 {
@@ -697,11 +699,14 @@ void mqtt_init_and_start()
     .event_handle = mqtt_event_handler,
     .cert_pem = (const char *)cert_bundle_pem_start,
     .client_id = CONFIG_CLIENT_ID,
+#ifndef CONFIG_DEEP_SLEEP_MODE
     .lwt_topic = available_topic,
     .lwt_msg = lwtmsg,
     .lwt_qos = 1,
     .lwt_retain = 1,
     .lwt_msg_len = strlen(lwtmsg),
+#endif // CONFIG_DEEP_SLEEP_MODE
+
     .keepalive = MQTT_TIMEOUT
   };
 
@@ -714,15 +719,18 @@ void mqtt_init_and_start()
 void handle_mqtt_sub_pub(void* pvParameters)
 {
   connect_reason=esp_reset_reason();
+  ESP_LOGI(TAG, "Reset reason: %d", connect_reason);
   void * unused;
   while(1) {
     if( xQueueReceive( mqttQueue, &unused , portMAX_DELAY) )
       {
         xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
+        #ifndef CONFIG_DEEP_SLEEP_MODE
         mqtt_subscribe(client);
-        xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
         publish_available_msg();
         publish_config_msg();
+        #endif // CONFIG_DEEP_SLEEP_MODE
+        xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_status();
         publish_all_relays_timeout();
