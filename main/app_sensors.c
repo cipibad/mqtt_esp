@@ -73,7 +73,7 @@ short soil_moisture = SHRT_MIN;
 short soil_moisture_threshold = SHRT_MIN;
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
-static const char *TAG = "app_sensors";
+static const char *TAG = "APP_SENSOR";
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
@@ -268,6 +268,10 @@ void sensors_read(void* pvParameters)
   gpio_set_level(CONFIG_DHT22_SENSOR_GPIO, 1);
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
+  gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_SWITCH_GPIO, GPIO_MODE_OUTPUT);
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
+
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
   // 1. init adc
   adc_config_t adc_config;
@@ -279,7 +283,7 @@ void sensors_read(void* pvParameters)
   ESP_ERROR_CHECK(adc_init(&adc_config));
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-    gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_GPIO, GPIO_MODE_INPUT);
+  gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_GPIO, GPIO_MODE_INPUT);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
   while (1)
@@ -361,6 +365,10 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_BME280_SENSOR
 
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
+  gpio_set_level(CONFIG_SOIL_MOISTURE_SENSOR_SWITCH_GPIO, 1);
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
+
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
     uint16_t soil_moisture_data = 0;
     if (ESP_OK == adc_read(&soil_moisture_data)) {
@@ -377,6 +385,10 @@ void sensors_read(void* pvParameters)
     ESP_LOGI(TAG, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
     publish_soil_moisture_th();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
+  gpio_set_level(CONFIG_SOIL_MOISTURE_SENSOR_SWITCH_GPIO, 0);
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
 
 #ifdef CONFIG_DEEP_SLEEP_MODE
 #ifdef CONFIG_NORTH_INTERFACE_MQTT

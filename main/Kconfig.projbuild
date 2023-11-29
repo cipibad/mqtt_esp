@@ -250,6 +250,18 @@ menu "Sensors configuration"
             depends on SOIL_MOISTURE_SENSOR_DIGITAL
             help
                 Soil moisture sensor GPIO
+        config SOIL_MOISTURE_SENSOR_SWITCH
+            boolean "enable soil moisture sensor switch"
+            default n
+            depends on SENSOR_SUPPORT
+            help
+                Enable soil moisture MQTT switch control to reduce current usage(eg. when running on battery)
+        config SOIL_MOISTURE_SENSOR_SWITCH_GPIO
+            int "Soil moisture sensor switch GPIO"
+            default 5
+            depends on SOIL_MOISTURE_SENSOR_SWITCH
+            help
+                Soil moisture sensor switch GPIO
     endmenu # "Soil moisture sensor"
 endmenu # "Sensors configuration"
 
