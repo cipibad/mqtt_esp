@@ -599,10 +599,9 @@ void publish_config_msg()
 
 void publish_available_msg()
 {
-  char* data = "online";
+  const char* data = "online";
   mqtt_publish_data(available_topic, data, QOS_1, RETAIN);
 }
-
 
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
@@ -725,11 +724,14 @@ void handle_mqtt_sub_pub(void* pvParameters)
     if( xQueueReceive( mqttQueue, &unused , portMAX_DELAY) )
       {
         xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-        #ifndef CONFIG_DEEP_SLEEP_MODE
+#ifndef CONFIG_DEEP_SLEEP_MODE
         mqtt_subscribe(client);
+#endif // CONFIG_DEEP_SLEEP_MODE
+        xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
+#ifndef CONFIG_DEEP_SLEEP_MODE
         publish_available_msg();
         publish_config_msg();
-        #endif // CONFIG_DEEP_SLEEP_MODE
+#endif // CONFIG_DEEP_SLEEP_MODE
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_status();
