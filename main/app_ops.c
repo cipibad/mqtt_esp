@@ -63,7 +63,7 @@ void publish_ops_stack_data()
                                         uxArraySize,
                                         &ulTotalRunTime );
 
-  ESP_LOGI(TAG, "Got informations for %lu tasks, total runtime: %d", 
+  ESP_LOGI(TAG, "Got informations for %lu tasks, total runtime: %d",
           uxArraySize, ulTotalRunTime);
 
     /* For each populated position in the pxTaskStatusArray array,
@@ -84,7 +84,8 @@ void publish_ops_stack_data()
 
     /* The array is no longer needed, free the memory it consumes. */
     vPortFree( pxTaskStatusArray );
-   }
+  }
+  data[strlen(data) - 1] = 0;
   strcat(data, "}");
 
   publish_non_persistent_data(topic, data);
