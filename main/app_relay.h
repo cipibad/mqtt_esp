@@ -1,15 +1,17 @@
 #ifndef APP_RELAY_H
 #define APP_RELAY_H
 
-
-#define RELAY_CMD_STATUS 1
-#define RELAY_CMD_SLEEP  2
+enum RelayMessageType {
+  RELAY_CMD_UNSET,
+  RELAY_CMD_STATUS,
+  RELAY_CMD_SLEEP,
+};
 
 #define RELAY_STATUS_OFF   0
 #define RELAY_STATUS_ON    1
 
 struct RelayMessage {
-  unsigned char msgType;
+  enum RelayMessageType msgType;
   unsigned char relayId;
   int data;
 };

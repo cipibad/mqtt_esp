@@ -34,7 +34,6 @@ extern QueueHandle_t schedulerCfgQueue;
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 extern QueueHandle_t relayQueue;
-
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -44,10 +43,8 @@ extern QueueHandle_t otaQueue;
 #endif // CONFIG_MQTT_OTA
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
-
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
-
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 esp_mqtt_client_handle_t client = NULL;
@@ -378,7 +375,7 @@ void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload
 
 #endif // CONFIG_MQTT_RELAYS_NB
 
-#if CONFIG_MQTT_SCHEDULERS
+#ifdef CONFIG_MQTT_SCHEDULERS
 void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *payload)
 {
   struct SchedulerCfgMessage sm;
@@ -405,6 +402,21 @@ void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *paylo
   }
 }
 
+void handle_scheduler_mqtt_dow_cmd(signed char schedulerId, const char *payload)
+{
+  struct SchedulerCfgMessage sm;
+  memset(&sm, 0, sizeof(struct RelayMessage));
+  sm.msgType = SCHEDULER_CMD_DOW;
+  sm.schedulerId = schedulerId;
+  sm.data.dow = atoi(payload);
+
+  if (xQueueSend( schedulerCfgQueue
+                  ,( void * )&sm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to schedulerCfgQueue");
+  }
+}
+
 void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload)
 {
   struct SchedulerCfgMessage sm;
@@ -412,29 +424,21 @@ void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload
   sm.msgType = SCHEDULER_CMD_TIME;
   sm.schedulerId = schedulerId;
 
-  char str[16];
-  strncpy(str, payload, 15);
-  str[15] = '\0';
+  char str[8];
+  strncpy(str, payload, 7);
+  str[7] = '\0';
 
-  char *token = strtok(str, " ");
+  char *token = strtok(str, ":");
   if (!token) {
-    ESP_LOGW(TAG, "unhandled scheduler time: %s", payload);
-    return;
-  }
-
-  sm.data.time.dow = atoi(token);
-
-  token = strtok(NULL, "/");
-  if (!token) {
-    ESP_LOGW(TAG, "unhandled scheduler time: %s", payload);
+    ESP_LOGW(TAG, "unhandled scheduler time token 1: %s", payload);
     return;
   }
 
   sm.data.time.hour = atoi(token);
 
-  token = strtok(NULL, "/");
+  token = strtok(NULL, ":");
   if (!token) {
-    ESP_LOGW(TAG, "unhandled scheduler time: %s", payload);
+    ESP_LOGW(TAG, "unhandled scheduler time token 2: %s", payload);
     return;
   }
   sm.data.time.minute = atoi(token);
@@ -478,6 +482,10 @@ void handle_scheduler_mqtt_cmd(const char* topic, int topic_len, const char* pay
   if (schedulerId != -1) {
     if (strcmp(action, "action") == 0) {
       handle_scheduler_mqtt_action_cmd(schedulerId, payload);
+      return;
+    }
+    if (strcmp(action, "dow") == 0) {
+      handle_scheduler_mqtt_dow_cmd(schedulerId, payload);
       return;
     }
     if (strcmp(action, "time") == 0) {
@@ -596,7 +604,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     }
 #endif // CONFIG_MQTT_RELAYS_NB
 
-#if CONFIG_MQTT_SCHEDULERS
+#ifdef CONFIG_MQTT_SCHEDULERS
     if (strcmp(service, "scheduler") == 0) {
       handle_scheduler_mqtt_cmd(event->topic, event->topic_len, payload);
       return;
@@ -635,6 +643,8 @@ void mqtt_publish_data(const char * topic,
     } else {
       ESP_LOGW(TAG, "cannot get semaphore");
     }
+  } else {
+    ESP_LOGW(TAG, "cannot publish topic %s, mqtt init not finished", topic);
   }
 }
 
@@ -645,7 +655,6 @@ void publish_config_msg()
 
   sprintf(data, "{\"fw_version\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
   mqtt_publish_data(config_topic, data, QOS_1, RETAIN);
-
 }
 
 void publish_available_msg()
@@ -743,7 +752,9 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
 
 void mqtt_init_and_start()
 {
+#ifndef CONFIG_DEEP_SLEEP_MODE
   const char * lwtmsg = "offline";
+#endif // CONFIG_DEEP_SLEEP_MODE
   const esp_mqtt_client_config_t mqtt_cfg = {
     .uri = "mqtts://" CONFIG_MQTT_USERNAME ":" CONFIG_MQTT_PASSWORD "@" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
     .event_handle = mqtt_event_handler,
@@ -791,6 +802,9 @@ void handle_mqtt_sub_pub(void* pvParameters)
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
         publish_thermostat_data();
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+#ifdef CONFIG_MQTT_SCHEDULERS
+        publish_schedulers_data();
+#endif // CONFIG_MQTT_SCHEDULERS
 #ifdef CONFIG_MQTT_OTA
         publish_ota_data(OTA_READY);
 #endif // CONFIG_MQTT_OTA
