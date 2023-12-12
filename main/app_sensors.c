@@ -73,6 +73,10 @@ short soil_moisture = SHRT_MIN;
 short soil_moisture_threshold = SHRT_MIN;
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
+#ifdef CONFIG_BH1750_SENSOR
+#include "app_bh1750.h"
+#endif // CONFIG_BH1750_SENSOR
+
 static const char *TAG = "APP_SENSOR";
 
 void publish_data_to_thermostat(const char * topic, int value)
@@ -213,6 +217,17 @@ void publish_soil_moisture_th()
 }
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
+#ifdef CONFIG_BH1750_SENSOR
+void publish_bh1750_data(uint16_t sensor_data)
+{
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
+
+  char data[16];
+  memset(data,0,16);
+  sprintf(data, "%d.%d", sensor_data / 100, abs(sensor_data % 100));
+  publish_non_persistent_data(topic, data);
+}
+#endif // CONFIG_BH1750_SENSOR
 
 void publish_sensors_data()
 {
@@ -285,6 +300,11 @@ void sensors_read(void* pvParameters)
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
   gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_GPIO, GPIO_MODE_INPUT);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
+#ifdef CONFIG_BH1750_SENSOR
+  i2c_master_BH1750_init();
+#endif // CONFIG_BH1750_SENSOR
+
 
   while (1)
     {
@@ -389,6 +409,19 @@ void sensors_read(void* pvParameters)
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
   gpio_set_level(CONFIG_SOIL_MOISTURE_SENSOR_SWITCH_GPIO, 0);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
+
+#ifdef CONFIG_BH1750_SENSOR
+  uint16_t sensor_data;
+  esp_err_t ret = i2c_master_BH1750_read(&sensor_data);
+  if (ret == ESP_ERR_TIMEOUT) {
+      ESP_LOGE(TAG, "I2C Timeout");
+  } else if (ret == ESP_OK) {
+      ESP_LOGI(TAG, "data: %d.%d\n", sensor_data/100, sensor_data%100 );
+      publish_bh1750_data(sensor_data);
+  } else {
+      ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
+  }
+#endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_DEEP_SLEEP_MODE
 #ifdef CONFIG_NORTH_INTERFACE_MQTT

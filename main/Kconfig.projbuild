@@ -215,16 +215,39 @@ menu "Sensors configuration"
             default 14
             depends on BME280_SENSOR
             help
-                SDA Gpio port of dht22 sensor
+                SDA Gpio port of BME280 sensor
 
         config BME280_SENSOR_SCL_GPIO
             int "BME280 sensor SCL GPIO"
             default 2
             depends on BME280_SENSOR
             help
-                SCL Gpio port of dht22 sensor
+                SCL Gpio port of BME280 sensor
 
     endmenu # "BME280 sensor"
+
+    config BH1750_SENSOR
+        boolean "enable BH1750 light intensity sensor"
+        default n
+        depends on SENSOR_SUPPORT
+        help
+            Enable BH1750 light intensity sensor readings
+
+    menu "BH1750 sensor"
+        depends on BH1750_SENSOR
+        config BH1750_SENSOR_SDA_GPIO
+            int "BH1750_SENSOR sensor SDA GPIO"
+            default 14
+            help
+                SDA Gpio port of BH1750_SENSOR sensor
+
+        config BH1750_SENSOR_SCL_GPIO
+            int "BH1750_SENSOR sensor SCL GPIO"
+            default 2
+            help
+                SCL Gpio port of BH1750_SENSOR sensor
+
+    endmenu # "BH1750 sensor"
 
     config SOIL_MOISTURE_SENSOR
         boolean "enable soil moisture sensor"
