@@ -17,9 +17,13 @@
 #include "app_scheduler.h"
 #include "app_publish_data.h"
 
+#include "app_relay.h"
+#include "app_thermostat.h"
+
 static const char *TAG = "SCHEDULER";
 extern QueueHandle_t schedulerCfgQueue;
 extern QueueHandle_t relayQueue;
+extern QueueHandle_t thermostatQueue;
 
 
 const char * schedulerActionTAG[MAX_SCHEDULER_NB] = {
@@ -118,6 +122,8 @@ void publish_scheduler_action_evt(int id)
           schedulerAction[id] == SCHEDULER_ACTION_UNSET ? "unset" :
           schedulerAction[id] == SCHEDULER_ACTION_RELAY_ON ? "relay_on" :
           schedulerAction[id] == SCHEDULER_ACTION_RELAY_OFF ? "relay_off" :
+          schedulerAction[id] == SCHEDULER_ACTION_WATER_TEMP_LOW ? "water_temp_low" :
+          schedulerAction[id] == SCHEDULER_ACTION_WATER_TEMP_HIGH ? "water_temp_high" :
           schedulerAction[id] == SCHEDULER_ACTION_OW_ON ? "ow_on" :
           schedulerAction[id] == SCHEDULER_ACTION_OW_OFF ? "ow_off" : "unset");
 
@@ -147,8 +153,8 @@ void publish_scheduler_time_evt(int id)
 {
   const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/time/scheduler";
 
-  char data[8];
-  memset(data,0,8);
+  char data[16];
+  memset(data,0,16);
   sprintf(data, "%d:%d", schedulerTime[id].hour, schedulerTime[id].minute);
 
   char topic[MAX_TOPIC_LEN];
@@ -292,6 +298,22 @@ void executeAction(enum SchedulerAction sa)
                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to relayQueue");
     }
+  } else if (sa == SCHEDULER_ACTION_WATER_TEMP_LOW) {
+    struct ThermostatMessage tm = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
+    tm.data.targetTemperature = 290;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+    }
+  } else if (sa == SCHEDULER_ACTION_WATER_TEMP_HIGH) {
+    struct ThermostatMessage tm = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
+    tm.data.targetTemperature = 330;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+    }
   }
 }
 
@@ -299,6 +321,7 @@ void handle_scheduler(void* pvParameters)
 {
   ESP_LOGI(TAG, "handle_scheduler task started");
 
+  read_nvs_scheduler_data();
   start_scheduler_timer();
 
   struct SchedulerCfgMessage tempSchedulerCfg;
@@ -387,8 +410,8 @@ void handle_scheduler(void* pvParameters)
         {
           schedulerTime[schedulerId] = tempSchedulerCfg.data.time;
 
-          char data[8];
-          memset(data,0,8);
+          char data[16];
+          memset(data,0,16);
           sprintf(data, "%d:%d", schedulerTime[schedulerId].hour, schedulerTime[schedulerId].minute);
           esp_err_t err = write_nvs_str(schedulerTimeTAG[schedulerId],
                                           data);

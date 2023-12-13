@@ -1,8 +1,6 @@
 #ifndef APP_SCHEDULER_H
 #define APP_SCHEDULER_H
 
-#include "app_relay.h"
-
 void start_scheduler_timer(void);
 void handle_scheduler(void* pvParameters);
 
@@ -22,6 +20,8 @@ enum SchedulerAction {
   SCHEDULER_ACTION_UNSET,
   SCHEDULER_ACTION_RELAY_ON,
   SCHEDULER_ACTION_RELAY_OFF,
+  SCHEDULER_ACTION_WATER_TEMP_LOW,
+  SCHEDULER_ACTION_WATER_TEMP_HIGH,
   SCHEDULER_ACTION_OW_ON,
   SCHEDULER_ACTION_OW_OFF,
 };

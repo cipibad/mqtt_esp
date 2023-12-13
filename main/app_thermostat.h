@@ -88,4 +88,7 @@ void thermostat_publish_local_data(int thermostat_id, int value);
 
 #define SENSOR_LIFETIME 10
 
+#define THERMOSTAT_TIMEOUT 60
+#define THERMOSTAT_QUEUE_TIMEOUT (THERMOSTAT_TIMEOUT * 1000 / portTICK_PERIOD_MS)
+
 #endif /* APP_THERMOSTAT_H */

@@ -405,6 +405,10 @@ void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *paylo
     sm.data.action = SCHEDULER_ACTION_RELAY_ON;
   else if (strcmp(payload, "relay_off") == 0)
     sm.data.action = SCHEDULER_ACTION_RELAY_OFF;
+  else if (strcmp(payload, "water_temp_low") == 0)
+    sm.data.action = SCHEDULER_ACTION_WATER_TEMP_LOW;
+  else if (strcmp(payload, "water_temp_high") == 0)
+    sm.data.action = SCHEDULER_ACTION_WATER_TEMP_HIGH;
   else if (strcmp(payload, "ow_on") == 0)
     sm.data.action = SCHEDULER_ACTION_OW_ON;
   else if (strcmp(payload, "ow_off") == 0)
