@@ -18,13 +18,15 @@
 #include "app_publish_data.h"
 
 #include "app_relay.h"
+
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
 #include "app_thermostat.h"
+extern QueueHandle_t thermostatQueue;
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 static const char *TAG = "SCHEDULER";
 extern QueueHandle_t schedulerCfgQueue;
 extern QueueHandle_t relayQueue;
-extern QueueHandle_t thermostatQueue;
-
 
 const char * schedulerActionTAG[MAX_SCHEDULER_NB] = {
   "schAction0",
@@ -83,22 +85,22 @@ void read_nvs_scheduler_data()
     ESP_ERROR_CHECK( err );
   }
 
-  char data[8];
-  memset(data,0,8);
+  char data[16];
+  memset(data,0,16);
   size_t length = sizeof(data);
 
   for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
     err=read_nvs_str(schedulerTimeTAG[id], data, &length);
     ESP_ERROR_CHECK( err );
 
-    char *token = strtok(data, " ");
+    char *token = strtok(data, ":");
     if (!token) {
       ESP_LOGW(TAG, "unhandled scheduler time token 1: %s", data);
       return;
     }
     schedulerTime[id].hour = atoi(token);
 
-    token = strtok(NULL, " ");
+    token = strtok(NULL, ":");
     if (!token) {
       ESP_LOGW(TAG, "unhandled scheduler time token 2: %s", data);
       return;
@@ -239,6 +241,10 @@ void update_time_from_ntp()
     char strftime_buf[64];
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
     ESP_LOGI(TAG, "Current time after ntp update: %s", strftime_buf);
+    lastNow = now;
+
+    ESP_LOGI(TAG, "Sleeping %d seconds to execute at exact minute", 60 - timeinfo.tm_sec);
+    vTaskDelay((60 - timeinfo.tm_sec) * 1000 / portTICK_PERIOD_MS);
 }
 
 void vSchedulerCallback( TimerHandle_t xTimer )
@@ -270,7 +276,7 @@ void start_scheduler_timer()
 
   TimerHandle_t th =
     xTimerCreate( "schedulerTimer",           /* Text name. */
-                  pdMS_TO_TICKS(60* 1000),  /* Period. */
+                  pdMS_TO_TICKS(60 * 1000),  /* Period. */
                   pdTRUE,                /* Autoreload. */
                   (void *)0,                  /* No ID. */
                   vSchedulerCallback );  /* Callback function. */
@@ -298,6 +304,7 @@ void executeAction(enum SchedulerAction sa)
                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to relayQueue");
     }
+#if CONFIG_MQTT_THERMOSTATS_NB > 0
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_LOW) {
     struct ThermostatMessage tm = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
     tm.data.targetTemperature = 290;
@@ -314,6 +321,8 @@ void executeAction(enum SchedulerAction sa)
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to thermostatQueue");
     }
+#endif // CONFIG_MQTT_THERMOSTATS_NB > 0
+
   }
 }
 
@@ -337,30 +346,28 @@ void handle_scheduler(void* pvParameters)
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
         ESP_LOGI(TAG, "Current scheduler trigger time is: %s", strftime_buf);
 
-        if (lastNow != 0) {
-          for(int sid=0; sid <=1; sid++) {
-            ESP_LOGI(TAG, "Checking scheduler with id: %d", sid);
-            if (schedulerStatus[sid] == SCHEDULER_STATUS_ON) {
-              short dow = 1 << timeinfo.tm_wday;
-              ESP_LOGI(TAG, "Scheduler dow: %d", schedulerDow[sid]);
-              if (schedulerDow[sid] & dow || schedulerDow[sid] == 0) {
-                timeinfo.tm_hour = schedulerTime[sid].hour;
-                timeinfo.tm_min = schedulerTime[sid].minute;
-                timeinfo.tm_sec = 0;
-                time_t schedulerTimeNow = mktime(&timeinfo);
+        for(int sid=0; sid <=1; sid++) {
+          ESP_LOGI(TAG, "Checking scheduler with id: %d", sid);
+          if (schedulerStatus[sid] == SCHEDULER_STATUS_ON) {
+            short dow = 1 << timeinfo.tm_wday;
+            ESP_LOGI(TAG, "Scheduler dow: %d", schedulerDow[sid]);
+            if (schedulerDow[sid] & dow || schedulerDow[sid] == 0) {
+              timeinfo.tm_hour = schedulerTime[sid].hour;
+              timeinfo.tm_min = schedulerTime[sid].minute;
+              timeinfo.tm_sec = 0;
+              time_t schedulerTimeNow = mktime(&timeinfo);
 
-                struct tm ti;
-                memset(&ti, 0, sizeof(struct tm));
-                localtime_r(&schedulerTimeNow, &ti);
-                char strfti_buf[64];
-                strftime(strfti_buf, sizeof(strfti_buf), "%c", &timeinfo);
-                ESP_LOGI(TAG, "Scheduler time is: %s", strfti_buf);
-                if (lastNow < schedulerTimeNow && schedulerTimeNow <= tempSchedulerCfg.data.now) {
-                  executeAction(schedulerAction[sid]);
-                  if(schedulerDow[sid] == 0) {
-                    schedulerStatus[sid] = SCHEDULER_STATUS_OFF;
-                    publish_scheduler_status_evt(sid);
-                  }
+              struct tm ti;
+              memset(&ti, 0, sizeof(struct tm));
+              localtime_r(&schedulerTimeNow, &ti);
+              char strfti_buf[64];
+              strftime(strfti_buf, sizeof(strfti_buf), "%c", &timeinfo);
+              ESP_LOGI(TAG, "Scheduler time is: %s", strfti_buf);
+              if (lastNow < schedulerTimeNow && schedulerTimeNow <= tempSchedulerCfg.data.now) {
+                executeAction(schedulerAction[sid]);
+                if(schedulerDow[sid] == 0) {
+                  schedulerStatus[sid] = SCHEDULER_STATUS_OFF;
+                  publish_scheduler_status_evt(sid);
                 }
               }
             }
