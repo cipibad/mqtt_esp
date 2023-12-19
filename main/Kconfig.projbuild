@@ -236,17 +236,22 @@ menu "Sensors configuration"
     menu "BH1750 sensor"
         depends on BH1750_SENSOR
         config BH1750_SENSOR_SDA_GPIO
-            int "BH1750_SENSOR sensor SDA GPIO"
+            int "BH1750 sensor SDA GPIO"
             default 14
             help
                 SDA Gpio port of BH1750_SENSOR sensor
 
         config BH1750_SENSOR_SCL_GPIO
-            int "BH1750_SENSOR sensor SCL GPIO"
+            int "BH1750 sensor SCL GPIO"
             default 2
             help
                 SCL Gpio port of BH1750_SENSOR sensor
 
+        config BH1750_SENSOR_I2C_CLK_STRETCH_TICK
+            int "BH1750 sensor I2C clock stretch tick"
+            default 300
+            help
+                BH1750 sensor I2C clock stretch tick
     endmenu # "BH1750 sensor"
 
     config SOIL_MOISTURE_SENSOR
