@@ -86,10 +86,11 @@ void read_nvs_scheduler_data()
   }
 
   char data[16];
-  memset(data,0,16);
   size_t length = sizeof(data);
 
   for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
+    memset(data,0,16);
+
     err=read_nvs_str(schedulerTimeTAG[id], data, &length);
     ESP_ERROR_CHECK( err );
 

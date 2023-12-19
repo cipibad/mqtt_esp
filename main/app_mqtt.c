@@ -397,7 +397,7 @@ void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload
 void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *payload)
 {
   struct SchedulerCfgMessage sm;
-  memset(&sm, 0, sizeof(struct RelayMessage));
+  memset(&sm, 0, sizeof(struct SchedulerCfgMessage));
   sm.msgType = SCHEDULER_CMD_ACTION;
   sm.schedulerId = schedulerId;
 
@@ -427,7 +427,7 @@ void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *paylo
 void handle_scheduler_mqtt_dow_cmd(signed char schedulerId, const char *payload)
 {
   struct SchedulerCfgMessage sm;
-  memset(&sm, 0, sizeof(struct RelayMessage));
+  memset(&sm, 0, sizeof(struct SchedulerCfgMessage));
   sm.msgType = SCHEDULER_CMD_DOW;
   sm.schedulerId = schedulerId;
   sm.data.dow = atoi(payload);
@@ -442,13 +442,13 @@ void handle_scheduler_mqtt_dow_cmd(signed char schedulerId, const char *payload)
 void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload)
 {
   struct SchedulerCfgMessage sm;
-  memset(&sm, 0, sizeof(struct RelayMessage));
+  memset(&sm, 0, sizeof(struct SchedulerCfgMessage));
   sm.msgType = SCHEDULER_CMD_TIME;
   sm.schedulerId = schedulerId;
 
-  char str[8];
-  strncpy(str, payload, 7);
-  str[7] = '\0';
+  char str[16];
+  strncpy(str, payload, 15);
+  str[15] = '\0';
 
   char *token = strtok(str, ":");
   if (!token) {
@@ -475,7 +475,7 @@ void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload
 void handle_scheduler_mqtt_status_cmd(signed char schedulerId, const char *payload)
 {
   struct SchedulerCfgMessage sm;
-  memset(&sm, 0, sizeof(struct RelayMessage));
+  memset(&sm, 0, sizeof(struct SchedulerCfgMessage));
   sm.msgType = SCHEDULER_CMD_STATUS;
   sm.schedulerId = schedulerId;
 
@@ -852,4 +852,3 @@ void handle_mqtt_sub_pub(void* pvParameters)
 }
 
 #endif // CONFIG_NORTH_INTERFACE_MQTT
-
