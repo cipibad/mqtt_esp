@@ -50,11 +50,11 @@ esp_err_t i2c_master_BH1750_init()
     conf.scl_pullup_en = 1;
     conf.clk_stretch_tick = CONFIG_BH1750_SENSOR_I2C_CLK_STRETCH_TICK; // 300 ticks, Clock stretch is about 210us, you can make changes according to the actual situation.
     #ifdef CONFIG_TARGET_DEVICE_ESP32
-    ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0));
     #else //CONFIG_TARGET_DEVICE_ESP32
-    ESP_ERROR_CHECK(i2c_driver_install(i2c_master_port, conf.mode));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_driver_install(i2c_master_port, conf.mode));
     #endif //CONFIG_TARGET_DEVICE_ESP32
-    ESP_ERROR_CHECK(i2c_param_config(i2c_master_port, &conf));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_param_config(i2c_master_port, &conf));
     return ESP_OK;
 }
 

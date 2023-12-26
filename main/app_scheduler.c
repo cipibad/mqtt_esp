@@ -77,12 +77,12 @@ void read_nvs_scheduler_data()
 
   for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
     err=read_nvs_short(schedulerActionTAG[id], (short*) &schedulerAction[id]);
-    ESP_ERROR_CHECK( err );
+    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
   }
 
   for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
     err=read_nvs_short(schedulerDowTAG[id], (short*) &schedulerDow[id]);
-    ESP_ERROR_CHECK( err );
+    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
   }
 
   char data[16];
@@ -93,7 +93,7 @@ void read_nvs_scheduler_data()
     length = sizeof(data);
 
     err=read_nvs_str(schedulerTimeTAG[id], data, &length);
-    ESP_ERROR_CHECK( err );
+    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
 
     if(strlen(data) == 0) {
       continue;
@@ -116,7 +116,7 @@ void read_nvs_scheduler_data()
 
   for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
     err=read_nvs_short(schedulerStatusTAG[id], (short*) &schedulerStatus[id]);
-    ESP_ERROR_CHECK( err );
+    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
   }
 
 }
@@ -392,7 +392,7 @@ void handle_scheduler(void* pvParameters)
           schedulerAction[schedulerId] = tempSchedulerCfg.data.action;
           esp_err_t err = write_nvs_short(schedulerActionTAG[schedulerId],
                                           schedulerAction[schedulerId]);
-          ESP_ERROR_CHECK( err );
+          ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_action_evt(schedulerId);
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_DOW) {
@@ -408,7 +408,7 @@ void handle_scheduler(void* pvParameters)
 
           esp_err_t err = write_nvs_short(schedulerDowTAG[schedulerId],
                                           schedulerDow[schedulerId]);
-          ESP_ERROR_CHECK( err );
+          ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_dow_evt(schedulerId);
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_TIME) {
@@ -428,7 +428,7 @@ void handle_scheduler(void* pvParameters)
           sprintf(data, "%d:%d", schedulerTime[schedulerId].hour, schedulerTime[schedulerId].minute);
           esp_err_t err = write_nvs_str(schedulerTimeTAG[schedulerId],
                                           data);
-          ESP_ERROR_CHECK( err );
+          ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_time_evt(schedulerId);
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_STATUS) {
@@ -443,7 +443,7 @@ void handle_scheduler(void* pvParameters)
           schedulerStatus[schedulerId] = tempSchedulerCfg.data.status;
           esp_err_t err = write_nvs_short(schedulerStatusTAG[schedulerId],
                                           schedulerStatus[schedulerId]);
-          ESP_ERROR_CHECK( err );
+          ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_status_evt(schedulerId);
       } else {
