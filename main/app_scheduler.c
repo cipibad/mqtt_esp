@@ -86,25 +86,30 @@ void read_nvs_scheduler_data()
   }
 
   char data[16];
-  size_t length = sizeof(data);
+  size_t length;
 
   for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
     memset(data,0,16);
+    length = sizeof(data);
 
     err=read_nvs_str(schedulerTimeTAG[id], data, &length);
     ESP_ERROR_CHECK( err );
 
+    if(strlen(data) == 0) {
+      continue;
+    }
+
     char *token = strtok(data, ":");
     if (!token) {
       ESP_LOGW(TAG, "unhandled scheduler time token 1: %s", data);
-      return;
+      continue;
     }
     schedulerTime[id].hour = atoi(token);
 
     token = strtok(NULL, ":");
     if (!token) {
       ESP_LOGW(TAG, "unhandled scheduler time token 2: %s", data);
-      return;
+      continue;
     }
     schedulerTime[id].minute = atoi(token);
   }
