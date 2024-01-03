@@ -201,58 +201,49 @@ menu "Sensors configuration"
                 Gpio port of DS18X20 sensor
     endmenu # "DS18x20 sensors"
 
-    config BME280_SENSOR
-        boolean "enable BME280 sensor"
-        default n
-        depends on SENSOR_SUPPORT
-        help
-            Enable temperature/humidity/pressure MQTT sensor readings
+    config I2C_SENSOR_SUPPORT
+    boolean "enable I2C sensors"
+    default n
+    depends on SENSOR_SUPPORT
+    help
+        Enable I2C sensors
 
-    menu "BME280 sensor"
-        depends on BME280_SENSOR
-        config BME280_SENSOR_SDA_GPIO
-            int "BME280 sensor SDA GPIO"
-            default 14
-            depends on BME280_SENSOR
-            help
-                SDA Gpio port of BME280 sensor
+    menu "I2C sensor"
+        depends on I2C_SENSOR_SUPPORT
 
-        config BME280_SENSOR_SCL_GPIO
-            int "BME280 sensor SCL GPIO"
-            default 2
-            depends on BME280_SENSOR
-            help
-                SCL Gpio port of BME280 sensor
-
-    endmenu # "BME280 sensor"
-
-    config BH1750_SENSOR
-        boolean "enable BH1750 light intensity sensor"
-        default n
-        depends on SENSOR_SUPPORT
-        help
-            Enable BH1750 light intensity sensor readings
-
-    menu "BH1750 sensor"
-        depends on BH1750_SENSOR
-        config BH1750_SENSOR_SDA_GPIO
-            int "BH1750 sensor SDA GPIO"
+        config I2C_SENSOR_SDA_GPIO
+            int "I2C sensor SDA GPIO"
             default 14
             help
-                SDA Gpio port of BH1750_SENSOR sensor
+                SDA Gpio port of I2C sensor
 
-        config BH1750_SENSOR_SCL_GPIO
-            int "BH1750 sensor SCL GPIO"
+        config I2C_SENSOR_SCL_GPIO
+            int "I2C sensor SCL GPIO"
             default 2
             help
                 SCL Gpio port of BH1750_SENSOR sensor
 
-        config BH1750_SENSOR_I2C_CLK_STRETCH_TICK
-            int "BH1750 sensor I2C clock stretch tick"
+        config I2C_SENSOR_CLK_STRETCH_TICK
+            int " I2C clock stretch tick"
             default 300
             help
-                BH1750 sensor I2C clock stretch tick
-    endmenu # "BH1750 sensor"
+                I2C sensor clock stretch tick
+
+        config BME280_SENSOR
+            boolean "enable BME280 sensor"
+            default n
+            depends on SENSOR_SUPPORT
+            help
+                Enable temperature/humidity/pressure MQTT sensor readings
+
+        config BH1750_SENSOR
+            boolean "enable BH1750 light intensity sensor"
+            default n
+            depends on SENSOR_SUPPORT
+            help
+                Enable BH1750 light intensity sensor readings
+
+    endmenu # "I2C sensor"
 
     config SOIL_MOISTURE_SENSOR
         boolean "enable soil moisture sensor"

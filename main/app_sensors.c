@@ -55,6 +55,8 @@ float temps[MAX_SENSORS];
 int sensor_count = 0;
 #endif // CONFIG_DS18X20_SENSOR
 
+#ifdef CONFIG_I2C_SENSOR_SUPPORT
+#include "app_i2c.h"
 
 #ifdef CONFIG_BME280_SENSOR
 #include "bme280.h"
@@ -64,6 +66,12 @@ int32_t bme280_temperature;
 int32_t bme280_humidity;
 #endif //CONFIG_BME280_SENSOR
 
+#ifdef CONFIG_BH1750_SENSOR
+#include "app_bh1750.h"
+#endif // CONFIG_BH1750_SENSOR
+
+#endif // CONFIG_I2C_SENSOR_SUPPORT
+
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
 #include "driver/adc.h"
 short soil_moisture = SHRT_MIN;
@@ -72,10 +80,6 @@ short soil_moisture = SHRT_MIN;
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 short soil_moisture_threshold = SHRT_MIN;
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-
-#ifdef CONFIG_BH1750_SENSOR
-#include "app_bh1750.h"
-#endif // CONFIG_BH1750_SENSOR
 
 static const char *TAG = "APP_SENSOR";
 
@@ -273,6 +277,9 @@ void publish_sensors_data()
 void sensors_read(void* pvParameters)
 {
 
+#ifdef CONFIG_I2C_SENSOR_SUPPORT
+ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SCL_GPIO));
+
 #ifdef CONFIG_BME280_SENSOR
   //Don't forget to connect SDO to Vio too
 
@@ -283,12 +290,15 @@ void sensors_read(void* pvParameters)
 		.delay_msec = BME280_delay_msek
 	};
 	esp_err_t err = BME280_I2C_init(&bme280,
-                                  CONFIG_BME280_SENSOR_SDA_GPIO,
-                                  CONFIG_BME280_SENSOR_SCL_GPIO);
+                                  CONFIG_I2C_SENSOR_SDA_GPIO,
+                                  CONFIG_I2C_SENSOR_SCL_GPIO);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Cannot init bme280 sensor");
   }
 #endif //CONFIG_BME280_SENSOR
+
+#endif // CONFIG_I2C_SENSOR_SUPPORT
+
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
   gpio_pad_select_gpio(CONFIG_DHT22_SENSOR_GPIO);
   gpio_set_direction(CONFIG_DHT22_SENSOR_GPIO, GPIO_MODE_OUTPUT_OD);
@@ -312,11 +322,6 @@ void sensors_read(void* pvParameters)
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
   gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_GPIO, GPIO_MODE_INPUT);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-
-#ifdef CONFIG_BH1750_SENSOR
-  i2c_master_BH1750_init();
-#endif // CONFIG_BH1750_SENSOR
-
 
   while (1)
     {
@@ -397,6 +402,19 @@ void sensors_read(void* pvParameters)
         }
 #endif //CONFIG_BME280_SENSOR
 
+#ifdef CONFIG_BH1750_SENSOR
+      uint16_t sensor_data;
+      esp_err_t ret = i2c_master_BH1750_read(&sensor_data);
+      if (ret == ESP_ERR_TIMEOUT) {
+          ESP_LOGE(TAG, "I2C Timeout");
+      } else if (ret == ESP_OK) {
+          ESP_LOGI(TAG, "data: %d.%d\n", sensor_data/100, sensor_data%100 );
+          publish_bh1750_data(sensor_data);
+      } else {
+          ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
+  }
+#endif // CONFIG_BH1750_SENSOR
+
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
   gpio_set_level(CONFIG_SOIL_MOISTURE_SENSOR_SWITCH_GPIO, 1);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
@@ -421,19 +439,6 @@ void sensors_read(void* pvParameters)
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
   gpio_set_level(CONFIG_SOIL_MOISTURE_SENSOR_SWITCH_GPIO, 0);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
-
-#ifdef CONFIG_BH1750_SENSOR
-  uint16_t sensor_data;
-  esp_err_t ret = i2c_master_BH1750_read(&sensor_data);
-  if (ret == ESP_ERR_TIMEOUT) {
-      ESP_LOGE(TAG, "I2C Timeout");
-  } else if (ret == ESP_OK) {
-      ESP_LOGI(TAG, "data: %d.%d\n", sensor_data/100, sensor_data%100 );
-      publish_bh1750_data(sensor_data);
-  } else {
-      ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
-  }
-#endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_DEEP_SLEEP_MODE
 #ifdef CONFIG_NORTH_INTERFACE_MQTT

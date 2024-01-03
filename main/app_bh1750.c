@@ -7,57 +7,22 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
-#include "driver/i2c.h"
-
+#include "app_i2c.h"
 #include "app_bh1750.h"
 
-#define I2C_MASTER_NUM              I2C_NUM_0        /*!< I2C port number for master dev */
-#define I2C_MASTER_TX_BUF_DISABLE   0                /*!< I2C master do not need buffer */
-#define I2C_MASTER_RX_BUF_DISABLE   0                /*!< I2C master do not need buffer */
+#define BH1750_SENSOR_ADDR_LOW 0x23
+#define BH1750_SENSOR_ADDR_HIGH 0x5C
 
-#define WRITE_BIT                           I2C_MASTER_WRITE /*!< I2C master write */
-#define READ_BIT                            I2C_MASTER_READ  /*!< I2C master read */
-#define ACK_CHECK_EN                        0x1              /*!< I2C master will check ack from slave*/
-#define ACK_CHECK_DIS                       0x0              /*!< I2C master will not check ack from slave */
-#define ACK_VAL                             0x0              /*!< I2C ack value */
-#define NACK_VAL                            0x1              /*!< I2C nack value */
-#define LAST_NACK_VAL                       0x2              /*!< I2C last_nack value */
+#define BH1750_SENSOR_ADDR BH1750_SENSOR_ADDR_LOW   /*!< slave address for BH1750 sensor */
 
-            // default 0x5C if BH1750_I2C_ADDRESS_High
-            // default 0x23 if BH1750_I2C_ADDRESS_LOW
+#define BH1750_CONTINU_H_RESOLUTION 0x10
+#define BH1750_CONTINU_H_RESOLUTION2 0x11
+#define BH1750_CONTINU_L_RESOLUTION 0x13
+#define BH1750_ONETIME_H_RESOLUTION 0x20
+#define BH1750_ONETIME_H_RESOLUTION2 0x21
+#define BH1750_ONETIME_L_RESOLUTION 0x23
 
-#define BH1750_SENSOR_ADDR 0x23   /*!< slave address for BH1750 sensor */
-
-            // default 0x10 if BH1750_CONTINU_H_RESOLUTION
-            // default 0x11 if BH1750_CONTINU_H_RESOLUTION2
-            // default 0x13 if BH1750_CONTINU_L_RESOLUTION
-            // default 0x20 if BH1750_ONETIME_H_RESOLUTION
-            // default 0x21 if BH1750_ONETIME_H_RESOLUTION2
-            // default 0x23 if BH1750_ONETIME_L_RESOLUTION
-#define BH1750_CMD_START 0x23   /*!< Operation mode */
-
-/**
- * @brief i2c master initialization
- */
-esp_err_t i2c_master_BH1750_init()
-{
-    int i2c_master_port = I2C_MASTER_NUM;
-    i2c_config_t conf;
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = CONFIG_BH1750_SENSOR_SDA_GPIO;
-    conf.sda_pullup_en = 1;
-    conf.scl_io_num = CONFIG_BH1750_SENSOR_SCL_GPIO;
-    conf.scl_pullup_en = 1;
-    conf.clk_stretch_tick = CONFIG_BH1750_SENSOR_I2C_CLK_STRETCH_TICK; // 300 ticks, Clock stretch is about 210us, you can make changes according to the actual situation.
-    #ifdef CONFIG_TARGET_DEVICE_ESP32
-    ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_driver_install(i2c_master_port, conf.mode, 0, 0, 0));
-    #else //CONFIG_TARGET_DEVICE_ESP32
-    ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_driver_install(i2c_master_port, conf.mode));
-    #endif //CONFIG_TARGET_DEVICE_ESP32
-    ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_param_config(i2c_master_port, &conf));
-    return ESP_OK;
-}
-
+#define BH1750_SENSOR_OPERATION_MODE BH1750_ONETIME_L_RESOLUTION   /*!< Operation mode */
 
 /**
  * @brief test code to operate on BH1750 sensor
@@ -79,7 +44,7 @@ esp_err_t i2c_master_BH1750_read(uint16_t *data)
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, BH1750_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
-    i2c_master_write_byte(cmd, BH1750_CMD_START, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, BH1750_SENSOR_OPERATION_MODE, ACK_CHECK_EN);
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
