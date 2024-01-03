@@ -133,15 +133,14 @@ esp_err_t bme_read_data(int32_t *temperature, int32_t *pressure, int32_t *humidi
 	  &v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32);
 
   if (com_rslt == BME280_SUCCESS) {
-    ESP_LOGI(TAG, "%d.%02d degC / %d hPa / %d.%03d %%",
-             bme280_compensate_temperature_int32(v_uncomp_temperature_s32)/100,
-             bme280_compensate_temperature_int32(v_uncomp_temperature_s32)%100,
-             bme280_compensate_pressure_int32(v_uncomp_pressure_s32)/100, // Pa -> hPa
-             bme280_compensate_humidity_int32(v_uncomp_humidity_s32)/1000,
-             bme280_compensate_humidity_int32(v_uncomp_humidity_s32)%1000);
     *temperature = bme280_compensate_temperature_int32(v_uncomp_temperature_s32);
-    *pressure = bme280_compensate_pressure_int32(v_uncomp_pressure_s32)/100;
-    *humidity = bme280_compensate_humidity_int32(v_uncomp_humidity_s32);
+    *pressure = bme280_compensate_pressure_int32(v_uncomp_pressure_s32) / 1.33322;
+    *humidity = 1000. * bme280_compensate_humidity_int32(v_uncomp_humidity_s32) / 1024;
+
+    ESP_LOGI(TAG, "%d.%02d degC / %d.%02d mmHg  / %d.%03d %%rH",
+             (*temperature) / 100, (*temperature) % 100,
+             (*pressure) / 100, (*pressure) % 100,
+             (*humidity)/1000, (*humidity) % 1000);
     return ESP_OK;
   } else {
     ESP_LOGE(TAG, "measure error. code: %d", com_rslt);

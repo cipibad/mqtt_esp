@@ -202,7 +202,7 @@ void publish_bme280_pressure()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/pressure/bme280";
 
-  publish_sensor_data(topic, bme280_pressure*7.50061683);
+  publish_sensor_data(topic, bme280_pressure/10);
 }
 
 void publish_bme280_data()
@@ -389,11 +389,13 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       }
 #endif // CONFIG_DS18X20_SENSOR
 
-
 #ifdef CONFIG_BME280_SENSOR
       if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
         {
-          ESP_LOGI(TAG, "Temp: %d.%02dC, Pressure: %d, Humidity: %d.%03d%%, ",  bme280_temperature/100,bme280_temperature%100, bme280_pressure, bme280_humidity/1000, bme280_humidity%1000);
+          ESP_LOGI(TAG, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
+            bme280_temperature / 100, bme280_temperature % 100,
+            bme280_pressure / 100, bme280_pressure % 100,
+            bme280_humidity / 1000, bme280_humidity % 1000);
           publish_bme280_data();
         }
       else
