@@ -240,7 +240,7 @@ void publish_bh1750_data(uint16_t sensor_data)
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%d.%d", sensor_data / 100, abs(sensor_data % 100));
+  sprintf(data, "%d.%02d", sensor_data / 100, abs(sensor_data % 100));
   publish_non_persistent_data(topic, data);
 }
 #endif // CONFIG_BH1750_SENSOR
@@ -286,7 +286,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 	struct bme280_t bme280 = {
 		.bus_write = BME280_I2C_bus_write,
 		.bus_read = BME280_I2C_bus_read,
-		.dev_addr = BME280_I2C_ADDRESS2,
+		.dev_addr = BME280_I2C_ADDRESS1,
 		.delay_msec = BME280_delay_msek
 	};
 	esp_err_t err = BME280_I2C_init(&bme280,
@@ -408,7 +408,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       if (ret == ESP_ERR_TIMEOUT) {
           ESP_LOGE(TAG, "I2C Timeout");
       } else if (ret == ESP_OK) {
-          ESP_LOGI(TAG, "data: %d.%d\n", sensor_data/100, sensor_data%100 );
+          ESP_LOGI(TAG, "data: %d.%02d\n", sensor_data/100, sensor_data%100 );
           publish_bh1750_data(sensor_data);
       } else {
           ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
