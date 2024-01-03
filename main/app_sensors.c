@@ -68,6 +68,7 @@ int32_t bme280_humidity;
 
 #ifdef CONFIG_BH1750_SENSOR
 #include "app_bh1750.h"
+uint16_t illuminance;
 #endif // CONFIG_BH1750_SENSOR
 
 #endif // CONFIG_I2C_SENSOR_SUPPORT
@@ -234,13 +235,13 @@ void publish_soil_moisture_th()
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
 #ifdef CONFIG_BH1750_SENSOR
-void publish_bh1750_data(uint16_t sensor_data)
+void publish_bh1750_data()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%d.%02d", sensor_data / 100, abs(sensor_data % 100));
+  sprintf(data, "%d.%02d", illuminance / 100, abs(illuminance % 100));
   publish_non_persistent_data(topic, data);
 }
 #endif // CONFIG_BH1750_SENSOR
@@ -252,26 +253,35 @@ void publish_sensors_data()
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
   publish_dht22_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
   publish_ds18x20_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_DS18X20_SENSOR
 
 #ifdef CONFIG_BME280_SENSOR
   publish_bme280_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
   publish_soil_moisture_adc();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
   publish_soil_moisture_th();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
-#endif // CONFIG_DEEP_SLEEP_MODE
+#ifdef CONFIG_BH1750_SENSOR
+    publish_bh1750_data();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+#endif // CONFIG_BH1750_SENSOR
 
+#endif // CONFIG_DEEP_SLEEP_MODE
 }
 
 void sensors_read(void* pvParameters)
@@ -405,13 +415,12 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #endif //CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_BH1750_SENSOR
-      uint16_t sensor_data;
-      esp_err_t ret = i2c_master_BH1750_read(&sensor_data);
+      esp_err_t ret = i2c_master_BH1750_read(&illuminance);
       if (ret == ESP_ERR_TIMEOUT) {
           ESP_LOGE(TAG, "I2C Timeout");
       } else if (ret == ESP_OK) {
-          ESP_LOGI(TAG, "data: %d.%02d\n", sensor_data/100, sensor_data%100 );
-          publish_bh1750_data(sensor_data);
+          ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
+          publish_bh1750_data();
       } else {
           ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
   }
