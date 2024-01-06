@@ -51,6 +51,10 @@ QueueHandle_t relayQueue;
 QueueHandle_t schedulerCfgQueue;
 #endif // CONFIG_MQTT_SCHEDULERS
 
+#ifdef CONFIG_MOTION_SENSOR_SUPPORT
+#include "app_motion.h"
+#endif // CONFIG_MOTION_SENSOR_SUPPORT
+
 #ifdef CONFIG_MQTT_OTA
 #include "app_ota.h"
 QueueHandle_t otaQueue;
@@ -293,6 +297,10 @@ initWaterPump();
 #ifdef CONFIG_MQTT_SCHEDULERS
     xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MQTT_SCHEDULERS
+
+#ifdef CONFIG_MOTION_SENSOR_SUPPORT
+    xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_MOTION_SENSOR_SUPPORT
 
   }
 }

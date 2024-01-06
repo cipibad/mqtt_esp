@@ -897,5 +897,28 @@ config MQTT_SCHEDULERS
     help
         Enable schedulers support
 
+config MOTION_SENSOR_SUPPORT
+    boolean "enable motion sensor support"
+    default n
+    help
+        Enable motion sensor support
+
+menu "Motion sensor configuration"
+    depends on MOTION_SENSOR_SUPPORT
+
+    config MOTION_SENSOR_GPIO
+        int "GPIO to motion sensor"
+        default 4
+        help
+            GPIO to motion sensor
+
+    config MOTION_SENSOR_DISABLE_TIMER
+        int "number of seconds to wait before disabling sensor"
+        default 5
+        help
+            After we reveive low on GPIO we wait MOTION_SENSOR_DISABLE_TIMER seconds
+            before also disabling senor status
+
+endmenu # "Waterpump"
 
 endmenu
