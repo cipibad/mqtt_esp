@@ -61,7 +61,7 @@ esp_err_t i2c_master_BH1750_read(uint16_t *data)
     ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
 
-    *data = 10 * (data_h << 8 | data_l)/ 12;
+    *data = 1000. * (data_h << 8 | data_l)/ 12;
     return ret;
 }
 
