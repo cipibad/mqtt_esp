@@ -243,6 +243,14 @@ void publish_bh1750_data()
   memset(data,0,16);
   sprintf(data, "%d.%02d", illuminance / 100, abs(illuminance % 100));
   publish_non_persistent_data(topic, data);
+
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+  extern EventGroupHandle_t presenceEventGroup;
+  extern const int PRESENCE_NEW_DATA_BIT;
+  if( presenceEventGroup != NULL ) {
+    xEventGroupSetBits (presenceEventGroup, PRESENCE_NEW_DATA_BIT);
+  }
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
 }
 #endif // CONFIG_BH1750_SENSOR
 

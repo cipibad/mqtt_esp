@@ -52,6 +52,14 @@ void publish_motion_data()
   memset(data,0,16);
   sprintf(data, motion_detected ? "true" : "false");
   publish_non_persistent_data(topic, data);
+
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+  extern EventGroupHandle_t presenceEventGroup;
+  extern const int PRESENCE_NEW_DATA_BIT;
+  if( presenceEventGroup != NULL ) {
+    xEventGroupSetBits (presenceEventGroup, PRESENCE_NEW_DATA_BIT);
+  }
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
 }
 
 void app_motion_task(void* pvParameters)
@@ -73,15 +81,16 @@ void app_motion_task(void* pvParameters)
                     motion_detection_timer_callback );  /* Callback function. */
     if (motion_detection_timer == NULL) {
         ESP_LOGE(TAG, "No motion_detection_timer found");
-        return;;
+        return;
     }
 
     ESP_LOGI(TAG, "event group created, waiting sensor initialization");
     gpio_config_t io_conf;
-    //interrupt of rising edge
+    //interrupt of any edge
 
     // Sensor module is powered up after a minute, in this initialization time intervals
     // during this module will output 0-3 times, a minute later enters the standby state.
+    // only 10 seconds delay seems to be enough
     vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
 
     io_conf.intr_type = GPIO_INTR_ANYEDGE;
@@ -135,4 +144,4 @@ void app_motion_task(void* pvParameters)
     }
 }
 
-#endif // MOTION_SENSOR_SUPPORT
+#endif // CONFIG_MOTION_SENSOR_SUPPORT

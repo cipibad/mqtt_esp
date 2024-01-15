@@ -916,9 +916,35 @@ menu "Motion sensor configuration"
         int "number of seconds to wait before disabling sensor"
         default 5
         help
-            After we reveive low on GPIO we wait MOTION_SENSOR_DISABLE_TIMER seconds
-            before also disabling senor status
+            After we receive low on GPIO we wait MOTION_SENSOR_DISABLE_TIMER seconds
+            before also disabling sensor status
 
-endmenu # "Waterpump"
+endmenu # "Motion sensor configuration"
+
+config PRESENCE_AUTOMATION_SUPPORT
+    depends on MOTION_SENSOR_SUPPORT
+    boolean "enable presence automation support"
+    default n
+    help
+        Enable presence automation support
+
+menu "Presence automation configuration"
+    depends on PRESENCE_AUTOMATION_SUPPORT
+
+    config PRESENCE_AUTOMATION_DISABLE_TIMER
+        int "number of seconds to wait before disabling light"
+        default 15
+        help
+            After motion disabled we wait PRESENCE_AUTOMATION_DISABLE_TIMER seconds
+            before also disabling the light
+
+    config PRESENCE_AUTOMATION_ILLUMINANCE_THRESHOLD
+        depends on BH1750_SENSOR
+        int "Illuminance threshold to enable presence automation"
+        default 100
+        help
+            Illuminance threshold to enable presence automation
+
+endmenu # "Presence automation configuration"
 
 endmenu
