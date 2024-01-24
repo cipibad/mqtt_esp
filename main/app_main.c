@@ -55,6 +55,10 @@ QueueHandle_t schedulerCfgQueue;
 #include "app_motion.h"
 #endif // CONFIG_MOTION_SENSOR_SUPPORT
 
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+#include "app_presence.h"
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
+
 #ifdef CONFIG_MQTT_OTA
 #include "app_ota.h"
 QueueHandle_t otaQueue;
@@ -267,6 +271,17 @@ initWaterPump();
     gpio_switch_init(NULL);
 #endif //CONFIG_MQTT_SWITCHES_NB
 
+#ifdef CONFIG_MQTT_SCHEDULERS
+    xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_MQTT_SCHEDULERS
+
+#ifdef CONFIG_MOTION_SENSOR_SUPPORT
+    xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_MOTION_SENSOR_SUPPORT
+
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+    xTaskCreate(app_presence_task, "app_presence", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
 
     wifi_init();
 
@@ -293,14 +308,5 @@ initWaterPump();
 
     xTaskCreate(ops_pub_task, "ops_pub_task", OPS_PUB_TASK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
-
-#ifdef CONFIG_MQTT_SCHEDULERS
-    xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
-#endif // CONFIG_MQTT_SCHEDULERS
-
-#ifdef CONFIG_MOTION_SENSOR_SUPPORT
-    xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
-#endif // CONFIG_MOTION_SENSOR_SUPPORT
-
   }
 }

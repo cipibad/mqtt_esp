@@ -5,11 +5,15 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "freertos/queue.h"
 
 #include "esp_log.h"
 
 #include "app_presence.h"
 #include "app_publish_data.h"
+
+#include "app_relay.h"
+extern QueueHandle_t relayQueue;
 
 extern bool motion_detected;
 #ifdef CONFIG_BH1750_SENSOR
@@ -20,7 +24,7 @@ bool presence_detected = false;
 
 EventGroupHandle_t presenceEventGroup;
 const int PRESENCE_NEW_DATA_BIT = BIT0;
-const int PRESENCE_TIMER_BIT = BIT0;
+const int PRESENCE_TIMER_BIT = BIT1;
 
 TimerHandle_t presence_detection_timer = NULL;
 
@@ -44,7 +48,7 @@ void publish_presence_data()
 
 void app_presence_task(void* pvParameters)
 {
-    ESP_LOGI(TAG, "app_motion task started");
+    ESP_LOGI(TAG, "app_presence task started");
     presenceEventGroup = xEventGroupCreate();
     /* Was the event group created successfully? */
     if( presenceEventGroup == NULL )
@@ -66,28 +70,52 @@ void app_presence_task(void* pvParameters)
 
     EventBits_t mBits;
     while(1) {
-        mBits = xEventGroupWaitBits(presenceEventGroup, PRESENCE_NEW_DATA_BIT,
+        mBits = xEventGroupWaitBits(presenceEventGroup, PRESENCE_NEW_DATA_BIT | PRESENCE_TIMER_BIT,
                                     true, false, portMAX_DELAY);
         if (mBits & PRESENCE_NEW_DATA_BIT) {
             if (motion_detected
 #ifdef CONFIG_BH1750_SENSOR
-                && illuminance < CONFIG_PRESENCE_AUTOMATION_ILLUMINANCE_THRESHOLD
+                && illuminance/100 < CONFIG_PRESENCE_AUTOMATION_ILLUMINANCE_THRESHOLD
 #endif // CONFIG_BH1750_SENSOR
          ) {
                 if (!presence_detected) {
                     presence_detected = true;
                     publish_presence_data();
+                    struct RelayMessage r = {RELAY_CMD_STATUS, 0, RELAY_STATUS_ON};
+                    if (xQueueSend( relayQueue,
+                                    ( void * )&r,
+                                    RELAY_QUEUE_TIMEOUT) != pdPASS) {
+                    ESP_LOGE(TAG, "Cannot send to relayQueue");
+                    }
                 }
-                if( xTimerStart(presence_detection_timer, 0 ) != pdPASS )
+                if( xTimerStop(presence_detection_timer, 0 ) != pdPASS )
                 {
-                    ESP_LOGE(TAG, "Cannot start presence_detection_timer");
+                    ESP_LOGE(TAG, "Cannot stop presence_detection_timer");
                     continue;
                 }
+                ESP_LOGI(TAG, "Stopped presence_detection_timer");
+            }
+            else if (presence_detected) { // should stop with delay, start timer
+                if( xTimerIsTimerActive( presence_detection_timer ) == pdFALSE ) {
+                    if( xTimerStart(presence_detection_timer, 0 ) != pdPASS )
+                    {
+                        ESP_LOGE(TAG, "Cannot start presence_detection_timer");
+                        continue;
+                    }
                 ESP_LOGI(TAG, "Started presence_detection_timer");
+                } else {
+                    ESP_LOGI(TAG, "Timer already active: presence_detection_timer");
+                }
             }
         } else if (mBits & PRESENCE_TIMER_BIT) {
             presence_detected = false;
             publish_presence_data();
+            struct RelayMessage r = {RELAY_CMD_STATUS, 0, RELAY_STATUS_OFF};
+            if (xQueueSend( relayQueue,
+                            ( void * )&r,
+                            RELAY_QUEUE_TIMEOUT) != pdPASS) {
+            ESP_LOGE(TAG, "Cannot send to relayQueue");
+            }
         }
     }
 }

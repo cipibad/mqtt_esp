@@ -109,12 +109,7 @@ void app_motion_task(void* pvParameters)
     while(1) {
         mBits = xEventGroupWaitBits(motionEventGroup, MOTION_GPIO_INTR_BIT | MOTION_TIMER_BIT,
                                     true, false, portMAX_DELAY);
-        if (mBits & MOTION_TIMER_BIT) {
-            motion_detected = false;
-            publish_motion_data();
-            // trigger local handler if configured
-            ESP_LOGI(TAG, "Sending motion_detection:false event");
-        } else if (mBits & MOTION_GPIO_INTR_BIT) {
+        if (mBits & MOTION_GPIO_INTR_BIT) {
             bool new_motion_detected = gpio_get_level(CONFIG_MOTION_SENSOR_GPIO);
             ESP_LOGI(TAG, "new_motion_detected: %d", new_motion_detected);
 
@@ -122,8 +117,6 @@ void app_motion_task(void* pvParameters)
                 if (! motion_detected) {
                     motion_detected = true;
                     publish_motion_data();
-                    // trigger local handler if configured
-                    ESP_LOGI(TAG, "Sending motion_detection:true event");
                 } else {
                     if( xTimerStop(motion_detection_timer, 0 ) != pdPASS )
                     {
@@ -132,7 +125,7 @@ void app_motion_task(void* pvParameters)
                     }
                     ESP_LOGI(TAG, "Stopped motion_detection_timer");
                 }
-            } else if (motion_detected && ! new_motion_detected) {
+            } else if (motion_detected) {
                 if( xTimerStart(motion_detection_timer, 0 ) != pdPASS )
                 {
                     ESP_LOGE(TAG, "Cannot start motion_detection_timer");
@@ -140,6 +133,9 @@ void app_motion_task(void* pvParameters)
                 }
                 ESP_LOGI(TAG, "Started motion_detection_timer");
             }
+        } else if (mBits & MOTION_TIMER_BIT) {
+            motion_detected = false;
+            publish_motion_data();
         }
     }
 }

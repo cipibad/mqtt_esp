@@ -574,7 +574,9 @@ void dump_data()
 {
   ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
   ESP_LOGI(TAG, "heating state is %d", heatingState);
+#ifdef CONFIG_WATERPUMP_SUPPORT
   ESP_LOGI(TAG, "waterPump state is %d", getWaterPumpStatus());
+#endif // CONFIG_WATERPUMP_SUPPORT
   ESP_LOGI(TAG, "thermostat_bump is %s", thermostat_bump ? "true" : "false");
   ESP_LOGI(TAG, "thermostat_was_bumped is %s", thermostat_was_bumped ? "true" : "false");
 
