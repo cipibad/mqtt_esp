@@ -1,23 +1,45 @@
 menu "MQTT SSL CONF"
 
+choice DEVICE_TYPE
+	prompt "Device type"
+	default DEVICE_TYPE_ESP8266
+    help
+        This is the root name of the MQTT topic or COAP resource /<device_type>/<client_id>
 
-choice TARGET_DEVICE
-   bool "Target device type"
-   default TARGET_DEVICE_ESP8266
-   help
-       Target device type
-
-config TARGET_DEVICE_ESP32
-   bool "ESP32"
-config TARGET_DEVICE_ESP8266
-   bool "ESP8266/sonoffbasic/sonoff plug/sonoff wall switch"
+config DEVICE_TYPE_ESP01
+	bool "esp01"
+config DEVICE_TYPE_ESP12F
+	bool "esp12f"
+config DEVICE_TYPE_ESP32
+	bool "esp32"
+config DEVICE_TYPE_ESP8266
+	bool "esp8266"
+config DEVICE_TYPE_sonoffb
+	bool "sonoffb"
+config DEVICE_TYPE_sonoffp
+	bool "sonoffp"
 endchoice
 
 config DEVICE_TYPE
-    string "Device type"
-    default "device_type"
-    help
-        This is the root name of the MQTT topic or COAP resource /<device_type>/<client_id>
+	string
+    default "esp01" if DEVICE_TYPE_ESP01
+    default "esp12f" if DEVICE_TYPE_ESP12F
+    default "esp32" if DEVICE_TYPE_ESP32
+    default "esp8266" if DEVICE_TYPE_ESP8266
+    default "sonoffb" if DEVICE_TYPE_sonoffb
+    default "sonoffp" if DEVICE_TYPE_sonoffp
+
+config TARGET_DEVICE_ESP32
+    bool
+    default y if DEVICE_TYPE_ESP32
+
+config TARGET_DEVICE_ESP8266
+    bool
+    default y if DEVICE_TYPE_ESP01
+    default y if DEVICE_TYPE_ESP12F
+    default y if DEVICE_TYPE_ESP8266
+    default y if DEVICE_TYPE_sonoffb
+    default y if DEVICE_TYPE_sonoffp
 
 config CLIENT_ID
     string "Client id"
