@@ -20,6 +20,10 @@ const int MOTION_GPIO_INTR_BIT = BIT0;
 const int MOTION_TIMER_BIT = BIT1;
 
 bool motion_detected = false;
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+bool local_motion_detected = false;
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
+
 TimerHandle_t motion_detection_timer = NULL;
 
 
@@ -44,6 +48,17 @@ void motion_detection_timer_callback( TimerHandle_t xTimer )
     xEventGroupSetBits (motionEventGroup, MOTION_TIMER_BIT);
 }
 
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+void publish_local_motion_data()
+{
+  extern EventGroupHandle_t presenceEventGroup;
+  extern const int PRESENCE_NEW_DATA_BIT;
+  if( presenceEventGroup != NULL ) {
+    xEventGroupSetBits (presenceEventGroup, PRESENCE_NEW_DATA_BIT);
+  }
+}
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
+
 void publish_motion_data()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/motion/hc-sr501";
@@ -52,14 +67,6 @@ void publish_motion_data()
   memset(data,0,16);
   sprintf(data, motion_detected ? "true" : "false");
   publish_non_persistent_data(topic, data);
-
-#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
-  extern EventGroupHandle_t presenceEventGroup;
-  extern const int PRESENCE_NEW_DATA_BIT;
-  if( presenceEventGroup != NULL ) {
-    xEventGroupSetBits (presenceEventGroup, PRESENCE_NEW_DATA_BIT);
-  }
-#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
 }
 
 void app_motion_task(void* pvParameters)
@@ -90,8 +97,11 @@ void app_motion_task(void* pvParameters)
 
     // Sensor module is powered up after a minute, in this initialization time intervals
     // during this module will output 0-3 times, a minute later enters the standby state.
-    // only 10 seconds delay seems to be enough
-    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+    local_motion_detected = true;
+    publish_local_motion_data();
+    vTaskDelay(15 * 1000 / portTICK_PERIOD_MS);
+    local_motion_detected = false;
+    publish_local_motion_data();
 
     io_conf.intr_type = GPIO_INTR_ANYEDGE;
     //bit mask of the pins, use GPIO4/5 here
@@ -114,6 +124,12 @@ void app_motion_task(void* pvParameters)
             ESP_LOGI(TAG, "new_motion_detected: %d", new_motion_detected);
 
             if (new_motion_detected){
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+                if (! local_motion_detected) {
+                    local_motion_detected = true;
+                    publish_local_motion_data();
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
+                }
                 if (! motion_detected) {
                     motion_detected = true;
                     publish_motion_data();
@@ -125,13 +141,21 @@ void app_motion_task(void* pvParameters)
                     }
                     ESP_LOGI(TAG, "Stopped motion_detection_timer");
                 }
-            } else if (motion_detected) {
-                if( xTimerStart(motion_detection_timer, 0 ) != pdPASS )
-                {
-                    ESP_LOGE(TAG, "Cannot start motion_detection_timer");
-                    continue;
+            } else {
+#ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
+                if (local_motion_detected) {
+                    local_motion_detected = false;
+                    publish_local_motion_data();
+#endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
                 }
-                ESP_LOGI(TAG, "Started motion_detection_timer");
+                if (motion_detected) {
+                    if( xTimerStart(motion_detection_timer, 0 ) != pdPASS )
+                    {
+                        ESP_LOGE(TAG, "Cannot start motion_detection_timer");
+                        continue;
+                    }
+                    ESP_LOGI(TAG, "Started motion_detection_timer");
+                }
             }
         } else if (mBits & MOTION_TIMER_BIT) {
             motion_detected = false;
