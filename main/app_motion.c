@@ -80,6 +80,7 @@ void app_motion_task(void* pvParameters)
                         FreeRTOS heap available");
         return;
     }
+    ESP_LOGI(TAG, "event group created, waiting sensor initialization");
 
     motion_detection_timer = xTimerCreate( "motion_detection_timer",           /* Text name. */
                     pdMS_TO_TICKS(CONFIG_MOTION_SENSOR_DISABLE_TIMER * 1000),  /* Period. */
@@ -91,7 +92,6 @@ void app_motion_task(void* pvParameters)
         return;
     }
 
-    ESP_LOGI(TAG, "event group created, waiting sensor initialization");
     gpio_config_t io_conf;
     //interrupt of any edge
 

@@ -275,13 +275,13 @@ initWaterPump();
     xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MQTT_SCHEDULERS
 
-#ifdef CONFIG_MOTION_SENSOR_SUPPORT
-    xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
-#endif // CONFIG_MOTION_SENSOR_SUPPORT
-
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
     xTaskCreate(app_presence_task, "app_presence", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
+
+#ifdef CONFIG_MOTION_SENSOR_SUPPORT
+    xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_MOTION_SENSOR_SUPPORT
 
     wifi_init();
 
