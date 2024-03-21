@@ -55,36 +55,40 @@ menu "WiFi Config"
         Wifi mode, can be station on mixed
     config WIFI_MODE_STATION
     bool "Wifi station only mode"
+    config WIFI_MODE_ACCESS_POINT
+    bool "Wifi access point only mode"
     config WIFI_MODE_MIXED
     bool "Wifi mixed mode: station and AP(esp8266 only)"
     endchoice
 
     config WIFI_SSID
+        depends on WIFI_MODE_STATION || WIFI_MODE_MIXED
         string "WiFi SSID"
         default "myssid"
         help
             SSID (network name) to connect to
 
     config WIFI_PASSWORD
+        depends on WIFI_MODE_STATION || WIFI_MODE_MIXED
         string "WiFi Password"
         default "mypassword"
         help
             WiFi password (WPA or WPA2) to use
 
     menu "Wifi AP Config"
-        depends on WIFI_MODE_MIXED
+        depends on WIFI_MODE_MIXED || WIFI_MODE_ACCESS_POINT
 
         config WIFI_AP_SSID
             string "WiFi AP SSID"
             default "myapssid"
-            depends on WIFI_MODE_MIXED
+            depends on WIFI_MODE_MIXED || WIFI_MODE_ACCESS_POINT
             help
                 SSID (network name) for Acces Point mode.
 
         config WIFI_AP_PASSWORD
             string "WiFi AP Password"
             default "myappassword"
-            depends on WIFI_MODE_MIXED
+            depends on WIFI_MODE_MIXED || WIFI_MODE_ACCESS_POINT
             help
                 WiFi password for Acces Point mode.
     endmenu # "Wifi AP Config"
@@ -101,6 +105,8 @@ config NORTH_INTERFACE_MQTT
    bool "MQTT"
 config NORTH_INTERFACE_COAP
    bool "COAP"
+config NORTH_INTERFACE_HTTP
+   bool "HTTP"
 endchoice
 
 menu "MQTT Config"
@@ -908,9 +914,38 @@ menu "Waterpump configuration"
             There is partial implementation for user friendly notifications
 endmenu # "Waterpump"
 
+#######################
+config ACTUATOR_SUPPORT
+    boolean "enable external actuator support"
+    depends on !DEEP_SLEEP_MODE
+    default n
+    help
+        Enable external actuator support
+
+menu "Actuator configuration"
+    depends on ACTUATOR_SUPPORT
+
+    config ACTUATOR_MASTER_GPIO
+        int "GPIO to control master relay"
+        default 25
+        help
+            GPIO to control master relay, see schematics
+
+    config ACTUATOR_OPEN_GPIO
+        int "GPIO to control open relay"
+        default 26
+        help
+            GPIO to control open relay, see schematics
+
+    config ACTUATOR_CLOSE_GPIO
+        int "GPIO to control close relay"
+        default 1
+        help
+            GPIO to control close relay, see schematics
+
+endmenu # "Actuator configuration"
 
 #######################
-
 
 config MQTT_SCHEDULERS
     boolean "enable schedulers support"
