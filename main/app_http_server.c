@@ -5,6 +5,7 @@
 
 #include "app_actuator.h"
 #include "app_http_server.h"
+#include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -23,6 +24,7 @@ httpd_uri_t get_index_html = {
     .uri = "/", .method = HTTP_GET, .handler = index_html_get_handler};
 
 esp_err_t index_css_get_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/css");
   httpd_resp_send(req, index_css_start, strlen(index_css_start));
   return ESP_OK;
 }
@@ -30,6 +32,7 @@ httpd_uri_t get_index_css = {
     .uri = "/index.css", .method = HTTP_GET, .handler = index_css_get_handler};
 
 esp_err_t index_js_get_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/javascript");
   httpd_resp_send(req, index_js_start, strlen(index_js_start));
   return ESP_OK;
 }
@@ -41,8 +44,9 @@ extern short dht22_mean_temperature;
 esp_err_t temperature_dht22_get_handler(httpd_req_t *req) {
   char data[16];
   memset(data, 0, 16);
-  sprintf(data, "%d.%d", dht22_mean_temperature / 10,
+  sprintf(data, "{\"value\":%d.%d}", dht22_mean_temperature / 10,
           abs(dht22_mean_temperature % 10));
+  httpd_resp_set_type(req, HTTPD_TYPE_JSON);
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
@@ -54,8 +58,9 @@ extern short dht22_mean_humidity;
 esp_err_t humidity_dht22_get_handler(httpd_req_t *req) {
   char data[16];
   memset(data, 0, 16);
-  sprintf(data, "%d.%d", dht22_mean_humidity / 10,
+  sprintf(data, "{\"value\":%d.%d}", dht22_mean_humidity / 10,
           abs(dht22_mean_humidity % 10));
+  httpd_resp_set_type(req, HTTPD_TYPE_JSON);
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
@@ -67,12 +72,13 @@ httpd_uri_t get_humidity_dht22 = {.uri = "/humidity/dht22",
 #ifdef CONFIG_ACTUATOR_SUPPORT
 
 esp_err_t actuator_action_post_handler(httpd_req_t *req) {
-  char buf[100];
-  int ret, remaining = req->content_len;
-  if (remaining > 100) {
+  char buf[64];
+  if (req->content_len > 63) {
     ESP_LOGI(TAG, "actuator_action_post_handler: payload too big");
     return ESP_FAIL;
   }
+
+  int ret, remaining = req->content_len;
   while (remaining > 0) {
     /* Read the data for the request */
     if ((ret = httpd_req_recv(req, buf, remaining)) <= 0) {
@@ -86,14 +92,64 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
     remaining -= ret;
 
     /* Log data received */
-    ESP_LOGI(TAG, "=========== RECEIVED DATA ==========");
-    ESP_LOGI(TAG, "%.*s", ret, buf);
-    ESP_LOGI(TAG, "====================================");
+    ESP_LOGI(TAG, "received: %.*s", ret, buf);
+  }
+  buf[req->content_len] = 0;
+
+  ActuatorCommand_t command = ACTUATOR_COMMAND_UNSET;
+  ActuatorPeriod_t period = ACTUATOR_PERIOD_UNSET;
+  cJSON *json = cJSON_Parse(buf);
+  if (json == NULL) {
+    const char *error_ptr = cJSON_GetErrorPtr();
+    if (error_ptr != NULL) {
+      ESP_LOGE(TAG, "Error before: %s\n", error_ptr);
+    }
+    const char *result_ok =
+        "{\"result\": \"nok\", \"error\": \"Cannot parse json\"}";
+    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    httpd_resp_send(req, result_ok, strlen(result_ok));
+    return ESP_OK;
   }
 
-  // TODO parse command and period (similar to MQTT context of somehow)
-  updateActuatorState(ACTUATOR_COMMAND_OPEN, ACTUATOR_PERIOD_FULL);
+  const cJSON *json_cmd = cJSON_GetObjectItemCaseSensitive(json, "command");
+  if (cJSON_IsString(json_cmd) && (json_cmd->valuestring != NULL)) {
+    ESP_LOGI(TAG, "JSON cmd: %s", json_cmd->valuestring);
+    if (strncmp(json_cmd->valuestring, "open", strlen("open")) == 0) {
+      command = ACTUATOR_COMMAND_OPEN;
+    } else if (strncmp(json_cmd->valuestring, "close", strlen("close")) == 0) {
+      command = ACTUATOR_COMMAND_CLOSE;
+    }
+  }
+
+  const cJSON *json_period = cJSON_GetObjectItemCaseSensitive(json, "period");
+  if (cJSON_IsString(json_period) && (json_period->valuestring != NULL)) {
+    ESP_LOGI(TAG, "JSON period: %s", json_period->valuestring);
+    if (strncmp(json_period->valuestring, "full", strlen("full")) == 0) {
+      period = ACTUATOR_PERIOD_FULL;
+    } else if (strncmp(json_period->valuestring, "half", strlen("half")) == 0) {
+      period = ACTUATOR_PERIOD_HALF;
+    } else if (strncmp(json_period->valuestring, "quarter",
+                       strlen("quarter")) == 0) {
+      period = ACTUATOR_PERIOD_QUARTER;
+    }
+  }
+  cJSON_Delete(json);
+
+  if (command == ACTUATOR_COMMAND_UNSET || period == ACTUATOR_PERIOD_UNSET) {
+    const char *result_ok =
+        "{\"result\": \"nok\", \"error\": \"Cannot parse known command and "
+        "period\"}";
+    httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+    httpd_resp_send(req, result_ok, strlen(result_ok));
+    return ESP_OK;
+  }
+
+  ESP_LOGI(TAG, "command: %d, period: %d", command, period);
+
+  updateActuatorState(command, period);
+
   const char *result_ok = "{\"result\": \"ok\"}";
+  httpd_resp_set_type(req, HTTPD_TYPE_JSON);
   httpd_resp_send(req, result_ok, strlen(result_ok));
   return ESP_OK;
 }
@@ -107,12 +163,13 @@ extern ActuatorStatus_t actuatorStatus;
 esp_err_t actuator_status_get_handler(httpd_req_t *req) {
   char data[16];
   memset(data, 0, 16);
-  sprintf(data, "%s",
+  sprintf(data, "{\"value\":\"%s\"}",
           actuatorStatus == ACTUATOR_STATUS_INIT               ? "Init"
           : actuatorStatus == ACTUATOR_STATUS_OFF              ? "Off"
           : actuatorStatus == ACTUATOR_STATUS_OPEN_TRANSITION  ? "Openning"
           : actuatorStatus == ACTUATOR_STATUS_CLOSE_TRANSITION ? "Closing"
                                                                : "Unknown");
+  httpd_resp_set_type(req, HTTPD_TYPE_JSON);
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
@@ -124,13 +181,13 @@ extern ActuatorStatus_t actuatorLevel;
 esp_err_t actuator_level_get_handler(httpd_req_t *req) {
   char data[16];
   memset(data, 0, 16);
-  sprintf(data, "%d", actuatorLevel);
+  sprintf(data, "{\"value\":%d}", actuatorLevel);
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
 httpd_uri_t get_level_actuator = {.uri = "/level/actuator",
-                                   .method = HTTP_GET,
-                                   .handler = actuator_level_get_handler};
+                                  .method = HTTP_GET,
+                                  .handler = actuator_level_get_handler};
 
 #endif  // CONFIG_ACTUATOR_SUPPORT
 

@@ -78,6 +78,10 @@ QueueHandle_t otaQueue;
 QueueHandle_t coapClientQueue;
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
+#ifdef CONFIG_ACTUATOR_SUPPORT
+#include "app_actuator.h"
+#endif // CONFIG_ACTUATOR_SUPPORT
+
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
 
@@ -283,7 +287,11 @@ initWaterPump();
     xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MOTION_SENSOR_SUPPORT
 
-    wifi_init();
+#ifdef CONFIG_ACTUATOR_SUPPORT
+initActuator();
+#endif // CONFIG_ACTUATOR_SUPPORT
+
+wifi_init();
 
 #ifdef CONFIG_COAP_SERVER_SUPPORT
     xTaskCreate(coap_server_thread, "coap_server", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);

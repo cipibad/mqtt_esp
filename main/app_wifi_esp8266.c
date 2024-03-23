@@ -36,9 +36,22 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 #if defined(CONFIG_WIFI_MODE_MIXED) || defined(CONFIG_WIFI_MODE_ACCESS_POINT)
   case SYSTEM_EVENT_AP_START:
     ESP_LOGI(TAG, "SoftAP started");
+#ifdef CONFIG_NORTH_INTERFACE_HTTP
+    /* Start the web server */
+    if (server == NULL) {
+        server = start_webserver();
+    }
+#endif // CONFIG_NORTH_INTERFACE_HTTP
     break;
   case SYSTEM_EVENT_AP_STOP:
     ESP_LOGI(TAG, "SoftAP stopped");
+#ifdef CONFIG_NORTH_INTERFACE_HTTP
+    /* Stop the web server */
+    if (server) {
+        stop_webserver(server);
+        server = NULL;
+    }
+#endif // CONFIG_NORTH_INTERFACE_HTTP
     break;
   case SYSTEM_EVENT_AP_STACONNECTED:
     ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d",
@@ -58,27 +71,11 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
   case SYSTEM_EVENT_STA_GOT_IP:
     ESP_LOGW(TAG, "SYSTEM_EVENT_STA_GOT_IP");
     xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
-
-#ifdef CONFIG_NORTH_INTERFACE_HTTP
-    /* Start the web server */
-    if (server == NULL) {
-        server = start_webserver();
-    }
-#endif // CONFIG_NORTH_INTERFACE_HTTP
-
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
     ESP_LOGW(TAG, "SYSTEM_EVENT_STA_DISCONNECTED");
     esp_wifi_connect();
     xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
-#ifdef CONFIG_NORTH_INTERFACE_HTTP
-    /* Stop the web server */
-    if (server) {
-        stop_webserver(server);
-        server = NULL;
-    }
-#endif // CONFIG_NORTH_INTERFACE_HTTP
-
     break;
   default:
     break;

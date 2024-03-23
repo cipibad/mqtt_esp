@@ -15,6 +15,7 @@ extern ActuatorStatus_t actuatorStatus;
 ActuatorStatus_t inline getActuatorStatus() { return actuatorStatus; }
 
 typedef enum ActuatorPeriod {
+  ACTUATOR_PERIOD_UNSET = -1,
   ACTUATOR_PERIOD_UNIT = (5 * 1000),
   ACTUATOR_PERIOD_QUARTER = (1 * ACTUATOR_PERIOD_UNIT),
   ACTUATOR_PERIOD_HALF = (2 * ACTUATOR_PERIOD_UNIT),
@@ -33,6 +34,7 @@ typedef enum ActuatorLevel {
 } ActuatorLevel_t;
 
 typedef enum ActuatorCommand {
+  ACTUATOR_COMMAND_UNSET,
   ACTUATOR_COMMAND_OPEN,
   ACTUATOR_COMMAND_CLOSE,
 } ActuatorCommand_t;

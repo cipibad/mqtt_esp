@@ -69,7 +69,7 @@ void openActuator(ActuatorPeriod_t period) {
     return;
   }
 
-  if (xTimerChangePeriod(actuatorTimer, pdMS_TO_TICKS(actuatorTimer),
+  if (xTimerChangePeriod(actuatorTimer, pdMS_TO_TICKS(period),
                          portMAX_DELAY) != pdPASS) {
     ESP_LOGE(TAG, "cannot update actuatorTimer period");
     return;
@@ -101,7 +101,7 @@ void closeActuator(ActuatorPeriod_t period) {
     return;
   }
 
-  if (xTimerChangePeriod(actuatorTimer, pdMS_TO_TICKS(actuatorTimer),
+  if (xTimerChangePeriod(actuatorTimer, pdMS_TO_TICKS(period),
                          portMAX_DELAY) != pdPASS) {
     ESP_LOGE(TAG, "cannot update actuatorTimer period");
     return;
@@ -191,8 +191,7 @@ void updateActuatorState(ActuatorCommand_t command, ActuatorPeriod_t period) {
 }
 
 void initActuator() {
-  // we assume no init for relay
-
+  ESP_LOGI(TAG, "Initializing");
   actuatorStatus = ACTUATOR_STATUS_INIT;
   actuatorLevel = ACTUATOR_LEVEL_UNSET;
   actuatorTimer =
@@ -202,21 +201,13 @@ void initActuator() {
                    (void*)1,                            /* ID. */
                    actuatorTimerCallback);              /* Callback function. */
 
-  // valveOnTimer = xTimerCreate( "valveOnTimer",           /* Text name. */
-  //                   pdMS_TO_TICKS(15*1000),  /* Period. */
-  //                   pdFALSE,                /* Autoreload. */
-  //                   (void *)1,                  /* ID. */
-  //                   openValveTimerCallback );  /* Callback function. */
-  // valveOffTimer = xTimerCreate( "valveOffTimer",           /* Text name. */
-  //                   pdMS_TO_TICKS(15*1000),  /* Period. */
-  //                   pdFALSE,                /* Autoreload. */
-  //                   (void *)2,                  /* ID. */
-  //                   closeValveTimerCallback );  /* Callback function. */
-
   initControlPin(CONFIG_ACTUATOR_MASTER_GPIO, &actuatorMasterPinStatus);
   initControlPin(CONFIG_ACTUATOR_OPEN_GPIO, &actuatorOpenPinStatus);
   initControlPin(CONFIG_ACTUATOR_CLOSE_GPIO, &actuatorClosePinStatus);
+
+  ESP_LOGI(TAG, "Performing close after start-up");
   closeActuator(ACTUATOR_PERIOD_FULL);
+  actuatorLevel = ACTUATOR_LEVEL_CLOSED;
 }
 
 #endif  // CONFIG_ACTUATOR_SUPPORT
