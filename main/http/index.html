@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Dashboard</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <div class="container">
+        <h2 class="window-data-header">Informatii Fereastra</h2>
+        <div class="windows-data">
+            <table>
+                <tr>
+                    <td>Activitate:</td>
+                    <td><span id="activitate">--</span></td>
+                </tr>
+                <tr>
+                    <td>Pozitie:</td>
+                    <td><span id="pozitie">--</span></td>
+                </tr>
+            </table>
+        </div>
+        <div class="gate-control">
+            <button class="gate-button" onclick="openActuator('full')">Deschide complet</button>
+            <button class="gate-button" onclick="openActuator('half')">Deschide jumatate</button>
+            <button class="gate-button" onclick="openActuator('quarter')">Deschide un sfert</button>
+            <button class="gate-button" onclick="closeActuator('full')">Inchide complet</button>
+            <button class="gate-button" onclick="closeActuator('half')">Inchide jumatate</button>
+            <button class="gate-button" onclick="closeActuator('quarter')">Inchide un sfert</button>
+        </div>
+    </div>
+          <script src="index.js"></script>
+</body>
+</html>

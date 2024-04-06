@@ -20,24 +20,27 @@ esp_err_t index_html_get_handler(httpd_req_t *req) {
   httpd_resp_send(req, index_html_start, strlen(index_html_start));
   return ESP_OK;
 }
-httpd_uri_t get_index_html = {
-    .uri = "/", .method = HTTP_GET, .handler = index_html_get_handler};
+httpd_uri_t get_index_html = {.uri = CONFIG_HTTP_BASE_URL "/",
+                              .method = HTTP_GET,
+                              .handler = index_html_get_handler};
 
 esp_err_t index_css_get_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/css");
   httpd_resp_send(req, index_css_start, strlen(index_css_start));
   return ESP_OK;
 }
-httpd_uri_t get_index_css = {
-    .uri = "/index.css", .method = HTTP_GET, .handler = index_css_get_handler};
+httpd_uri_t get_index_css = {.uri = CONFIG_HTTP_BASE_URL "/index.css",
+                             .method = HTTP_GET,
+                             .handler = index_css_get_handler};
 
 esp_err_t index_js_get_handler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/javascript");
   httpd_resp_send(req, index_js_start, strlen(index_js_start));
   return ESP_OK;
 }
-httpd_uri_t get_index_js = {
-    .uri = "/index.js", .method = HTTP_GET, .handler = index_js_get_handler};
+httpd_uri_t get_index_js = {.uri = CONFIG_HTTP_BASE_URL "/index.js",
+                            .method = HTTP_GET,
+                            .handler = index_js_get_handler};
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
 extern short dht22_mean_temperature;
@@ -50,7 +53,7 @@ esp_err_t temperature_dht22_get_handler(httpd_req_t *req) {
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
-httpd_uri_t get_temperature_dht22 = {.uri = "/temperature/dht22",
+httpd_uri_t get_temperature_dht22 = {.uri = CONFIG_HTTP_BASE_URL "/temperature/dht22",
                                      .method = HTTP_GET,
                                      .handler = temperature_dht22_get_handler};
 
@@ -64,7 +67,7 @@ esp_err_t humidity_dht22_get_handler(httpd_req_t *req) {
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
-httpd_uri_t get_humidity_dht22 = {.uri = "/humidity/dht22",
+httpd_uri_t get_humidity_dht22 = {.uri = CONFIG_HTTP_BASE_URL "/humidity/dht22",
                                   .method = HTTP_GET,
                                   .handler = humidity_dht22_get_handler};
 #endif  // CONFIG_DHT22_SENSOR_SUPPORT
@@ -154,7 +157,7 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 
-httpd_uri_t post_action_actuator = {.uri = "/action/actuator",
+httpd_uri_t post_action_actuator = {.uri = CONFIG_HTTP_BASE_URL "/action/actuator",
                                     .method = HTTP_POST,
                                     .handler = actuator_action_post_handler,
                                     .user_ctx = NULL};
@@ -166,14 +169,14 @@ esp_err_t actuator_status_get_handler(httpd_req_t *req) {
   sprintf(data, "{\"value\":\"%s\"}",
           actuatorStatus == ACTUATOR_STATUS_INIT               ? "Init"
           : actuatorStatus == ACTUATOR_STATUS_OFF              ? "Off"
-          : actuatorStatus == ACTUATOR_STATUS_OPEN_TRANSITION  ? "Openning"
+          : actuatorStatus == ACTUATOR_STATUS_OPEN_TRANSITION  ? "Opening"
           : actuatorStatus == ACTUATOR_STATUS_CLOSE_TRANSITION ? "Closing"
                                                                : "Unknown");
   httpd_resp_set_type(req, HTTPD_TYPE_JSON);
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
-httpd_uri_t get_status_actuator = {.uri = "/status/actuator",
+httpd_uri_t get_status_actuator = {.uri = CONFIG_HTTP_BASE_URL "/status/actuator",
                                    .method = HTTP_GET,
                                    .handler = actuator_status_get_handler};
 
@@ -182,10 +185,11 @@ esp_err_t actuator_level_get_handler(httpd_req_t *req) {
   char data[16];
   memset(data, 0, 16);
   sprintf(data, "{\"value\":%d}", actuatorLevel);
+  httpd_resp_set_type(req, HTTPD_TYPE_JSON);
   httpd_resp_send(req, data, strlen(data));
   return ESP_OK;
 }
-httpd_uri_t get_level_actuator = {.uri = "/level/actuator",
+httpd_uri_t get_level_actuator = {.uri = CONFIG_HTTP_BASE_URL "/level/actuator",
                                   .method = HTTP_GET,
                                   .handler = actuator_level_get_handler};
 

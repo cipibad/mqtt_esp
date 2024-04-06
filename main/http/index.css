@@ -1,0 +1,68 @@
+/* CSS */
+.body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0; /* Setăm culoarea de fundal */
+    color: #000; /* Setăm culoarea textului la negru */
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 50px auto;
+    text-align: center;
+  }
+
+  .window-data-header {
+    text-align: center;
+  }
+
+  .window-data {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  table {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    background-color: white;
+  }
+
+  table td {
+    padding: 5px 10px;
+    text-align: center;
+  }
+
+  .gate-control {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .gate-button {
+    background-color: green;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 5px;
+    flex: 0 0 calc(33.33% - 10px); /* Calculăm lățimea butoanelor pentru a se alinia câte trei pe rând */
+  }
+
+  .gate-button:hover {
+    background-color: darkgreen;
+  }
+
+  @media only screen and (max-width: 600px) {
+    /* Stiluri specifice pentru ecrane mai mici */
+    .container {
+        max-width: 90%;
+    }
+
+    .gate-button {
+        flex-basis: calc(50% - 10px); /* Butonul să ocupe 50% din lățimea disponibilă pe ecrane mici */
+    }
+  }

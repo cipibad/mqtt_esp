@@ -78,6 +78,11 @@ QueueHandle_t otaQueue;
 QueueHandle_t coapClientQueue;
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
+#ifdef CONFIG_NORTH_INTERFACE_HTTP
+#include "app_http_server.h"
+extern httpd_handle_t server;
+#endif // CONFIG_NORTH_INTERFACE_HTTP
+
 #ifdef CONFIG_ACTUATOR_SUPPORT
 #include "app_actuator.h"
 #endif // CONFIG_ACTUATOR_SUPPORT
@@ -141,6 +146,12 @@ void blink_task(void *pvParameter)
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 #endif // CONFIG_NORTH_INTERFACE_COAP
+
+#ifdef CONFIG_NORTH_INTERFACE_HTTP
+  while(server){
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+#endif // CONFIG_NORTH_INTERFACE_HTTP
 
     vTaskDelay(interval / portTICK_PERIOD_MS);
     gpio_set_level(CONFIG_STATUS_LED_GPIO, LED_OFF);

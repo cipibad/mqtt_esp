@@ -94,6 +94,18 @@ void wifi_init(void)
   ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
   ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 
+#ifdef CONFIG_WIFI_MODE_ACCESS_POINT
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+#endif // CONFIG_WIFI_MODE_ACCESS_POINT
+
+#ifdef CONFIG_WIFI_MODE_STATION
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+#endif // CONFIG_WIFI_MODE_STATION
+
+#ifdef CONFIG_WIFI_MODE_MIXED
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+#endif // CONFIG_WIFI_MODE_MIXED
+
 #if defined(CONFIG_WIFI_MODE_MIXED) || defined(CONFIG_WIFI_MODE_ACCESS_POINT)
   wifi_config_t wifi_config_ap = {
     .ap = {
@@ -101,10 +113,10 @@ void wifi_init(void)
       .ssid = CONFIG_WIFI_AP_SSID,
       .password = CONFIG_WIFI_AP_PASSWORD,
       .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+      .ssid_hidden = 1,
     },
   };
 
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config_ap));
 #endif // defined(CONFIG_WIFI_MODE_MIXED) || defined(CONFIG_WIFI_MODE_ACCESS_POINT)
 
@@ -129,7 +141,6 @@ void wifi_init(void)
     strcpy((char*)wifi_config_sta.sta.ssid, wifi_ssid);
     strcpy((char*)wifi_config_sta.sta.password, wifi_pass);
   }
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config_sta));
   ESP_LOGI(TAG, "connecting to WiFi ssid:[%s]", wifi_config_sta.sta.ssid);
   ESP_LOGI(TAG, "with pass:[%s]", wifi_config_sta.sta.password);

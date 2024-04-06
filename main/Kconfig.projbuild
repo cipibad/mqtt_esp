@@ -157,6 +157,16 @@ menu "COAP Config"
             Coap port
 endmenu # "Coap CONFIG"
 
+menu "HTTP Config"
+    depends on NORTH_INTERFACE_HTTP
+
+    config HTTP_BASE_URL
+        string "HTTP base url"
+        default "/018e8a95-9224-77de-82a5-adaa05c9fed1"
+        help
+            HTTP base url
+endmenu # "HTTP CONFIG"
+
 config SENSOR_SUPPORT
     boolean "enable sensor support"
     default n
@@ -925,23 +935,29 @@ config ACTUATOR_SUPPORT
 menu "Actuator configuration"
     depends on ACTUATOR_SUPPORT
 
-    config ACTUATOR_MASTER_GPIO
-        int "GPIO to control master relay"
-        default 25
+    config ACTUATOR_MASTER_POSITIVE_GPIO
+        int "GPIO to control positive master relay"
+        default 12
         help
-            GPIO to control master relay, see schematics
+            GPIO to control positive master relay, see schematics
+
+    config ACTUATOR_MASTER_NEGATIVE_GPIO
+        int "GPIO to control negative master relay"
+        default 13
+        help
+            GPIO to control negative master relay, see schematics
 
     config ACTUATOR_OPEN_GPIO
-        int "GPIO to control open relay"
-        default 26
+        int "GPIO to control actuator open relay"
+        default 14
         help
-            GPIO to control open relay, see schematics
+            GPIO to control actuator open relay, see schematics
 
     config ACTUATOR_CLOSE_GPIO
-        int "GPIO to control close relay"
-        default 1
+        int "GPIO to control actuator close relay"
+        default 16
         help
-            GPIO to control close relay, see schematics
+            GPIO to control actuator close relay, see schematics
 
 endmenu # "Actuator configuration"
 

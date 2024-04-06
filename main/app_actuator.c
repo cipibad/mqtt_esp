@@ -18,7 +18,8 @@ TimerHandle_t actuatorTimer;
 ActuatorStatus_t actuatorStatus;
 ActuatorLevel_t actuatorLevel;
 
-int actuatorMasterPinStatus;
+int actuatorMasterPositivePinStatus;
+int actuatorMasterNegativePinStatus;
 int actuatorOpenPinStatus;
 int actuatorClosePinStatus;
 
@@ -49,7 +50,8 @@ void update_relay_status(int pin, int* status, int value)
 void actuatorTimerCallback(TimerHandle_t xTimer) {
   const char* pcTimerName = pcTimerGetTimerName(xTimer);
   ESP_LOGI(TAG, "timer %s expired", pcTimerName);
-  update_relay_status(CONFIG_ACTUATOR_MASTER_GPIO, &actuatorMasterPinStatus, GPIO_STATUS_OFF);
+  update_relay_status(CONFIG_ACTUATOR_MASTER_POSITIVE_GPIO, &actuatorMasterPositivePinStatus, GPIO_STATUS_OFF);
+  update_relay_status(CONFIG_ACTUATOR_MASTER_NEGATIVE_GPIO, &actuatorMasterNegativePinStatus, GPIO_STATUS_OFF);
   vTaskDelay(1000 / portTICK_PERIOD_MS);
   update_relay_status(CONFIG_ACTUATOR_OPEN_GPIO, &actuatorOpenPinStatus, GPIO_STATUS_OFF);
   update_relay_status(CONFIG_ACTUATOR_CLOSE_GPIO, &actuatorClosePinStatus, GPIO_STATUS_OFF);
@@ -83,7 +85,8 @@ void openActuator(ActuatorPeriod_t period) {
   update_relay_status(CONFIG_ACTUATOR_OPEN_GPIO, &actuatorOpenPinStatus, GPIO_STATUS_ON);
   update_relay_status(CONFIG_ACTUATOR_CLOSE_GPIO, &actuatorClosePinStatus, GPIO_STATUS_OFF);
   vTaskDelay(1000 / portTICK_PERIOD_MS);
-  update_relay_status(CONFIG_ACTUATOR_MASTER_GPIO, &actuatorMasterPinStatus, GPIO_STATUS_ON);
+  update_relay_status(CONFIG_ACTUATOR_MASTER_NEGATIVE_GPIO, &actuatorMasterNegativePinStatus, GPIO_STATUS_ON);
+  update_relay_status(CONFIG_ACTUATOR_MASTER_POSITIVE_GPIO, &actuatorMasterPositivePinStatus, GPIO_STATUS_ON);
   actuatorStatus = ACTUATOR_STATUS_OPEN_TRANSITION;
   actuatorLevel += period / ACTUATOR_PERIOD_UNIT;
   //  publish_waterpump_status();
@@ -115,7 +118,8 @@ void closeActuator(ActuatorPeriod_t period) {
   update_relay_status(CONFIG_ACTUATOR_OPEN_GPIO, &actuatorOpenPinStatus, GPIO_STATUS_OFF);
   update_relay_status(CONFIG_ACTUATOR_CLOSE_GPIO, &actuatorClosePinStatus, GPIO_STATUS_ON);
   vTaskDelay(1000 / portTICK_PERIOD_MS);
-  update_relay_status(CONFIG_ACTUATOR_MASTER_GPIO, &actuatorMasterPinStatus, GPIO_STATUS_ON);
+  update_relay_status(CONFIG_ACTUATOR_MASTER_NEGATIVE_GPIO, &actuatorMasterNegativePinStatus, GPIO_STATUS_ON);
+  update_relay_status(CONFIG_ACTUATOR_MASTER_POSITIVE_GPIO, &actuatorMasterPositivePinStatus, GPIO_STATUS_ON);
   actuatorStatus = ACTUATOR_STATUS_CLOSE_TRANSITION;
   actuatorLevel -= period / ACTUATOR_PERIOD_UNIT;
 
@@ -201,9 +205,12 @@ void initActuator() {
                    (void*)1,                            /* ID. */
                    actuatorTimerCallback);              /* Callback function. */
 
-  initControlPin(CONFIG_ACTUATOR_MASTER_GPIO, &actuatorMasterPinStatus);
+  initControlPin(CONFIG_ACTUATOR_MASTER_POSITIVE_GPIO, &actuatorMasterPositivePinStatus);
+  initControlPin(CONFIG_ACTUATOR_MASTER_NEGATIVE_GPIO, &actuatorMasterNegativePinStatus);
   initControlPin(CONFIG_ACTUATOR_OPEN_GPIO, &actuatorOpenPinStatus);
   initControlPin(CONFIG_ACTUATOR_CLOSE_GPIO, &actuatorClosePinStatus);
+
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   ESP_LOGI(TAG, "Performing close after start-up");
   closeActuator(ACTUATOR_PERIOD_FULL);
