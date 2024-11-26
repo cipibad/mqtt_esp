@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#ifdef CONFIG_TARGET_DEVICE_ESP8266
+#ifdef SOMETHING_NOT_DEFINED
 
 #include <string.h>
 
@@ -54,7 +54,7 @@ extern QueueHandle_t relayQueue;
 extern QueueHandle_t otaQueue;
 #endif // CONFIG_MQTT_OTA
 
-#define TICKS_FORMAT "%ld"
+#define TICKS_FORMAT "%d"
 
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {

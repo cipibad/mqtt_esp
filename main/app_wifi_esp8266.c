@@ -25,8 +25,8 @@ static const char *TAG = "MQTTS_WIFI";
 const char * wifi_ssid_tag = "wifi_ssid";
 const char * wifi_pass_tag = "wifi_pass";
 
-char wifi_ssid[MAX_WIFI_CONFIG_LEN];
-char wifi_pass[MAX_WIFI_CONFIG_LEN];
+char wifi_ssid[MAX_WIFI_SSID_LEN];
+char wifi_pass[MAX_WIFI_PASS_LEN];
 
 
 
@@ -86,8 +86,8 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 void wifi_init(void)
 {
 
-  memset(wifi_ssid, 0, MAX_WIFI_CONFIG_LEN);
-  memset(wifi_pass, 0, MAX_WIFI_CONFIG_LEN);
+  memset(wifi_ssid, 0, MAX_WIFI_SSID_LEN);
+  memset(wifi_pass, 0, MAX_WIFI_PASS_LEN);
   tcpip_adapter_init();
   ESP_ERROR_CHECK( esp_event_loop_init(wifi_event_handler, NULL) );
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
