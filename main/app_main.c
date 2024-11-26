@@ -253,7 +253,7 @@ void app_main(void)
     #define SENSORS_READ_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 9)
   #endif //CONFIG_TARGET_DEVICE_ESP32
   #ifdef CONFIG_TARGET_DEVICE_ESP8266
-    #define SENSORS_READ_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+    #define SENSORS_READ_TASK_STACK_SIZE (configMINIMAL_STACK_SIZE * 4)
   #endif //CONFIG_TARGET_DEVICE_ESP8266
 
     xTaskCreate(sensors_read, "sensors_read", SENSORS_READ_TASK_STACK_SIZE, NULL, 10, NULL);
@@ -322,7 +322,7 @@ wifi_init();
     #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 4)
   #endif //CONFIG_TARGET_DEVICE_ESP32
   #ifdef CONFIG_TARGET_DEVICE_ESP8266
-    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 2)
+    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 4)
   #endif //CONFIG_TARGET_DEVICE_ESP8266
 
     xTaskCreate(ops_pub_task, "ops_pub_task", OPS_PUB_TASK_SIZE, NULL, 5, NULL);

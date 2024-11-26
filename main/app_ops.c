@@ -34,7 +34,7 @@ void publish_ops_heap_data()
 void publish_ops_stack_data()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ops/stack";
-  const int DATA_SIZE = 256;
+  const int DATA_SIZE = 320;
   int remaining_data;
   char data[DATA_SIZE];
   memset(data,0,64);
