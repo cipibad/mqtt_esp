@@ -320,13 +320,22 @@ void executeAction(enum SchedulerAction sa)
       ESP_LOGE(TAG, "Cannot send to thermostatQueue");
     }
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_HIGH) {
-    struct ThermostatMessage tm = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
-    tm.data.targetTemperature = 330;
+    struct ThermostatMessage tma = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
+    tma.data.targetTemperature = 330;
     if (xQueueSend( thermostatQueue
-                    ,( void * )&tm
+                    ,( void * )&tma
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+      ESP_LOGE(TAG, "Cannot send tma to thermostatQueue");
     }
+
+    struct ThermostatMessage tmm = {THERMOSTAT_CMD_MODE, 2, {{0,0}}};
+    tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tmm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+    }
+
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
   }

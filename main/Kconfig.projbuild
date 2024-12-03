@@ -262,7 +262,7 @@ menu "Sensors configuration"
                 SCL Gpio port of BH1750_SENSOR sensor
 
         config I2C_SENSOR_CLK_STRETCH_TICK
-            int " I2C clock stretch tick"
+            int "I2C clock stretch tick"
             default 300
             help
                 I2C sensor clock stretch tick
