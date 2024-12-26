@@ -97,10 +97,12 @@ endmenu # "WiFi Config"
 
 choice NORTH_INTERFACE
    bool "Interface to the mng system"
-   default NORTH_INTERFACE_MQTT
+   default NORTH_INTERFACE_NONE
    help
        Interface to the mng system
 
+config NORTH_INTERFACE_NONE
+   bool "NONE"
 config NORTH_INTERFACE_MQTT
    bool "MQTT"
 config NORTH_INTERFACE_COAP
@@ -464,7 +466,7 @@ config MQTT_SWITCHES_NB3_GPIO
 config MQTT_OTA
     boolean "enable OTA support"
     depends on !DEEP_SLEEP_MODE
-    default y
+    default n
     help
         Enable OTA support
 

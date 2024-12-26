@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#ifdef CONFIG_TARGET_DEVICE_ESP8266
+#if defined(CONFIG_MQTT_OTA) && defined(CONFIG_TARGET_DEVICE_ESP8266)
 #include "app_ota.h"
 
 /* OTA example
@@ -80,7 +80,7 @@ int hostname_to_ip(char * hostname , char* ip)
 	struct hostent *he;
 	struct in_addr **addr_list;
 	int i;
-		
+
 	if ( (he = gethostbyname( hostname ) ) == NULL)
     {
       // get the host info
@@ -89,14 +89,14 @@ int hostname_to_ip(char * hostname , char* ip)
     }
 
 	addr_list = (struct in_addr **) he->h_addr_list;
-	
+
 	for(i = 0; addr_list[i] != NULL; i++)
     {
       //Return the first one;
       strcpy(ip , inet_ntoa(*addr_list[i]) );
       return 0;
     }
-	
+
 	return 1;
 }
 
@@ -462,4 +462,4 @@ void publish_ota_data(int status)
   sprintf(data, "{\"status\":%d}", status);
   publish_persistent_data(topic, data);
 }
-#endif //CONFIG_TARGET_DEVICE_ESP8266
+#endif //defined(CONFIG_MQTT_OTA) && defined(CONFIG_TARGET_DEVICE_ESP8266)

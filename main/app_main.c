@@ -1,4 +1,7 @@
 #include "esp_system.h"
+#ifdef CONFIG_DEVICE_TYPE_ESP32
+#include "esp_mac.h"
+#endif // CONFIG_DEVICE_TYPE_ESP32
 #include "esp_log.h"
 #include "nvs_flash.h"
 
@@ -163,7 +166,12 @@ void blink_task(void *pvParameter)
 void app_main(void)
 {
   ESP_LOGI(TAG, "[APP] Startup..");
+#ifdef CONFIG_DEVICE_TYPE_ESP32
+  ESP_LOGI(TAG, "[APP] Free memory: %ld bytes", esp_get_free_heap_size());
+#else // CONFIG_DEVICE_TYPE_ESP32
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+#endif // CONFIG_DEVICE_TYPE_ESP32
+
   ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
   ESP_LOGI(TAG, "[APP] Client ID: " CONFIG_CLIENT_ID);
 

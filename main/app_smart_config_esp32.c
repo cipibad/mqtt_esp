@@ -23,11 +23,11 @@ static const char *TAG = "MQTTS_SMARTCONFIG";
 const char * smartconfigTAG="smartconfigFlag";
 int smartconfigFlag = 0;
 
-const char * wifi_ssid_tag;
-const char * wifi_pass_tag;
+extern char * wifi_ssid_tag;
+extern char * wifi_pass_tag;
 
-char wifi_ssid[MAX_WIFI_SSID_LEN];
-char wifi_pass[MAX_WIFI_PASS_LEN];
+extern char wifi_ssid[MAX_WIFI_SSID_LEN];
+extern char wifi_pass[MAX_WIFI_PASS_LEN];
 
 
 /* The event group allows multiple bits for each event,
@@ -47,13 +47,7 @@ extern int relayStatus[CONFIG_MQTT_RELAYS_NB];
 extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
-
-#ifdef CONFIG_TARGET_DEVICE_ESP32
-#define TICKS_FORMAT "%d"
-#else // CONFIG_TARGET_DEVICE_ESP32
 #define TICKS_FORMAT "%ld"
-#endif // CONFIG_TARGET_DEVICE_ESP32
-
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
