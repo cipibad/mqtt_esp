@@ -22,11 +22,13 @@ typedef struct udp_msg {
 #define QOS_1 1
 #define NO_RETAIN 0
 #define RETAIN 1
+#define UDP_MAGIC ((short)0xABF3)
 
 void udp_publish_data(const char * topic,
                        const char * data,
                        int qos, int retain);
 
 void udp_client_task(void *pvParameters);
+void udp_server_task(void *pvParameters);
 
 #endif // UDP_COMMON__H

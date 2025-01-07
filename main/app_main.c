@@ -29,10 +29,12 @@ QueueHandle_t mqttQueue;
 SemaphoreHandle_t xSemaphore;
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
-#ifdef CONFIG_NORTH_INTERFACE_UDP
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 #include "app_udp_common.h"
+#ifdef CONFIG_NORTH_INTERFACE_UDP
 QueueHandle_t intMsgQueue;
 #endif // CONFIG_NORTH_INTERFACE_UDP
+#endif // defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
@@ -344,9 +346,19 @@ wifi_init();
 
     xTaskCreate(ops_pub_task, "ops_pub_task", OPS_PUB_TASK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
+int ret;
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+  ret = xTaskCreate(udp_server_task, "udp_server", configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
+  if (ret != pdPASS) {
+    ESP_LOGE(TAG, "cannot create UDP server thread");
+  }
+#endif // CONFIG_SOUTH_INTERFACE_UDP
 
 #ifdef CONFIG_NORTH_INTERFACE_UDP
-  xTaskCreate(udp_client_task, "udp_client", configMINIMAL_STACK_SIZE * 8, NULL, 5, NULL);
+  ret = xTaskCreate(udp_client_task, "udp_client", configMINIMAL_STACK_SIZE * 4, NULL, 5, NULL);
+  if (ret != pdPASS) {
+    ESP_LOGE(TAG, "cannot create UDP client thread");
+  }
 #endif // CONFIG_NORTH_INTERFACE_UDP
   }
 }

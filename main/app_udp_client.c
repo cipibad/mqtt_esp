@@ -20,21 +20,10 @@
 #include "mbedtls/ctr_drbg.h"
 
 #include "app_udp_common.h"
-/* The examples use simple WiFi configuration that you can set via
-   'make menuconfig'.
-   If you'd rather not, just change the below entries to strings with
-   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
-*/
-#define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
-#define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
 
 #define HOST_IP_ADDR "10.0.0.1"
-
 #define PORT 12345
 
-/* FreeRTOS event group to signal when we are connected & ready to make a request */
-
-const int IPV4_GOTIP_BIT = BIT0;
 
 static const char *TAG = "udp_client";
 
@@ -52,7 +41,7 @@ extern QueueHandle_t intMsgQueue;
 
     internal_msg_t imsg;
     udp_msg_t umsg;
-    umsg.magic = 0xABF3;
+    umsg.magic = UDP_MAGIC;
     umsg.version = 0x1;
 
 	mbedtls_entropy_context entropy;

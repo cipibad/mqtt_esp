@@ -749,6 +749,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
     break;
   case MQTT_EVENT_BEFORE_CONNECT:
+    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
     break;
 #ifdef CONFIG_TARGET_DEVICE_ESP32
@@ -807,7 +808,6 @@ void mqtt_init_and_start()
     .keepalive = MQTT_TIMEOUT
   };
 
-  ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_start(client);
   xEventGroupWaitBits(mqtt_event_group, MQTT_CONNECTED_BIT, false, true, portMAX_DELAY);

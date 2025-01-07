@@ -171,6 +171,64 @@ menu "HTTP Config"
             HTTP base url
 endmenu # "HTTP CONFIG"
 
+choice SOUTH_INTERFACE
+   bool "Interface to the devices system"
+   default SOUTH_INTERFACE_NONE
+   help
+       Interface to the devices
+
+config SOUTH_INTERFACE_NONE
+   bool "NONE"
+config COAP_SERVER_SUPPORT
+   depends on !DEEP_SLEEP_MODE
+   bool "COAP"
+   help
+        Enable COAP server. Needed for COAP proxy or COAP thermostat sensor
+config SOUTH_INTERFACE_UDP
+   depends on !DEEP_SLEEP_MODE
+   depends on ENABLE_MDNS
+   bool "UDP"
+endchoice
+
+menu "COAP server config"
+    depends on COAP_SERVER_SUPPORT
+
+    config COAP_PROXY_SUPPORT
+        boolean "enable COAP proxy"
+        default n
+        help
+            Enable COAP proxy
+    menu "COAP proxy paths"
+        depends on COAP_PROXY_SUPPORT
+        config COAP_PROXY_PATHS_NB
+            int "number of COAP paths to proxy"
+            default 0
+            range 0 2
+            help
+                number of COAP paths to proxy
+        config COAP_PROXY_PATH_NB0
+            string "COAP path 0 to proxy"
+            depends on COAP_PROXY_PATHS_NB > 0
+            default ""
+            help
+                COAP path 0 to proxy
+        config COAP_PROXY_PATH_NB1
+            string "COAP path 1 to proxy"
+            depends on COAP_PROXY_PATHS_NB > 1
+            default ""
+            help
+                COAP path 1 to proxy
+    endmenu # "COAP proxy paths"
+endmenu # "COAP server config"
+
+menu "UDP server config"
+    depends on SOUTH_INTERFACE_UDP
+    config SOUTH_INTERFACE_UDP_PORT
+        int "UDP port period"
+        default 12345
+
+endmenu # "UDP server config"
+
 config SENSOR_SUPPORT
     boolean "enable sensor support"
     default n
@@ -340,44 +398,6 @@ menu "Deep sleep config"
         help
             number of seconds to sleep
 endmenu # "Deep sleep config"
-
-
-config COAP_SERVER_SUPPORT
-    depends on !DEEP_SLEEP_MODE
-    boolean "enable COAP server"
-    default n
-    help
-        Enable COAP server. Needed for COAP proxy or COAP thermostat sensor
-menu "COAP server config"
-    depends on COAP_SERVER_SUPPORT
-
-    config COAP_PROXY_SUPPORT
-        boolean "enable COAP proxy"
-        default n
-        help
-            Enable COAP proxy
-    menu "COAP proxy paths"
-        depends on COAP_PROXY_SUPPORT
-        config COAP_PROXY_PATHS_NB
-            int "number of COAP paths to proxy"
-            default 0
-            range 0 2
-            help
-                number of COAP paths to proxy
-        config COAP_PROXY_PATH_NB0
-            string "COAP path 0 to proxy"
-            depends on COAP_PROXY_PATHS_NB > 0
-            default ""
-            help
-                COAP path 0 to proxy
-        config COAP_PROXY_PATH_NB1
-            string "COAP path 1 to proxy"
-            depends on COAP_PROXY_PATHS_NB > 1
-            default ""
-            help
-                COAP path 1 to proxy
-    endmenu # "COAP proxy paths"
-endmenu # "COAP server config"
 
 config MQTT_RELAYS_NB
     int "number of relays to control"
