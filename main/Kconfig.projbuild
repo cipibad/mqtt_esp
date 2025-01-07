@@ -109,6 +109,8 @@ config NORTH_INTERFACE_COAP
    bool "COAP"
 config NORTH_INTERFACE_HTTP
    bool "HTTP"
+config NORTH_INTERFACE_UDP
+   bool "UDP"
 endchoice
 
 menu "MQTT Config"

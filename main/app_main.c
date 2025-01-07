@@ -29,6 +29,11 @@ QueueHandle_t mqttQueue;
 SemaphoreHandle_t xSemaphore;
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
+#ifdef CONFIG_NORTH_INTERFACE_UDP
+#include "app_udp_common.h"
+QueueHandle_t intMsgQueue;
+#endif // CONFIG_NORTH_INTERFACE_UDP
+
 #if CONFIG_MQTT_SWITCHES_NB
 #include "app_switch.h"
 #endif //CONFIG_MQTT_SWITCHES_NB
@@ -213,6 +218,10 @@ void app_main(void)
   xSemaphore = xSemaphoreCreateMutex();
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
+#ifdef CONFIG_NORTH_INTERFACE_UDP
+  intMsgQueue = xQueueCreate(3, sizeof(internal_msg_t) );
+#endif // CONFIG_NORTH_INTERFACE_UDP
+
   wifi_event_group = xEventGroupCreate();
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
@@ -335,5 +344,9 @@ wifi_init();
 
     xTaskCreate(ops_pub_task, "ops_pub_task", OPS_PUB_TASK_SIZE, NULL, 5, NULL);
 #endif // CONFIG_MQTT_OPS
+
+#ifdef CONFIG_NORTH_INTERFACE_UDP
+  xTaskCreate(udp_client_task, "udp_client", configMINIMAL_STACK_SIZE * 8, NULL, 5, NULL);
+#endif // CONFIG_NORTH_INTERFACE_UDP
   }
 }

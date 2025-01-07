@@ -25,5 +25,5 @@ idf_component_register(SRCS app_actuator.c
                   app_waterpump.c
                   app_wifi_esp32.c
                   app_wifi_esp8266.c
-                    INCLUDE_DIRS "")
 
+                  EMBED_TXTFILES "cert_bundle.pem" "http/index.css" "http/index.html" "http/index.js")
