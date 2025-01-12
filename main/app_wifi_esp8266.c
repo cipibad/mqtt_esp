@@ -9,9 +9,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
-#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 #include "mdns.h"
-#endif // CONFIG_SOUTH_INTERFACE_UDP
+#endif // defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 
 
 #include "app_wifi.h"
@@ -94,7 +94,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
 void wifi_init(void)
 {
-  #ifdef CONFIG_SOUTH_INTERFACE_UDP
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
   ESP_LOGI(TAG, "mdns_init");
   ESP_ERROR_CHECK( mdns_init() );
   // set mDNS hostname (required if you want to advertise services)
@@ -104,11 +104,14 @@ void wifi_init(void)
   ESP_LOGI(TAG, "mdns_instance_name_set");
   ESP_ERROR_CHECK( mdns_instance_name_set(CONFIG_CLIENT_ID) );
 
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
   ESP_LOGI(TAG, "mdns_service_add");
   mdns_txt_item_t serviceTxtData[] = {};
   ESP_ERROR_CHECK( mdns_service_add(CONFIG_CLIENT_ID, "_uiot", "_udp", CONFIG_SOUTH_INTERFACE_UDP_PORT, serviceTxtData, 0) );
+#endif // CONFIG_SOUTH_INTERFACE_UDP
+
   ESP_LOGI(TAG, "mdns configured");
-  #endif // CONFIG_SOUTH_INTERFACE_UDP
+#endif // defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 
   memset(wifi_ssid, 0, MAX_WIFI_CONFIG_LEN);
   memset(wifi_pass, 0, MAX_WIFI_CONFIG_LEN);

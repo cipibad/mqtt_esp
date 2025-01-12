@@ -1,11 +1,6 @@
-/* BSD Socket API Example
+#include "esp_system.h"
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include <string.h>
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
@@ -203,3 +198,4 @@ void udp_server_task(void *pvParameters)
     }
     vTaskDelete(NULL);
 }
+#endif // CONFIG_SOUTH_INTERFACE_UDP
