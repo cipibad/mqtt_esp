@@ -42,6 +42,10 @@ extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/ota"
 #endif // CONFIG_MQTT_OTA
 
+#ifdef CONFIG_CONTACT_SENSOR_SUPPORT
+#include "app_contact.h"
+#endif // CONFIG_CONTACT_SENSOR_SUPPORT
+
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
 #include "app_thermostat.h"
 extern QueueHandle_t thermostatQueue;
@@ -847,6 +851,9 @@ void handle_mqtt_sub_pub(void* pvParameters)
 #ifdef CONFIG_SENSOR_SUPPORT
         publish_sensors_data();
 #endif // CONFIG_SENSOR_SUPPORT
+#ifdef CONFIG_CONTACT_SENSOR_SUPPORT
+        publish_contact_data();
+#endif // CONFIG_CONTACT_SENSOR_SUPPORT
       }
   }
 }

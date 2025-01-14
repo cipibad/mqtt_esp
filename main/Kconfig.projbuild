@@ -1020,4 +1020,34 @@ menu "Presence automation configuration"
 
 endmenu # "Presence automation configuration"
 
+config CONTACT_SENSOR_SUPPORT
+    boolean "enable contact sensor support"
+    default n
+    help
+        Enable contact sensor support
+
+menu "Contact sensor configuration"
+    depends on CONTACT_SENSOR_SUPPORT
+
+    config CONTACT_SENSOR_GPIO
+        int "GPIO to contact sensor"
+        default 4
+        help
+            GPIO to contact sensor
+    choice CONTACT_SENSOR_GPIO_PULL
+        bool "Contact senson GPIO input pull configuration"
+        default CONTACT_SENSOR_GPIO_PULL_NONE
+        help
+            Contact senson GPIO input pull configuration
+        config CONTACT_SENSOR_GPIO_PULL_UP
+        bool "Contact senson GPIO input pull UP"
+        config CONTACT_SENSOR_GPIO_PULL_DOWN
+        bool "Contact senson GPIO input pull DOWN"
+        config CONTACT_SENSOR_GPIO_PULL_NONE
+        bool "Contact senson NO GPIO input pull"
+    endchoice
+
+endmenu # "Contact sensor configuration"
+
 endmenu
+

@@ -55,6 +55,10 @@ QueueHandle_t schedulerCfgQueue;
 #include "app_motion.h"
 #endif // CONFIG_MOTION_SENSOR_SUPPORT
 
+#ifdef CONFIG_CONTACT_SENSOR_SUPPORT
+#include "app_contact.h"
+#endif // CONFIG_CONTACT_SENSOR_SUPPORT
+
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
 #include "app_presence.h"
 #endif // CONFIG_PRESENCE_AUTOMATION_SUPPORT
@@ -297,6 +301,10 @@ initWaterPump();
 #ifdef CONFIG_MOTION_SENSOR_SUPPORT
     xTaskCreate(app_motion_task, "app_motion", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MOTION_SENSOR_SUPPORT
+
+#ifdef CONFIG_CONTACT_SENSOR_SUPPORT
+    xTaskCreate(app_contact_task, "app_contact", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_CONTACT_SENSOR_SUPPORT
 
 #ifdef CONFIG_ACTUATOR_SUPPORT
 initActuator();
