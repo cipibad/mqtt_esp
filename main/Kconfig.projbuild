@@ -227,6 +227,18 @@ menu "UDP server config"
         int "UDP port period"
         default 12345
 
+    config SOUTH_INTERFACE_UDP_DEVICE_TYPE
+        string "Device type"
+        default "device_type"
+        help
+            This is the device type of the MQTT topic or COAP resource /<device_type>/<client_id>
+
+    config SOUTH_INTERFACE_UDP_CLIENT_ID
+        string "Client id"
+        default "client_id"
+        help
+            This is the client id of the MQTT topic or COAP resource /<device_type>/<client_id>
+
 endmenu # "UDP server config"
 
 config SENSOR_SUPPORT

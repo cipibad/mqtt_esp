@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#ifdef CONFIG_NORTH_INTERFACE_UDP
 
 #include <lwip/netdb.h>
 #include <string.h>
@@ -20,10 +20,10 @@
 #include "mdns.h"
 #include "nvs_flash.h"
 
-extern QueueHandle_t intMsgQueue;
+static const char *if_str[] = {"STA", "AP", "ETH", "MAX"};
+static const char *ip_protocol_str[] = {"V4", "V6", "MAX"};
 
-extern in_addr_t client_addr;
-extern bool client_connected;
+extern QueueHandle_t intMsgQueue;
 
 static const char *TAG = "udp_client";
 
@@ -53,7 +53,7 @@ void handle_udp_message(udp_msg_t *udp_msg, udp_msg_t *tx_msg) {
   }
 }
 
-void udp_north_client_task(void *pvParameters) {
+void udp_south_client_task(void *pvParameters) {
   ESP_LOGI(TAG, "udp_client_task thread created");
 
   int addr_family;
@@ -84,8 +84,60 @@ void udp_north_client_task(void *pvParameters) {
   char addr_str[128];
 
   while (1) {
+    in_addr_t addr = 0;
+    in_port_t port = 0;
+    while (addr == 0 || port == 0) {
+      mdns_result_t *results = NULL;
+      esp_err_t err = mdns_query_ptr("_uiot", "_udp", 3000, 20, &results);
+      if (err) {
+        ESP_LOGW(TAG, "Query Failed: %s, will retry!", esp_err_to_name(err));
+        continue;
+      }
+      if (!results) {
+        ESP_LOGW(TAG, "No results found, will retry!");
+        continue;
+      }
+
+      mdns_result_t *r = results;
+      mdns_ip_addr_t *a = NULL;
+      int i = 1, t;
+      while (r) {
+        ESP_LOGI(TAG, "%d: Interface: %s, Type: %s\n", i++, if_str[r->tcpip_if],
+                 ip_protocol_str[r->ip_protocol]);
+        if (r->instance_name) {
+          ESP_LOGI(TAG, "  PTR : %s\n", r->instance_name);
+        }
+        if (r->hostname) {
+          ESP_LOGI(TAG, "  SRV : %s.local:%u\n", r->hostname, r->port);
+          port = r->port;
+        }
+        if (r->txt_count) {
+          ESP_LOGI(TAG, "  TXT : [%u] ", r->txt_count);
+          for (t = 0; t < r->txt_count; t++) {
+            printf("%s=%s; ", r->txt[t].key,
+                   r->txt[t].value ? r->txt[t].value : "NULL");
+          }
+          ESP_LOGI(TAG, "\n");
+        }
+        a = r->addr;
+        while (a) {
+          if (a->addr.type == IPADDR_TYPE_V4) {
+            ESP_LOGI(TAG, "  A   : " IPSTR "\n", IP2STR(&(a->addr.u_addr.ip4)));
+            addr = a->addr.u_addr.ip4.addr;
+          } else {
+            ESP_LOGI(TAG, "  AAAA: " IPV6STR "\n",
+                     IPV62STR(a->addr.u_addr.ip6));
+          }
+          a = a->next;
+        }
+        r = r->next;
+      }
+      mdns_query_results_free(results);
+    }
+
+    destAddr.sin_addr.s_addr = addr;
     destAddr.sin_family = AF_INET;
-    destAddr.sin_port = CONFIG_SOUTH_INTERFACE_UDP_PORT;
+    destAddr.sin_port = port;
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
 
@@ -103,18 +155,12 @@ void udp_north_client_task(void *pvParameters) {
     int ret = mbedtls_ctr_drbg_random(
         &ctr_drbg, (unsigned char *)&umsg.sequence, sizeof(umsg.sequence));
     if (ret != 0) {
-      ESP_LOGE(TAG, "random sequence init failed %d", ret);
+      ESP_LOGE(pcTaskGetName(NULL), "random sequence init failed %d", ret);
     } else {
-      ESP_LOGI(TAG, "random sequence init ok");
+      ESP_LOGI(pcTaskGetName(NULL), "random sequence init ok");
     }
     while (1) {
       if (xQueueReceive(intMsgQueue, &imsg, portMAX_DELAY)) {
-        if (!client_connected) {
-          ESP_LOGE(TAG, "Client not connected, canot sent cmd");
-          continue;
-        }
-
-        destAddr.sin_addr.s_addr = client_addr;
         umsg.msg_type = MSG_TYPE_PUB;
         umsg.sequence += 1;
         umsg.msg.i_msg = imsg;
@@ -154,4 +200,4 @@ void udp_north_client_task(void *pvParameters) {
   }
 }
 
-#endif  // CONFIG_SOUTH_INTERFACE_UDP
+#endif  // CONFIG_NORTH_INTERFACE_UDP

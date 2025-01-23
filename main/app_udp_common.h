@@ -38,7 +38,7 @@ typedef struct udp_msg {
 #define RETAIN 1
 #define UDP_MAGIC ((short)0xABF3)
 
-void udp_publish_data(const char *topic, const char *data, int qos, int retain);
+bool udp_publish_data(const char *topic, const char *data, int qos, int retain);
 
 void udp_south_client_task(void *pvParameters);
 void udp_north_server_task(void *pvParameters);

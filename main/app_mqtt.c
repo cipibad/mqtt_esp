@@ -108,7 +108,15 @@ static const char *TAG = "MQTTS_MQTTS";
 #define CMD_ACTION_TYPE_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/#"
 #define CMD_ACTION_TYPE_TOPICS_NB 1
 
-#define NB_SUBSCRIPTIONS  (CMD_ACTION_TYPE_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS)
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#include "app_udp_common.h"
+#define SOUTH_INTERFACE_UDP_TOPICS_NB 1
+#define SOUTH_INTERFACE_UDP_TOPIC CONFIG_SOUTH_INTERFACE_UDP_DEVICE_TYPE "/" CONFIG_SOUTH_INTERFACE_UDP_CLIENT_ID "/cmd/#"
+#else // CONFIG_SOUTH_INTERFACE_UDP
+#define SOUTH_INTERFACE_UDP_TOPICS_NB 0
+#endif // CONFIG_SOUTH_INTERFACE_UDP
+
+#define NB_SUBSCRIPTIONS  (CMD_ACTION_TYPE_TOPICS_NB + CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS + SOUTH_INTERFACE_UDP_TOPICS_NB)
 
 const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
   {
@@ -131,31 +139,13 @@ const char *SUBSCRIPTIONS[NB_SUBSCRIPTIONS] =
 #ifdef CONFIG_MQTT_THERMOSTATS_NB5_SENSOR_TYPE_MQTT
     CONFIG_MQTT_THERMOSTATS_NB5_MQTT_SENSOR_TOPIC,
 #endif //CONFIG_MQTT_THERMOSTATS_NB5s_SENSOR_TYPE_MQTT
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+    SOUTH_INTERFACE_UDP_TOPIC,
+#endif // CONFIG_SOUTH_INTERFACE_UDP
   };
 
 
 extern const char cert_bundle_pem_start[] asm("_binary_cert_bundle_pem_start");
-
-unsigned char get_topic_id(esp_mqtt_event_handle_t event, int maxTopics, const char * topic)
-{
-  char fullTopic[MAX_TOPIC_LEN];
-  memset(fullTopic, 0, MAX_TOPIC_LEN);
-
-  unsigned char topicId = 0;
-  bool found = false;
-  while (!found && topicId <= maxTopics) {
-    sprintf(fullTopic, "%s%d", topic, topicId);
-    if (strncmp(event->topic, fullTopic, strlen(fullTopic)) == 0) {
-      found = true;
-    } else {
-      topicId++;
-    }
-  }
-  if (!found) {
-    topicId = JSON_BAD_TOPIC_ID;
-  }
-  return topicId;
-}
 
 bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
 {
@@ -526,6 +516,29 @@ void handle_scheduler_mqtt_cmd(const char* topic, int topic_len, const char* pay
 
 #endif // CONFIG_MQTT_SCHEDULERS
 
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+bool handleSouthInterface(esp_mqtt_event_handle_t event) {
+  if (event->topic_len >= 64) return NULL;
+
+  char topic[64];
+  memcpy(topic, event->topic, event->topic_len);
+  topic[event->topic_len] = 0;
+
+  char* device_type = strtok(topic, "/");
+  char* client_id = strtok(NULL, "/");
+  if (strcmp(CONFIG_SOUTH_INTERFACE_UDP_DEVICE_TYPE, device_type) == 0 &&
+      strcmp(CONFIG_SOUTH_INTERFACE_UDP_CLIENT_ID, client_id) == 0) {
+    if (event->data_len >= 64) return false;
+
+    char data[16];
+    memcpy(data, event->data, event->data_len);
+    data[event->data_len] = 0;
+
+    return udp_publish_data(topic, data, QOS_0, NO_RETAIN);
+  }
+  return false;
+}
+#endif  // CONFIG_SOUTH_INTERFACE_UDP
 
 #if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
 void thermostat_publish_data(int thermostat_id, const char * payload)
@@ -603,6 +616,13 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     ESP_LOGE(TAG, "payload to big");
     return;
   }
+
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+  if (handleSouthInterface(event)){
+    return;
+  }
+#endif // CONFIG_SOUTH_INTERFACE_UDP
+
 #if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
   if (handleThermostatMqttSensor(event)){
     return;

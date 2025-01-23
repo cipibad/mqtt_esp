@@ -28,6 +28,9 @@
    the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
 */
 
+in_addr_t client_addr;
+bool client_connected = false;
+
 static const char *TAG = "udp_server";
 
 void handle_udp_message(udp_msg_t *udp_msg) {
@@ -48,21 +51,26 @@ void handle_udp_message(udp_msg_t *udp_msg) {
   }
 }
 
-void send_ack(int sock, udp_msg_t *rx_msg, struct sockaddr_in* addr, int tx_sequence) {
+void send_ack(int sock, udp_msg_t *rx_msg, struct sockaddr_in *addr,
+              int tx_sequence) {
   udp_msg_t tx_msg;
   tx_msg.magic = UDP_MAGIC;
   tx_msg.version = 0x1;
   tx_msg.msg_type = MSG_TYPE_PUB_ACK;
-  tx_msg.sequence = tx_sequence; tx_sequence += 1;
+  tx_msg.sequence = tx_sequence;
+  tx_sequence += 1;
   tx_msg.msg.a_msg.sequence = rx_msg->sequence;
-  int err = sendto(sock, &tx_msg, sizeof(tx_msg), 0,
-                    (struct sockaddr *)addr, sizeof(*addr));
+  int err = sendto(sock, &tx_msg, sizeof(tx_msg), 0, (struct sockaddr *)addr,
+                   sizeof(*addr));
   if (err < 0) {
     ESP_LOGE(TAG, "Error occured during sending: errno %d", errno);
-  } else {
-    ESP_LOGI(TAG, "Message sent");
-  }
+    if (client_connected) {
+      client_connected = false;
+    }
 
+  } else {
+    ESP_LOGI(TAG, "Ack message sent");
+  }
 }
 void udp_north_server_task(void *pvParameters) {
   ESP_LOGI(TAG, "thread created");
@@ -75,19 +83,19 @@ void udp_north_server_task(void *pvParameters) {
   int tx_sequence;
 
   mbedtls_entropy_context entropy;
-  mbedtls_entropy_init( &entropy );
+  mbedtls_entropy_init(&entropy);
 
   mbedtls_ctr_drbg_context ctr_drbg;
-  mbedtls_ctr_drbg_init( &ctr_drbg );
+  mbedtls_ctr_drbg_init(&ctr_drbg);
 
   // sets up the CTR_DRBG entropy source for future reseeds.
-  const char * seed = "some random seed string";
+  const char *seed = "some random seed string";
   int ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-  			(const unsigned char *)seed, strlen(seed));
+                                  (const unsigned char *)seed, strlen(seed));
   if (ret != 0) {
-  	ESP_LOGE(pcTaskGetName(NULL), "mbedtls_ctr_drbg_seed failed %d", ret);
+    ESP_LOGE(pcTaskGetName(NULL), "mbedtls_ctr_drbg_seed failed %d", ret);
   } else {
-  	ESP_LOGI(pcTaskGetName(NULL), "mbedtls_ctr_drbg_seed ok");
+    ESP_LOGI(pcTaskGetName(NULL), "mbedtls_ctr_drbg_seed ok");
   }
 
   // unsigned char key[] = {0x13, 0x59, 0x14, 0x8A, 0xC2, 0x11, 0x6D, 0x6C,
@@ -173,7 +181,6 @@ void udp_north_server_task(void *pvParameters) {
     destAddr.sin_port = htons(CONFIG_SOUTH_INTERFACE_UDP_PORT);
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
-    inet_ntoa_r(destAddr.sin_addr, addr_str, sizeof(addr_str) - 1);
 
     ESP_LOGI(TAG, "Creating socket");
 
@@ -191,8 +198,8 @@ void udp_north_server_task(void *pvParameters) {
     }
     ESP_LOGI(TAG, "Socket binded");
 
-    int ret = mbedtls_ctr_drbg_random(
-        &ctr_drbg, (unsigned char *)&tx_sequence, sizeof(tx_sequence));
+    int ret = mbedtls_ctr_drbg_random(&ctr_drbg, (unsigned char *)&tx_sequence,
+                                      sizeof(tx_sequence));
     if (ret != 0) {
       ESP_LOGE(TAG, "random sequence init failed %d", ret);
     } else {
@@ -209,6 +216,10 @@ void udp_north_server_task(void *pvParameters) {
       // Error occured during receiving
       if (len < 0) {
         ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+        if (client_connected) {
+          client_connected = false;
+        }
+
         break;
       }
       // Data received
@@ -216,8 +227,13 @@ void udp_north_server_task(void *pvParameters) {
         // Get the sender's ip address as string
         inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr,
                     addr_str, sizeof(addr_str) - 1);
-
         ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+
+        if (!client_connected) {
+          client_addr = ((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr;
+          client_connected = true;
+        }
+
         handle_udp_message(&rx_buffer);
         send_ack(sock, &rx_buffer, &sourceAddr, tx_sequence);
       }
@@ -229,6 +245,6 @@ void udp_north_server_task(void *pvParameters) {
       close(sock);
     }
   }
-    vTaskDelete(NULL);
+  vTaskDelete(NULL);
 }
 #endif  // CONFIG_SOUTH_INTERFACE_UDP
