@@ -27,7 +27,7 @@ extern QueueHandle_t intMsgQueue;
 
 static const char *TAG = "udp_client";
 
-void handle_udp_message(udp_msg_t *udp_msg, udp_msg_t *tx_msg) {
+void handle_ack_message(udp_msg_t *udp_msg, udp_msg_t *tx_msg) {
   if (udp_msg->magic != UDP_MAGIC) {
     ESP_LOGE(TAG, "Bad magic: 0x%04hX", udp_msg->magic);
     return;
@@ -53,7 +53,7 @@ void handle_udp_message(udp_msg_t *udp_msg, udp_msg_t *tx_msg) {
   }
 }
 
-void udp_south_client_task(void *pvParameters) {
+void udp_north_client_task(void *pvParameters) {
   ESP_LOGI(TAG, "udp_client_task thread created");
 
   int addr_family;
@@ -137,7 +137,7 @@ void udp_south_client_task(void *pvParameters) {
 
     destAddr.sin_addr.s_addr = addr;
     destAddr.sin_family = AF_INET;
-    destAddr.sin_port = port;
+    destAddr.sin_port = htons(port);
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
 
@@ -188,7 +188,7 @@ void udp_south_client_task(void *pvParameters) {
                     addr_str, sizeof(addr_str) - 1);
 
         ESP_LOGI(TAG, "MSG Received %d bytes from %s:", len, addr_str);
-        handle_udp_message(&rx_buffer, &umsg);
+        handle_ack_message(&rx_buffer, &umsg);
       }
     }
 

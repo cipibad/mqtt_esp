@@ -85,9 +85,9 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
   default:
     break;
   }
-  #ifdef CONFIG_SOUTH_INTERFACE_UDP
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
   mdns_handle_system_event(ctx, event);
-  #endif // CONFIG_SOUTH_INTERFACE_UDP
+#endif // defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 
   return ESP_OK;
 }

@@ -222,18 +222,20 @@ menu "COAP server config"
 endmenu # "COAP server config"
 
 menu "UDP server config"
-    depends on SOUTH_INTERFACE_UDP
+    depends on SOUTH_INTERFACE_UDP || NORTH_INTERFACE_UDP
     config SOUTH_INTERFACE_UDP_PORT
         int "UDP port period"
         default 12345
 
     config SOUTH_INTERFACE_UDP_DEVICE_TYPE
+        depends on SOUTH_INTERFACE_UDP
         string "Device type"
         default "device_type"
         help
             This is the device type of the MQTT topic or COAP resource /<device_type>/<client_id>
 
     config SOUTH_INTERFACE_UDP_CLIENT_ID
+        depends on SOUTH_INTERFACE_UDP
         string "Client id"
         default "client_id"
         help

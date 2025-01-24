@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#ifdef CONFIG_NORTH_INTERFACE_UDP
 
 #include <lwip/netdb.h>
 #include <string.h>
@@ -22,11 +22,7 @@
 #include "mdns.h"
 #include "nvs_flash.h"
 
-/* The examples use simple WiFi configuration that you can set via
-   'make menuconfig'.
-   If you'd rather not, just change the below entries to strings with
-   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
-*/
+#include "app_handle_cmd.h"
 
 in_addr_t client_addr;
 bool client_connected = false;
@@ -40,14 +36,10 @@ void handle_udp_message(udp_msg_t *udp_msg) {
   }
 
   if (udp_msg->msg_type == MSG_TYPE_PUB) {
-    ESP_LOGI(TAG, "Got a PUB msg");
-#ifdef CONFIG_NORTH_INTERFACE_MQTT
-    mqtt_publish_data(udp_msg->msg.i_msg.topic, udp_msg->msg.i_msg.data,
-                      udp_msg->msg.i_msg.qos, udp_msg->msg.i_msg.retain);
-    // fixme send ack
-    return;
-#endif  // CONFIG_NORTH_INTERFACE_MQTT
-    ESP_LOGE(TAG, "Incompatible north interface configured");
+    ESP_LOGI(TAG, "Got a cmd msg");
+    internal_msg_t *m = &udp_msg->msg.i_msg;
+
+    handle_cmd_topic(m->topic, strlen(m->topic), m->data, strlen(m->data));
   }
 }
 
@@ -72,7 +64,7 @@ void send_ack(int sock, udp_msg_t *rx_msg, struct sockaddr_in *addr,
     ESP_LOGI(TAG, "Ack message sent");
   }
 }
-void udp_south_server_task(void *pvParameters) {
+void udp_north_server_task(void *pvParameters) {
   ESP_LOGI(TAG, "thread created");
 
   udp_msg_t rx_buffer;
@@ -247,4 +239,4 @@ void udp_south_server_task(void *pvParameters) {
   }
   vTaskDelete(NULL);
 }
-#endif  // CONFIG_SOUTH_INTERFACE_UDP
+#endif  // CONFIG_NORTH_INTERFACE_UDP

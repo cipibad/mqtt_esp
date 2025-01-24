@@ -40,7 +40,9 @@ typedef struct udp_msg {
 
 bool udp_publish_data(const char *topic, const char *data, int qos, int retain);
 
-void udp_south_client_task(void *pvParameters);
 void udp_north_server_task(void *pvParameters);
+void udp_north_client_task(void *pvParameters);
+void udp_south_server_task(void *pvParameters);
+void udp_south_client_task(void *pvParameters);
 
 #endif  // UDP_COMMON__H
