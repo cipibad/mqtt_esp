@@ -1,29 +1,26 @@
 #include "esp_system.h"
-#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 
-#include <lwip/netdb.h>
 #include <string.h>
-#include <sys/param.h>
 
-#include "app_udp_common.h"
-#include "esp_event_loop.h"
-#include "esp_log.h"
-#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
-#include "freertos/task.h"
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
+#include "freertos/queue.h"
+
+#include "esp_log.h"
+
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
-#include "mdns.h"
-#include "nvs_flash.h"
+
+#include "lwip/sockets.h"
+
+#include "app_udp_common.h"
 
 extern QueueHandle_t intMsgQueue;
 
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
 extern in_addr_t client_addr;
 extern bool client_connected;
+#endif  // CONFIG_SOUTH_INTERFACE_UDP
 
 static const char *TAG = "udp_client";
 
@@ -53,7 +50,7 @@ void handle_ack_message(udp_msg_t *udp_msg, udp_msg_t *tx_msg) {
   }
 }
 
-void udp_south_client_task(void *pvParameters) {
+void udp_client_task(void *pvParameters) {
   ESP_LOGI(TAG, "udp_client_task thread created");
 
   int addr_family;
@@ -84,8 +81,21 @@ void udp_south_client_task(void *pvParameters) {
   char addr_str[128];
 
   while (1) {
-    destAddr.sin_family = AF_INET;
+#ifdef CONFIG_NORTH_INTERFACE_UDP
+    in_addr_t addr = 0;
+    in_port_t port = 0;
+    while (mdns_resolve_udp_iot_service(&addr, &port) != 0) {
+      vTaskDelay(3 * 1000 / portTICK_RATE_MS);
+    }
+    destAddr.sin_addr.s_addr = addr;
+    destAddr.sin_port = htons(port);
+#endif  // CONFIG_NORTH_INTERFACE_UDP
+
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
     destAddr.sin_port = htons(CONFIG_SOUTH_INTERFACE_UDP_PORT);
+#endif  // CONFIG_SOUTH_INTERFACE_UDP
+
+    destAddr.sin_family = AF_INET;
     addr_family = AF_INET;
     ip_protocol = IPPROTO_IP;
 
@@ -109,12 +119,15 @@ void udp_south_client_task(void *pvParameters) {
     }
     while (1) {
       if (xQueueReceive(intMsgQueue, &imsg, portMAX_DELAY)) {
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
         if (!client_connected) {
-          ESP_LOGE(TAG, "Client not connected, canot sent cmd");
+          ESP_LOGE(TAG, "Client not connected, canot message");
           continue;
         }
 
         destAddr.sin_addr.s_addr = client_addr;
+#endif  // CONFIG_SOUTH_INTERFACE_UDP
+
         umsg.msg_type = MSG_TYPE_PUB;
         umsg.sequence += 1;
         umsg.msg.i_msg = imsg;
@@ -154,4 +167,5 @@ void udp_south_client_task(void *pvParameters) {
   }
 }
 
-#endif  // CONFIG_SOUTH_INTERFACE_UDP
+#endif  // defined(CONFIG_NORTH_INTERFACE_UDP) ||
+        // defined(CONFIG_SOUTH_INTERFACE_UDP)

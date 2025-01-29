@@ -346,30 +346,17 @@ wifi_init();
 #endif // CONFIG_MQTT_OPS
 int ret;
 
-#ifdef CONFIG_NORTH_INTERFACE_UDP
-    ret = xTaskCreate(udp_north_server_task, "udp_north_srv",
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
+    ret = xTaskCreate(udp_server_task, "udp_server",
                       configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
     if (ret != pdPASS) {
       ESP_LOGE(TAG, "cannot create UDP server thread");
     }
-    ret = xTaskCreate(udp_north_client_task, "udp_north_clt",
+    ret = xTaskCreate(udp_client_task, "udp_client",
                       configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
     if (ret != pdPASS) {
       ESP_LOGE(TAG, "cannot create UDP clienth thread");
     }
-#endif  // CONFIG_NORTH_INTERFACE_UDP
-
-#ifdef CONFIG_SOUTH_INTERFACE_UDP
-    ret = xTaskCreate(udp_south_server_task, "udp_south_srv",
-                      configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
-  if (ret != pdPASS) {
-    ESP_LOGE(TAG, "cannot create UDP server thread");
-  }
-    ret = xTaskCreate(udp_south_client_task, "udp_south_clt",
-                      configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
-  if (ret != pdPASS) {
-    ESP_LOGE(TAG, "cannot create UDP client thread");
-  }
-#endif  // CONFIG_SOUTH_INTERFACE_UDP
+#endif // defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
   }
 }

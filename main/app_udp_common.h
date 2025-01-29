@@ -40,9 +40,14 @@ typedef struct udp_msg {
 
 bool udp_publish_data(const char *topic, const char *data, int qos, int retain);
 
-void udp_north_server_task(void *pvParameters);
-void udp_north_client_task(void *pvParameters);
-void udp_south_server_task(void *pvParameters);
-void udp_south_client_task(void *pvParameters);
+#ifdef CONFIG_NORTH_INTERFACE_UDP
+#include "lwip/sockets.h"
+#include "mdns.h"
+int mdns_resolve_udp_iot_service(in_addr_t *a, in_port_t *p);
+#endif  // CONFIG_NORTH_INTERFACE_UDP
+
+void udp_server_task(void *pvParameters);
+void udp_client_task(void *pvParameters);
+
 
 #endif  // UDP_COMMON__H

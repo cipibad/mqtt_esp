@@ -1,32 +1,26 @@
 #include "esp_system.h"
-#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#if defined(CONFIG_NORTH_INTERFACE_UDP) || defined(CONFIG_SOUTH_INTERFACE_UDP)
 
-#include <lwip/netdb.h>
 #include <string.h>
-#include <sys/param.h>
 
-#include "app_mqtt.h"
-#include "app_udp_common.h"
-#include "esp_event_loop.h"
-#include "esp_log.h"
-#include "esp_system.h"
-#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
-#include "freertos/task.h"
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
+
+#include "esp_log.h"
+
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
-#include "mdns.h"
-#include "nvs_flash.h"
 
-/* The examples use simple WiFi configuration that you can set via
-   'make menuconfig'.
-   If you'd rather not, just change the below entries to strings with
-   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
-*/
+#include "lwip/sockets.h"
+
+#include "app_udp_common.h"
+
+#ifdef CONFIG_NORTH_INTERFACE_MQTT
+#include "app_mqtt.h"
+#endif  // CONFIG_NORTH_INTERFACE_MQTT
+
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+#include "app_handle_cmd.h"
+#endif  // CONFIG_SOUTH_INTERFACE_UDP
 
 in_addr_t client_addr;
 bool client_connected = false;
@@ -41,12 +35,22 @@ void handle_udp_message(udp_msg_t *udp_msg) {
 
   if (udp_msg->msg_type == MSG_TYPE_PUB) {
     ESP_LOGI(TAG, "Got a PUB msg");
+
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
     mqtt_publish_data(udp_msg->msg.i_msg.topic, udp_msg->msg.i_msg.data,
                       udp_msg->msg.i_msg.qos, udp_msg->msg.i_msg.retain);
     // fixme send ack
     return;
 #endif  // CONFIG_NORTH_INTERFACE_MQTT
+
+#ifdef CONFIG_SOUTH_INTERFACE_UDP
+    ESP_LOGI(TAG, "Got a cmd msg");
+    internal_msg_t *m = &udp_msg->msg.i_msg;
+
+    handle_cmd_topic(m->topic, strlen(m->topic), m->data, strlen(m->data));
+    return;
+#endif  // CONFIG_SOUTH_INTERFACE_UDP
+
     ESP_LOGE(TAG, "Incompatible north interface configured");
   }
 }
@@ -72,7 +76,7 @@ void send_ack(int sock, udp_msg_t *rx_msg, struct sockaddr_in *addr,
     ESP_LOGI(TAG, "Ack message sent");
   }
 }
-void udp_south_server_task(void *pvParameters) {
+void udp_server_task(void *pvParameters) {
   ESP_LOGI(TAG, "thread created");
 
   udp_msg_t rx_buffer;
@@ -93,9 +97,9 @@ void udp_south_server_task(void *pvParameters) {
   int ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                                   (const unsigned char *)seed, strlen(seed));
   if (ret != 0) {
-    ESP_LOGE(pcTaskGetName(NULL), "mbedtls_ctr_drbg_seed failed %d", ret);
+    ESP_LOGE(TAG, "mbedtls_ctr_drbg_seed failed %d", ret);
   } else {
-    ESP_LOGI(pcTaskGetName(NULL), "mbedtls_ctr_drbg_seed ok");
+    ESP_LOGI(TAG, "mbedtls_ctr_drbg_seed ok");
   }
 
   // unsigned char key[] = {0x13, 0x59, 0x14, 0x8A, 0xC2, 0x11, 0x6D, 0x6C,
@@ -245,6 +249,6 @@ void udp_south_server_task(void *pvParameters) {
       close(sock);
     }
   }
-  vTaskDelete(NULL);
 }
-#endif  // CONFIG_SOUTH_INTERFACE_UDP
+#endif  // defined(CONFIG_NORTH_INTERFACE_UDP) ||
+        // defined(CONFIG_SOUTH_INTERFACE_UDP)
