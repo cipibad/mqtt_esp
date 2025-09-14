@@ -383,33 +383,158 @@ config MQTT_RELAYS_NB
     help
         number of relays to control
 
-config MQTT_RELAYS_NB0_GPIO
-    int "relay 0 gpio port"
+menu "Relay Config"
     depends on MQTT_RELAYS_NB > 0
-    default 4
-    help
-        relay 0 gpio port
 
-config MQTT_RELAYS_NB1_GPIO
-    int "relay 1 gpio port"
-    depends on MQTT_RELAYS_NB > 1
-    default 14
-    help
-        relay 1 gpio port
+    menu "Relay 0 Config"
+        depends on MQTT_RELAYS_NB > 0
 
-config MQTT_RELAYS_NB2_GPIO
-    int "relay 2 gpio port"
-    depends on MQTT_RELAYS_NB > 2
-    default 12
-    help
-        relay 2 gpio port
+        choice MQTT_RELAY_0_TYPE
+           bool "Relay 0 type"
+           default MQTT_RELAY_0_TYPE_GPIO
+           help
+               Relay 0 type
+        config MQTT_RELAY_0_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_0_TYPE_SERIAL
+           bool "Relay is controlled using serial command"
+        endchoice
 
-config MQTT_RELAYS_NB3_GPIO
-    int "relay 3 gpio port"
-    depends on MQTT_RELAYS_NB > 3
-    default 13
-    help
-        relay 3 gpio port
+        config MQTT_RELAY_0_GPIO
+            int "relay 0 gpio port"
+            depends on MQTT_RELAY_0_TYPE_GPIO
+            default 4
+            help
+                relay 0 gpio port
+
+        config MQTT_RELAY_0_SERIAL_OPEN
+           string "relay 0 open serial command"
+           depends on MQTT_RELAY_0_TYPE_SERIAL
+           default ""
+           help
+               relay 0 open serial command
+
+        config MQTT_RELAY_0_SERIAL_CLOSE
+           string "relay 0 close serial command"
+           depends on MQTT_RELAY_0_TYPE_SERIAL
+           default ""
+           help
+               relay 0 close serial command
+
+    endmenu # "Relay 0 Config"
+
+    menu "Relay 1 Config"
+        depends on MQTT_RELAYS_NB > 1
+
+        choice MQTT_RELAY_1_TYPE
+           bool "Relay 1 type"
+           default MQTT_RELAY_1_TYPE_GPIO
+           help
+               Relay 1 type
+        config MQTT_RELAY_1_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_1_TYPE_SERIAL
+           bool "Relay is controlled using serial command"
+        endchoice
+
+        config MQTT_RELAY_1_GPIO
+            int "relay 1 gpio port"
+            depends on MQTT_RELAY_1_TYPE_GPIO
+            default 4
+            help
+                relay 1 gpio port
+
+        config MQTT_RELAY_1_SERIAL_OPEN
+           string "relay 1 open serial command"
+           depends on MQTT_RELAY_1_TYPE_SERIAL
+           default ""
+           help
+               relay 1 open serial command
+
+        config MQTT_RELAY_1_SERIAL_CLOSE
+           string "relay 1 close serial command"
+           depends on MQTT_RELAY_1_TYPE_SERIAL
+           default ""
+           help
+               relay 1 close serial command
+
+    endmenu # "Relay 1 Config"
+
+    menu "Relay 2 Config"
+        depends on MQTT_RELAYS_NB > 2
+
+        choice MQTT_RELAY_2_TYPE
+           bool "Relay 2 type"
+           default MQTT_RELAY_2_TYPE_GPIO
+           help
+               Relay 2 type
+        config MQTT_RELAY_2_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_2_TYPE_SERIAL
+           bool "Relay is controlled using serial command"
+        endchoice
+
+        config MQTT_RELAY_2_GPIO
+            int "relay 2 gpio port"
+            depends on MQTT_RELAY_2_TYPE_GPIO
+            default 4
+            help
+                relay 2 gpio port
+
+        config MQTT_RELAY_2_SERIAL_OPEN
+           string "relay 2 open serial command"
+           depends on MQTT_RELAY_2_TYPE_SERIAL
+           default ""
+           help
+               relay 2 open serial command
+
+        config MQTT_RELAY_2_SERIAL_CLOSE
+           string "relay 2 close serial command"
+           depends on MQTT_RELAY_2_TYPE_SERIAL
+           default ""
+           help
+               relay 2 close serial command
+
+    endmenu # "Relay 2 Config"
+
+    menu "Relay 3 Config"
+        depends on MQTT_RELAYS_NB > 3
+
+        choice MQTT_RELAY_3_TYPE
+           bool "Relay 3 type"
+           default MQTT_RELAY_3_TYPE_GPIO
+           help
+               Relay 3 type
+        config MQTT_RELAY_3_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_3_TYPE_SERIAL
+           bool "Relay is controlled using serial command"
+        endchoice
+
+        config MQTT_RELAY_3_GPIO
+            int "relay 3 gpio port"
+            depends on MQTT_RELAY_3_TYPE_GPIO
+            default 4
+            help
+                relay 3 gpio port
+
+        config MQTT_RELAY_3_SERIAL_OPEN
+           string "relay 3 open serial command"
+           depends on MQTT_RELAY_3_TYPE_SERIAL
+           default ""
+           help
+               relay 3 open serial command
+
+        config MQTT_RELAY_3_SERIAL_CLOSE
+           string "relay 3 close serial command"
+           depends on MQTT_RELAY_3_TYPE_SERIAL
+           default ""
+           help
+               relay 3 close serial command
+
+    endmenu # "Relay 3 Config"
+
+endmenu # "Relay Config"
 
 config STATUS_LED
     boolean "enable status LED"

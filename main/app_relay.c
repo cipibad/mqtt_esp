@@ -25,19 +25,6 @@ int relayStatus[CONFIG_MQTT_RELAYS_NB];
 int relaySleepTimeout[CONFIG_MQTT_RELAYS_NB];
 TimerHandle_t relaySleepTimer[CONFIG_MQTT_RELAYS_NB];
 
-const int relayToGpioMap[CONFIG_MQTT_RELAYS_NB] = {
-  CONFIG_MQTT_RELAYS_NB0_GPIO,
-#if CONFIG_MQTT_RELAYS_NB > 1
-  CONFIG_MQTT_RELAYS_NB1_GPIO,
-#if CONFIG_MQTT_RELAYS_NB > 2
-  CONFIG_MQTT_RELAYS_NB2_GPIO,
-#if CONFIG_MQTT_RELAYS_NB > 3
-  CONFIG_MQTT_RELAYS_NB3_GPIO,
-#endif //CONFIG_MQTT_RELAYS_NB > 3
-#endif //CONFIG_MQTT_RELAYS_NB > 2
-#endif //CONFIG_MQTT_RELAYS_NB > 1
-};
-
 const char * relaySleepTag[CONFIG_MQTT_RELAYS_NB] = {
   "relaySleep0",
 #if CONFIG_MQTT_RELAYS_NB > 1
@@ -70,6 +57,56 @@ static const char *TAG = "MQTTS_RELAY";
 
 extern QueueHandle_t relayQueue;
 
+inline bool is_relay_gpio_type(const char * tag, int id)
+{
+  switch(id) {
+  #ifdef CONFIG_MQTT_RELAY_0_TYPE_GPIO
+    case 0:
+      return true;
+  #endif // CONFIG_MQTT_RELAY_0_TYPE_GPIO
+  #ifdef CONFIG_MQTT_RELAY_1_TYPE_GPIO
+    case 1:
+      return true;
+  #endif // CONFIG_MQTT_RELAY_1_TYPE_GPIO
+  #ifdef CONFIG_MQTT_RELAY_2_TYPE_GPIO
+    case 2:
+      return true;
+  #endif // CONFIG_RELAY_2_TYPE_GPIO
+  #ifdef CONFIG_MQTT_RELAY_3_TYPE_GPIO
+    case 3:
+      return true;
+  #endif // CONFIG_RELAY_3_TYPE_GPIO
+    default:
+      ESP_LOGI(tag, "Relay %d is not GPIO", id);
+      return false;
+  }
+}
+
+inline int get_relay_gpio(const char * tag, int id)
+{
+  switch(id) {
+  #ifdef CONFIG_RELAY_0_GPIO
+    case 0:
+      return CONFIG_RELAY_0_GPIO;
+  #endif // CONFIG_RELAY_0_GPIO
+  #ifdef CONFIG_MQTT_RELAY_1_GPIO
+    case 1:
+      return CONFIG_MQTT_RELAY_1_GPIO;
+  #endif // CONFIG_RELAY_1_GPIO
+  #ifdef CONFIG_RELAY_2_GPIO
+    case 2:
+      return CONFIG_RELAY_2_GPIO;
+  #endif // CONFIG_RELAY_2_GPIO
+  #ifdef CONFIG_RELAY_3_GPIO
+    case 3:
+      return CONFIG_RELAY_3_GPIO;
+  #endif // CONFIG_RELAY_3_GPIO
+    default:
+      ESP_LOGE(tag, "Cannot get relay gpio for %d", id);
+      return -1;
+  }
+}
+
 void vTimerCallback( TimerHandle_t xTimer )
 {
   int id = (int)pvTimerGetTimerID( xTimer );
@@ -87,10 +124,12 @@ void relays_init()
   esp_err_t err;
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
     relayStatus[i] = GPIO_LOW;
-    gpio_pad_select_gpio(relayToGpioMap[i]);
-    gpio_set_direction(relayToGpioMap[i], GPIO_MODE_OUTPUT);
-    gpio_set_level(relayToGpioMap[i], relayStatus[i]);
 
+    if (is_relay_gpio_type(TAG, i)) {
+      gpio_pad_select_gpio(get_relay_gpio(TAG, i));
+      gpio_set_direction(get_relay_gpio(TAG, i), GPIO_MODE_OUTPUT);
+      gpio_set_level(get_relay_gpio(TAG, i), relayStatus[i]);
+    }
     err=read_nvs_integer(relaySleepTag[i], &relaySleepTimeout[i]);
     ESP_ERROR_CHECK( err );
 
@@ -178,13 +217,15 @@ void update_relay_status(int id, char value)
   if (value != (relayStatus[id] == GPIO_HIGH)) {
     if (value == RELAY_STATUS_ON) {
       relayStatus[id] = GPIO_HIGH;
-      ESP_LOGI(TAG, "enabling GPIO %d", relayToGpioMap[id]);
+      ESP_LOGI(TAG, "enabling GPIO %d", get_relay_gpio(TAG, id));
     }
     if (value == RELAY_STATUS_OFF) {
       relayStatus[id] = GPIO_LOW;
-      ESP_LOGI(TAG, "disabling GPIO %d", relayToGpioMap[id]);
+      ESP_LOGI(TAG, "disabling GPIO %d", get_relay_gpio(TAG, id));
     }
-    gpio_set_level(relayToGpioMap[id], relayStatus[id]);
+    if (is_relay_gpio_type(TAG, id)) {
+      gpio_set_level(get_relay_gpio(TAG, id), relayStatus[id]);
+    }
     update_timer(id);
   }
   publish_relay_status(id);
