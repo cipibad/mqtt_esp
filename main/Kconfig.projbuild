@@ -407,19 +407,19 @@ menu "Relay Config"
             help
                 relay 0 gpio port
 
-        config MQTT_RELAY_0_SERIAL_OPEN
-           string "relay 0 open serial command"
+        config MQTT_RELAY_0_SERIAL_ON
+           hex "relay 0 enable serial command"
            depends on MQTT_RELAY_0_TYPE_SERIAL
            default ""
            help
-               relay 0 open serial command
+               relay 0 enable serial command
 
-        config MQTT_RELAY_0_SERIAL_CLOSE
-           string "relay 0 close serial command"
+        config MQTT_RELAY_0_SERIAL_OFF
+           hex "relay 0 disable serial command"
            depends on MQTT_RELAY_0_TYPE_SERIAL
            default ""
            help
-               relay 0 close serial command
+               relay 0 disable serial command
 
     endmenu # "Relay 0 Config"
 
@@ -444,19 +444,19 @@ menu "Relay Config"
             help
                 relay 1 gpio port
 
-        config MQTT_RELAY_1_SERIAL_OPEN
-           string "relay 1 open serial command"
+        config MQTT_RELAY_1_SERIAL_ON
+           hex "relay 1 enable serial command"
            depends on MQTT_RELAY_1_TYPE_SERIAL
            default ""
            help
-               relay 1 open serial command
+               relay 1 enable serial command
 
-        config MQTT_RELAY_1_SERIAL_CLOSE
-           string "relay 1 close serial command"
+        config MQTT_RELAY_1_SERIAL_OFF
+           hex "relay 1 disable serial command"
            depends on MQTT_RELAY_1_TYPE_SERIAL
            default ""
            help
-               relay 1 close serial command
+               relay 1 disable serial command
 
     endmenu # "Relay 1 Config"
 
@@ -481,19 +481,19 @@ menu "Relay Config"
             help
                 relay 2 gpio port
 
-        config MQTT_RELAY_2_SERIAL_OPEN
-           string "relay 2 open serial command"
+        config MQTT_RELAY_2_SERIAL_ON
+           hex "relay 2 enable serial command"
            depends on MQTT_RELAY_2_TYPE_SERIAL
            default ""
            help
-               relay 2 open serial command
+               relay 2 enable serial command
 
-        config MQTT_RELAY_2_SERIAL_CLOSE
-           string "relay 2 close serial command"
+        config MQTT_RELAY_2_SERIAL_OFF
+           hex "relay 2 disable serial command"
            depends on MQTT_RELAY_2_TYPE_SERIAL
            default ""
            help
-               relay 2 close serial command
+               relay 2 disable serial command
 
     endmenu # "Relay 2 Config"
 
@@ -518,19 +518,19 @@ menu "Relay Config"
             help
                 relay 3 gpio port
 
-        config MQTT_RELAY_3_SERIAL_OPEN
-           string "relay 3 open serial command"
+        config MQTT_RELAY_3_SERIAL_ON
+           hex "relay 3 enable serial command"
            depends on MQTT_RELAY_3_TYPE_SERIAL
            default ""
            help
-               relay 3 open serial command
+               relay 3 enable serial command
 
-        config MQTT_RELAY_3_SERIAL_CLOSE
-           string "relay 3 close serial command"
+        config MQTT_RELAY_3_SERIAL_OFF
+           hex "relay 3 disable serial command"
            depends on MQTT_RELAY_3_TYPE_SERIAL
            default ""
            help
-               relay 3 close serial command
+               relay 3 disable serial command
 
     endmenu # "Relay 3 Config"
 
