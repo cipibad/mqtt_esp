@@ -36,6 +36,11 @@ extern QueueHandle_t schedulerCfgQueue;
 extern QueueHandle_t relayQueue;
 #endif //CONFIG_MQTT_RELAYS_NB
 
+#ifdef CONFIG_VALVE_SUPPORT
+#include "app_valve.h"
+extern QueueHandle_t valveQueue;
+#endif // CONFIG_VALVE_SUPPORT
+
 #ifdef CONFIG_MQTT_OTA
 #include "app_ota.h"
 extern QueueHandle_t otaQueue;
@@ -369,7 +374,6 @@ void handle_relay_mqtt_sleep_cmd(signed char relayId, const char *payload)
   }
 }
 
-
 void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload)
 {
   char action[16];
@@ -392,6 +396,39 @@ void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload
 }
 
 #endif // CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_VALVE_SUPPORT
+void handle_valve_mqtt_status_cmd(const char *payload)
+{
+  struct ValveMessage vm;
+  memset(&vm, 0, sizeof(struct ValveMessage));
+  vm.msgType = VALVE_CMD_STATUS;
+
+  if (strcmp(payload, "OPEN") == 0)
+    vm.data = VALVE_STATUS_OPEN;
+  else if (strcmp(payload, "CLOSED") == 0)
+    vm.data = VALVE_STATUS_CLOSED;
+
+  if (xQueueSend( valveQueue
+                  ,( void * )&vm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to valveQueue");
+  }
+}
+
+void handle_valve_mqtt_cmd(const char* topic, int topic_len, const char* payload)
+{
+  char action[16];
+  getAction(action, topic, topic_len);
+
+  if (strcmp(action, "status") == 0) {
+    handle_valve_mqtt_status_cmd(payload);
+    return;
+  }
+  ESP_LOGW(TAG, "unhandled valve action: %s", action);
+  return;
+}
+#endif // CONFIG_VALVE_SUPPORT
 
 #ifdef CONFIG_MQTT_SCHEDULERS
 void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *payload)
@@ -640,6 +677,13 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
     }
 #endif // CONFIG_MQTT_RELAYS_NB
 
+#if CONFIG_VALVE_SUPPORT
+    if (strcmp(service, "valve") == 0) {
+      handle_valve_mqtt_cmd(event->topic, event->topic_len, payload);
+      return;
+    }
+#endif // CONFIG_VALVE_SUPPORT
+
 #ifdef CONFIG_MQTT_SCHEDULERS
     if (strcmp(service, "scheduler") == 0) {
       handle_scheduler_mqtt_cmd(event->topic, event->topic_len, payload);
@@ -836,6 +880,11 @@ void handle_mqtt_sub_pub(void* pvParameters)
         publish_all_relays_availability();
         publish_all_relays_timeout();
 #endif//CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_VALVE_SUPPORT
+        publish_valve_status();
+#endif // CONFIG_VALVE_SUPPORT
+
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
         publish_thermostat_data();
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0

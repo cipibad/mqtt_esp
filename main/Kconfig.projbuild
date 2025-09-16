@@ -418,14 +418,14 @@ menu "Relay Config"
         config MQTT_RELAY_0_SERIAL_ON
            hex "relay 0 enable serial command"
            depends on MQTT_RELAY_0_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 0 enable serial command
 
         config MQTT_RELAY_0_SERIAL_OFF
            hex "relay 0 disable serial command"
            depends on MQTT_RELAY_0_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 0 disable serial command
 
@@ -456,14 +456,14 @@ menu "Relay Config"
         config MQTT_RELAY_1_SERIAL_ON
            hex "relay 1 enable serial command"
            depends on MQTT_RELAY_1_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 1 enable serial command
 
         config MQTT_RELAY_1_SERIAL_OFF
            hex "relay 1 disable serial command"
            depends on MQTT_RELAY_1_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 1 disable serial command
 
@@ -494,14 +494,14 @@ menu "Relay Config"
         config MQTT_RELAY_2_SERIAL_ON
            hex "relay 2 enable serial command"
            depends on MQTT_RELAY_2_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 2 enable serial command
 
         config MQTT_RELAY_2_SERIAL_OFF
            hex "relay 2 disable serial command"
            depends on MQTT_RELAY_2_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 2 disable serial command
 
@@ -532,14 +532,14 @@ menu "Relay Config"
         config MQTT_RELAY_3_SERIAL_ON
            hex "relay 3 enable serial command"
            depends on MQTT_RELAY_3_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 3 enable serial command
 
         config MQTT_RELAY_3_SERIAL_OFF
            hex "relay 3 disable serial command"
            depends on MQTT_RELAY_3_TYPE_SERIAL
-           default ""
+           default "0x0"
            help
                relay 3 disable serial command
 
@@ -1096,6 +1096,31 @@ menu "Actuator configuration"
             GPIO to control actuator close relay, see schematics
 
 endmenu # "Actuator configuration"
+
+#######################
+config VALVE_SUPPORT
+    boolean "enable external valve support"
+    depends on !DEEP_SLEEP_MODE
+    default n
+    help
+        Enable external valve support
+
+menu "Valve configuration"
+    depends on VALVE_SUPPORT
+
+    config VALVE_OPEN_RELAY_ID
+        int "relay id to open the valve"
+        default 0
+        help
+            GPIO to open the valve
+
+    config VALVE_CLOSE_RELAY_ID
+        int "relay id to close the valve"
+        default 1
+        help
+            GPIO to close the valve
+
+endmenu # "Waterpump"
 
 #######################
 

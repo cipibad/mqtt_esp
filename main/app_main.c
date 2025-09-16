@@ -44,7 +44,12 @@ QueueHandle_t thermostatQueue;
 #if CONFIG_MQTT_RELAYS_NB
 #include "app_relay.h"
 QueueHandle_t relayQueue;
-#endif//CONFIG_MQTT_RELAYS_NB
+#endif // CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_VALVE_SUPPORT
+#include "app_valve.h"
+QueueHandle_t valveQueue;
+#endif // CONFIG_VALVE_SUPPORT
 
 #ifdef CONFIG_MQTT_SCHEDULERS
 #include "app_scheduler.h"
@@ -219,6 +224,10 @@ void app_main(void)
   relayQueue = xQueueCreate(32, sizeof(struct RelayMessage) );
 #endif //CONFIG_MQTT_RELAYS_NB
 
+#ifdef CONFIG_VALVE_SUPPORT
+  valveQueue = xQueueCreate(4, sizeof(struct ValveMessage) );
+#endif // CONFIG_VALVE_SUPPORT
+
 #ifdef CONFIG_MQTT_SCHEDULERS
   schedulerCfgQueue = xQueueCreate(8, sizeof(struct SchedulerCfgMessage) );
 #endif // CONFIG_MQTT_SCHEDULERS
@@ -287,8 +296,13 @@ xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, N
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
 #ifdef CONFIG_WATERPUMP_SUPPORT
-initWaterPump();
+  initWaterPump();
 #endif // CONFIG_WATERPUMP_SUPPORT
+
+#ifdef CONFIG_VALVE_SUPPORT
+  init_valve();
+  xTaskCreate(app_valve_task, "app_valve_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_VALVE_SUPPORT
 
 #if CONFIG_MQTT_SWITCHES_NB
     gpio_switch_init(NULL);
