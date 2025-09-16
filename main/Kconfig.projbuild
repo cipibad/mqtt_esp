@@ -375,6 +375,13 @@ menu "COAP server config"
     endmenu # "COAP proxy paths"
 endmenu # "COAP server config"
 
+config AT_SERVER
+    depends on !DEEP_SLEEP_MODE
+    boolean "enable serial AT server"
+    default n
+    help
+        enable dummy serial AT server for LC-Relay-ESP01-4R-12V/LC-Relay-ESP01-2R-5V
+
 config MQTT_RELAYS_NB
     int "number of relays to control"
     depends on !DEEP_SLEEP_MODE
@@ -397,6 +404,7 @@ menu "Relay Config"
         config MQTT_RELAY_0_TYPE_GPIO
            bool "Relay is controlled using GPIO"
         config MQTT_RELAY_0_TYPE_SERIAL
+           depends on AT_SERVER
            bool "Relay is controlled using serial command"
         endchoice
 
@@ -434,6 +442,7 @@ menu "Relay Config"
         config MQTT_RELAY_1_TYPE_GPIO
            bool "Relay is controlled using GPIO"
         config MQTT_RELAY_1_TYPE_SERIAL
+           depends on AT_SERVER
            bool "Relay is controlled using serial command"
         endchoice
 
@@ -471,6 +480,7 @@ menu "Relay Config"
         config MQTT_RELAY_2_TYPE_GPIO
            bool "Relay is controlled using GPIO"
         config MQTT_RELAY_2_TYPE_SERIAL
+           depends on AT_SERVER
            bool "Relay is controlled using serial command"
         endchoice
 
@@ -508,6 +518,7 @@ menu "Relay Config"
         config MQTT_RELAY_3_TYPE_GPIO
            bool "Relay is controlled using GPIO"
         config MQTT_RELAY_3_TYPE_SERIAL
+           depends on AT_SERVER
            bool "Relay is controlled using serial command"
         endchoice
 

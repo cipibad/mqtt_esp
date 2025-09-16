@@ -17,7 +17,7 @@ struct RelayMessage {
 };
 
 void publish_all_relays_status();
-
+void publish_all_relays_availability();
 void publish_all_relays_timeout();
 
 

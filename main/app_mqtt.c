@@ -833,6 +833,7 @@ void handle_mqtt_sub_pub(void* pvParameters)
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_status();
+        publish_all_relays_availability();
         publish_all_relays_timeout();
 #endif//CONFIG_MQTT_RELAYS_NB
 #if CONFIG_MQTT_THERMOSTATS_NB > 0

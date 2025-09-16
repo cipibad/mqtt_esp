@@ -87,7 +87,9 @@ extern httpd_handle_t server;
 #include "app_actuator.h"
 #endif // CONFIG_ACTUATOR_SUPPORT
 
+#ifdef CONFIG_AT_SERVER
 #include "app_at.h"
+#endif // CONFIG_AT_SERVER
 
 #include "app_smart_config.h"
 QueueHandle_t smartconfigQueue;
@@ -261,7 +263,9 @@ void app_main(void)
     xTaskCreate(sensors_read, "sensors_read", SENSORS_READ_TASK_STACK_SIZE, NULL, 10, NULL);
 #endif //CONFIG_SENSOR_SUPPORT
 
-xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 2, NULL, 5, NULL);
+#ifdef CONFIG_AT_SERVER
+xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+#endif // CONFIG_AT_SERVER
 
 #if CONFIG_MQTT_RELAYS_NB
     xTaskCreate(handle_relay_task, "handle_relay_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
