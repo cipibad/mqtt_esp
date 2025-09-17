@@ -25,6 +25,7 @@ void relays_init(void);
 
 void handle_relay_task(void* pvParameters);
 void update_relay_status(int id, char value);
+bool is_relay_serial_type(int id);
 
 #define RELAY_TIMEOUT 30
 #define RELAY_QUEUE_TIMEOUT (RELAY_TIMEOUT * 1000 / portTICK_PERIOD_MS)

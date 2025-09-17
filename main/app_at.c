@@ -4,6 +4,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/timers.h"
 
 #include "driver/uart.h"
 
@@ -21,27 +22,27 @@ static const char* wifi_connected = "WIFI CONNECTED\r\n";
 static const char* wifi_got_ip = "WIFI GOT IP\r\n";
 static const char* connect = "0,CONNECT\r\n";
 
-bool serial_relays_enabled = true;
+at_status_t at_status = AT_STATUS_INIT;
 
 void disable_serial_relays()
 {
-    if (serial_relays_enabled) {
-        serial_relays_enabled = false;
+    if (at_status != AT_STATUS_OFFLINE) {
+        at_status = AT_STATUS_OFFLINE;
         publish_all_relays_availability();
     }
 }
 
 void enable_serial_relays()
 {
-    if (!serial_relays_enabled) {
-        serial_relays_enabled = true;
+    if (at_status != AT_STATUS_ONLINE) {
+        at_status = AT_STATUS_ONLINE;
         publish_all_relays_availability();
     }
 }
 
 bool is_serial_interface_online()
 {
-    return serial_relays_enabled;
+    return at_status == AT_STATUS_ONLINE;
 }
 
 void handle_at_cmd(char* at_cmd) {
@@ -88,6 +89,17 @@ void handle_at_cmd(char* at_cmd) {
         enable_serial_relays();
     }
 }
+
+void AtInitTimerCallback( TimerHandle_t xTimer )
+{
+    const char *pcTimerName = pcTimerGetTimerName( xTimer );
+    ESP_LOGI(TAG, "timer %s expired", pcTimerName);
+    if (at_status == AT_STATUS_INIT) {
+        // in case no message was received we assume we are enabled
+        enable_serial_relays();
+    }
+}
+
 void app_at_task(void* pvParameters)
 {
     uart_config_t uart_config = {
@@ -100,6 +112,22 @@ void app_at_task(void* pvParameters)
     uart_param_config(UART_NUM_0, &uart_config);
     uart_driver_install(UART_NUM_0, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
     ESP_LOGI(TAG, "UART AT server ready");
+
+    // in case no at command received in 10 seconds after init, we assume we are online
+    TimerHandle_t atInitTimer = xTimerCreate( "atInitTimer",           /* Text name. */
+                    pdMS_TO_TICKS(10*1000),  /* Period. */
+                    pdFALSE,                /* Autoreload. */
+                    (void *)1,                  /* ID. */
+                    AtInitTimerCallback );  /* Callback function. */
+    if (atInitTimer == NULL) {
+        ESP_LOGE(TAG, "Cannot create atInitTimer timer");
+        return;
+    }
+    if (xTimerStart(atInitTimer, 0) != pdPASS) {
+        ESP_LOGE(TAG, "Cannot start atInitTimer");
+        return;
+    }
+
 
     uart_write_bytes(UART_NUM_0, ready, strlen(ready));
     vTaskDelay(100 / portTICK_PERIOD_MS);

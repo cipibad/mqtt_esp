@@ -108,10 +108,10 @@ inline int get_relay_gpio(const char * tag, int id)
   }
 }
 
-#ifdef CONFIG_AT_SERVER
-inline bool is_relay_serial_type(int id)
+bool is_relay_serial_type(int id)
 {
   switch(id) {
+#ifdef CONFIG_AT_SERVER
   #ifdef CONFIG_MQTT_RELAY_0_TYPE_SERIAL
     case 0:
       return true;
@@ -128,10 +128,13 @@ inline bool is_relay_serial_type(int id)
     case 3:
       return true;
   #endif // CONFIG_MQTT_RELAY_3_TYPE_SERIAL
+#endif // CONFIG_AT_SERVER
     default:
       return false;
   }
 }
+
+#ifdef CONFIG_AT_SERVER
 
 inline int get_relay_serial_on_cmd(const char * tag, int id)
 {

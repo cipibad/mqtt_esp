@@ -19,7 +19,6 @@ struct ValveMessage {
   valve_status_t data;
 };
 
-void init_valve();
 void publish_valve_status();
 
 void app_valve_task(void* pvParameters);

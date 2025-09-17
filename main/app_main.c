@@ -300,7 +300,6 @@ xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, N
 #endif // CONFIG_WATERPUMP_SUPPORT
 
 #ifdef CONFIG_VALVE_SUPPORT
-  init_valve();
   xTaskCreate(app_valve_task, "app_valve_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_VALVE_SUPPORT
 

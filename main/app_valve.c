@@ -9,6 +9,9 @@
 #include "app_valve.h"
 #include "app_publish_data.h"
 #include "app_relay.h"
+#ifdef CONFIG_AT_SERVER
+#include "app_at.h"
+#endif // CONFIG_AT_SERVER
 
 #include <string.h>
 
@@ -163,6 +166,14 @@ void init_valve()
 void app_valve_task(void* pvParameters)
 {
   ESP_LOGI(TAG, "app_valve_task started");
+
+  if (is_relay_serial_type(CONFIG_VALVE_OPEN_RELAY_ID) || is_relay_serial_type(CONFIG_VALVE_CLOSE_RELAY_ID)) {
+    while (!is_serial_interface_online()) {
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+  }
+
+  init_valve();
 
   struct ValveMessage r;
   while(1) {

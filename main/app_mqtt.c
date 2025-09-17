@@ -404,9 +404,9 @@ void handle_valve_mqtt_status_cmd(const char *payload)
   memset(&vm, 0, sizeof(struct ValveMessage));
   vm.msgType = VALVE_CMD_STATUS;
 
-  if (strcmp(payload, "OPEN") == 0)
+  if (strcmp(payload, "open") == 0)
     vm.data = VALVE_STATUS_OPEN;
-  else if (strcmp(payload, "CLOSED") == 0)
+  else if (strcmp(payload, "closed") == 0)
     vm.data = VALVE_STATUS_CLOSED;
 
   if (xQueueSend( valveQueue
