@@ -375,6 +375,13 @@ menu "COAP server config"
     endmenu # "COAP proxy paths"
 endmenu # "COAP server config"
 
+config AT_SERVER
+    depends on !DEEP_SLEEP_MODE
+    boolean "enable serial AT server"
+    default n
+    help
+        enable dummy serial AT server for LC-Relay-ESP01-4R-12V/LC-Relay-ESP01-2R-5V
+
 config MQTT_RELAYS_NB
     int "number of relays to control"
     depends on !DEEP_SLEEP_MODE
@@ -383,33 +390,162 @@ config MQTT_RELAYS_NB
     help
         number of relays to control
 
-config MQTT_RELAYS_NB0_GPIO
-    int "relay 0 gpio port"
+menu "Relay Config"
     depends on MQTT_RELAYS_NB > 0
-    default 4
-    help
-        relay 0 gpio port
 
-config MQTT_RELAYS_NB1_GPIO
-    int "relay 1 gpio port"
-    depends on MQTT_RELAYS_NB > 1
-    default 14
-    help
-        relay 1 gpio port
+    menu "Relay 0 Config"
+        depends on MQTT_RELAYS_NB > 0
 
-config MQTT_RELAYS_NB2_GPIO
-    int "relay 2 gpio port"
-    depends on MQTT_RELAYS_NB > 2
-    default 12
-    help
-        relay 2 gpio port
+        choice MQTT_RELAY_0_TYPE
+           bool "Relay 0 type"
+           default MQTT_RELAY_0_TYPE_GPIO
+           help
+               Relay 0 type
+        config MQTT_RELAY_0_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_0_TYPE_SERIAL
+           depends on AT_SERVER
+           bool "Relay is controlled using serial command"
+        endchoice
 
-config MQTT_RELAYS_NB3_GPIO
-    int "relay 3 gpio port"
-    depends on MQTT_RELAYS_NB > 3
-    default 13
-    help
-        relay 3 gpio port
+        config MQTT_RELAY_0_GPIO
+            int "relay 0 gpio port"
+            depends on MQTT_RELAY_0_TYPE_GPIO
+            default 4
+            help
+                relay 0 gpio port
+
+        config MQTT_RELAY_0_SERIAL_ON
+           hex "relay 0 enable serial command"
+           depends on MQTT_RELAY_0_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 0 enable serial command
+
+        config MQTT_RELAY_0_SERIAL_OFF
+           hex "relay 0 disable serial command"
+           depends on MQTT_RELAY_0_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 0 disable serial command
+
+    endmenu # "Relay 0 Config"
+
+    menu "Relay 1 Config"
+        depends on MQTT_RELAYS_NB > 1
+
+        choice MQTT_RELAY_1_TYPE
+           bool "Relay 1 type"
+           default MQTT_RELAY_1_TYPE_GPIO
+           help
+               Relay 1 type
+        config MQTT_RELAY_1_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_1_TYPE_SERIAL
+           depends on AT_SERVER
+           bool "Relay is controlled using serial command"
+        endchoice
+
+        config MQTT_RELAY_1_GPIO
+            int "relay 1 gpio port"
+            depends on MQTT_RELAY_1_TYPE_GPIO
+            default 4
+            help
+                relay 1 gpio port
+
+        config MQTT_RELAY_1_SERIAL_ON
+           hex "relay 1 enable serial command"
+           depends on MQTT_RELAY_1_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 1 enable serial command
+
+        config MQTT_RELAY_1_SERIAL_OFF
+           hex "relay 1 disable serial command"
+           depends on MQTT_RELAY_1_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 1 disable serial command
+
+    endmenu # "Relay 1 Config"
+
+    menu "Relay 2 Config"
+        depends on MQTT_RELAYS_NB > 2
+
+        choice MQTT_RELAY_2_TYPE
+           bool "Relay 2 type"
+           default MQTT_RELAY_2_TYPE_GPIO
+           help
+               Relay 2 type
+        config MQTT_RELAY_2_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_2_TYPE_SERIAL
+           depends on AT_SERVER
+           bool "Relay is controlled using serial command"
+        endchoice
+
+        config MQTT_RELAY_2_GPIO
+            int "relay 2 gpio port"
+            depends on MQTT_RELAY_2_TYPE_GPIO
+            default 4
+            help
+                relay 2 gpio port
+
+        config MQTT_RELAY_2_SERIAL_ON
+           hex "relay 2 enable serial command"
+           depends on MQTT_RELAY_2_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 2 enable serial command
+
+        config MQTT_RELAY_2_SERIAL_OFF
+           hex "relay 2 disable serial command"
+           depends on MQTT_RELAY_2_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 2 disable serial command
+
+    endmenu # "Relay 2 Config"
+
+    menu "Relay 3 Config"
+        depends on MQTT_RELAYS_NB > 3
+
+        choice MQTT_RELAY_3_TYPE
+           bool "Relay 3 type"
+           default MQTT_RELAY_3_TYPE_GPIO
+           help
+               Relay 3 type
+        config MQTT_RELAY_3_TYPE_GPIO
+           bool "Relay is controlled using GPIO"
+        config MQTT_RELAY_3_TYPE_SERIAL
+           depends on AT_SERVER
+           bool "Relay is controlled using serial command"
+        endchoice
+
+        config MQTT_RELAY_3_GPIO
+            int "relay 3 gpio port"
+            depends on MQTT_RELAY_3_TYPE_GPIO
+            default 4
+            help
+                relay 3 gpio port
+
+        config MQTT_RELAY_3_SERIAL_ON
+           hex "relay 3 enable serial command"
+           depends on MQTT_RELAY_3_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 3 enable serial command
+
+        config MQTT_RELAY_3_SERIAL_OFF
+           hex "relay 3 disable serial command"
+           depends on MQTT_RELAY_3_TYPE_SERIAL
+           default "0x0"
+           help
+               relay 3 disable serial command
+
+    endmenu # "Relay 3 Config"
+
+endmenu # "Relay Config"
 
 config STATUS_LED
     boolean "enable status LED"
@@ -960,6 +1096,31 @@ menu "Actuator configuration"
             GPIO to control actuator close relay, see schematics
 
 endmenu # "Actuator configuration"
+
+#######################
+config VALVE_SUPPORT
+    boolean "enable external valve support"
+    depends on !DEEP_SLEEP_MODE
+    default n
+    help
+        Enable external valve support
+
+menu "Valve configuration"
+    depends on VALVE_SUPPORT
+
+    config VALVE_OPEN_RELAY_ID
+        int "relay id to open the valve"
+        default 0
+        help
+            GPIO to open the valve
+
+    config VALVE_CLOSE_RELAY_ID
+        int "relay id to close the valve"
+        default 1
+        help
+            GPIO to close the valve
+
+endmenu # "Waterpump"
 
 #######################
 
