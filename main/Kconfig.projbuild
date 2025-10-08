@@ -970,6 +970,16 @@ config MQTT_SCHEDULERS
     help
         Enable schedulers support
 
+menu "Schedulers configuration"
+    depends on MQTT_SCHEDULERS
+    config MQTT_SCHEDULERS_NB
+        int "Nb of schedulers to config"
+        default 2
+        help
+            Nb of schedulers to config
+
+endmenu # "Schedulers configuration"
+
 config MOTION_SENSOR_SUPPORT
     boolean "enable motion sensor support"
     default n

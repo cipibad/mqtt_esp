@@ -4,8 +4,6 @@
 void start_scheduler_timer(void);
 void handle_scheduler(void* pvParameters);
 
-#define MAX_SCHEDULER_NB 2
-
 //FIXME basic structure only
 
 enum SchedulerCfgMessageType {
@@ -57,6 +55,13 @@ struct SchedulerCfgMessage {
   enum SchedulerCfgMessageType msgType;
   unsigned char schedulerId;
   union SchedulerCfgData data;
+};
+
+struct SchedulerData {
+  enum SchedulerAction schedulerAction;
+  short schedulerDow;
+  struct SchedulerTime schedulerTime;
+  enum SchedulerStatus schedulerStatus;
 };
 
 #define SCHEDULE_TIMEOUT 30
