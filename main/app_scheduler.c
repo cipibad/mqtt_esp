@@ -28,98 +28,98 @@ static const char *TAG = "SCHEDULER";
 extern QueueHandle_t schedulerCfgQueue;
 extern QueueHandle_t relayQueue;
 
-const char * schedulerActionTAG[MAX_SCHEDULER_NB] = {
-  "schAction0",
-  "schAction1",
-};
-
-const char * schedulerDowTAG[MAX_SCHEDULER_NB] = {
-  "schDow0",
-  "schDow1",
-};
-
-const char * schedulerTimeTAG[MAX_SCHEDULER_NB] = {
-  "schTime0",
-  "schTime1",
-};
-
-const char * schedulerStatusTAG[MAX_SCHEDULER_NB] = {
-  "schStatus0",
-  "schStatus1",
-};
-
-enum SchedulerAction schedulerAction[MAX_SCHEDULER_NB] = {
-  SCHEDULER_ACTION_UNSET,
-  SCHEDULER_ACTION_UNSET,
-};
-
-short schedulerDow[MAX_SCHEDULER_NB] = {
-  0,
-  0,
-};
-
-struct SchedulerTime schedulerTime[MAX_SCHEDULER_NB] = {
-  {0, 0},
-  {0, 0},
-};
-
-enum SchedulerStatus schedulerStatus[MAX_SCHEDULER_NB] = {
-  SCHEDULER_STATUS_UNSET,
-  SCHEDULER_STATUS_UNSET,
-};
-
 time_t lastNow = 0;
 
+const char* schedulerActionTAG[CONFIG_MQTT_SCHEDULERS_NB];
 
-void read_nvs_scheduler_data()
+const char* schedulerDowTAG[CONFIG_MQTT_SCHEDULERS_NB];
+
+const char* schedulerTimeTAG[CONFIG_MQTT_SCHEDULERS_NB];
+
+const char* schedulerStatusTAG[CONFIG_MQTT_SCHEDULERS_NB];
+
+struct SchedulerData scheduler_data[CONFIG_MQTT_SCHEDULERS_NB];
+
+void init_tag(const char* tag_array[], const char* tag_prefix)
+{
+  char buffer[32];
+  for (int i = 0; i < CONFIG_MQTT_SCHEDULERS_NB;  i++) {
+    snprintf(buffer, sizeof(buffer), "%s%d", tag_prefix, i);
+    const char* tag = strdup(buffer);
+    if (tag) {
+      tag_array[i] = tag;
+    } else {
+        ESP_LOGE(TAG, "cannot init memory for tag_array");
+    }
+  }
+}
+
+void init_scheduler_tags()
+{
+  init_tag(schedulerActionTAG, "schAction");
+  init_tag(schedulerDowTAG, "schDow");
+  init_tag(schedulerTimeTAG, "schTime");
+  init_tag(schedulerStatusTAG, "schStatus");
+}
+
+void read_nvs_scheduler_time(const char* tag, struct SchedulerTime* schedulerTime)
+{
+  char data[16];
+  memset(data,0,16);
+  size_t length = sizeof(data);
+
+  esp_err_t err=read_nvs_str(tag, data, &length);
+  ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+
+  if(strlen(data) == 0) {
+    ESP_LOGW(TAG, "empty string read from nvs for time: %s", data);
+    return;
+  }
+
+  char *token = strtok(data, ":");
+  if (!token) {
+    ESP_LOGW(TAG, "unhandled scheduler time token 1: %s", data);
+    return;
+  }
+  schedulerTime->hour = atoi(token);
+
+  token = strtok(NULL, ":");
+  if (!token) {
+    ESP_LOGW(TAG, "unhandled scheduler time token 2: %s", data);
+    return;
+  }
+  schedulerTime->minute = atoi(token);
+}
+
+void init_scheduler_data()
 {
   esp_err_t err;
 
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
-    err=read_nvs_short(schedulerActionTAG[id], (short*) &schedulerAction[id]);
-    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
-  }
-
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
-    err=read_nvs_short(schedulerDowTAG[id], (short*) &schedulerDow[id]);
-    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
-  }
-
-  char data[16];
-  size_t length;
-
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
-    memset(data,0,16);
-    length = sizeof(data);
-
-    err=read_nvs_str(schedulerTimeTAG[id], data, &length);
+  for (int i = 0; i < CONFIG_MQTT_SCHEDULERS_NB;  i++) {
+    scheduler_data[i].schedulerAction = SCHEDULER_ACTION_UNSET;
+    err=read_nvs_short(schedulerActionTAG[i], (short*) &scheduler_data[i].schedulerAction);
     ESP_ERROR_CHECK_WITHOUT_ABORT( err );
 
-    if(strlen(data) == 0) {
-      continue;
-    }
-
-    char *token = strtok(data, ":");
-    if (!token) {
-      ESP_LOGW(TAG, "unhandled scheduler time token 1: %s", data);
-      continue;
-    }
-    schedulerTime[id].hour = atoi(token);
-
-    token = strtok(NULL, ":");
-    if (!token) {
-      ESP_LOGW(TAG, "unhandled scheduler time token 2: %s", data);
-      continue;
-    }
-    schedulerTime[id].minute = atoi(token);
-  }
-
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
-    err=read_nvs_short(schedulerStatusTAG[id], (short*) &schedulerStatus[id]);
+    scheduler_data[i].schedulerDow = 0;
+    err=read_nvs_short(schedulerDowTAG[i], (short*) &scheduler_data[i].schedulerDow);
     ESP_ERROR_CHECK_WITHOUT_ABORT( err );
-  }
 
+    scheduler_data[i].schedulerStatus = SCHEDULER_STATUS_UNSET;
+    err=read_nvs_short(schedulerStatusTAG[i], (short*) &scheduler_data[i].schedulerStatus);
+    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+
+    scheduler_data[i].schedulerTime.hour = 0;
+    scheduler_data[i].schedulerTime.minute = 0;
+    read_nvs_scheduler_time(schedulerTimeTAG[i], &scheduler_data[i].schedulerTime);
+  }
 }
+
+void init_scheduler()
+{
+  init_scheduler_tags();
+  init_scheduler_data();
+}
+
 void publish_scheduler_action_evt(int id)
 {
   const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/action/scheduler";
@@ -127,13 +127,13 @@ void publish_scheduler_action_evt(int id)
   char data[16];
   memset(data,0,16);
   sprintf(data, "%s",
-          schedulerAction[id] == SCHEDULER_ACTION_UNSET ? "unset" :
-          schedulerAction[id] == SCHEDULER_ACTION_RELAY_ON ? "relay_on" :
-          schedulerAction[id] == SCHEDULER_ACTION_RELAY_OFF ? "relay_off" :
-          schedulerAction[id] == SCHEDULER_ACTION_WATER_TEMP_LOW ? "water_temp_low" :
-          schedulerAction[id] == SCHEDULER_ACTION_WATER_TEMP_HIGH ? "water_temp_high" :
-          schedulerAction[id] == SCHEDULER_ACTION_OW_ON ? "ow_on" :
-          schedulerAction[id] == SCHEDULER_ACTION_OW_OFF ? "ow_off" : "unset");
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_UNSET ? "unset" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_RELAY_ON ? "relay_on" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_RELAY_OFF ? "relay_off" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_WATER_TEMP_LOW ? "water_temp_low" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_WATER_TEMP_HIGH ? "water_temp_high" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_OW_ON ? "ow_on" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_OW_OFF ? "ow_off" : "unset");
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -148,7 +148,7 @@ void publish_scheduler_dow_evt(int id)
 
   char data[8];
   memset(data,0,8);
-  sprintf(data, "%d", schedulerDow[id]);
+  sprintf(data, "%d", scheduler_data[id].schedulerDow);
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -163,7 +163,7 @@ void publish_scheduler_time_evt(int id)
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%d:%d", schedulerTime[id].hour, schedulerTime[id].minute);
+  sprintf(data, "%d:%d", scheduler_data[id].schedulerTime.hour, scheduler_data[id].schedulerTime.minute);
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -179,9 +179,9 @@ void publish_scheduler_status_evt(int id)
   char data[8];
   memset(data,0,8);
   sprintf(data, "%s",
-          schedulerStatus[id] == SCHEDULER_STATUS_UNSET ? "OFF" :
-          schedulerStatus[id] == SCHEDULER_STATUS_ON ? "ON" :
-          schedulerStatus[id] == SCHEDULER_STATUS_OFF ? "OFF" : "OFF");
+          scheduler_data[id].schedulerStatus == SCHEDULER_STATUS_UNSET ? "OFF" :
+          scheduler_data[id].schedulerStatus == SCHEDULER_STATUS_ON ? "ON" :
+          scheduler_data[id].schedulerStatus == SCHEDULER_STATUS_OFF ? "OFF" : "OFF");
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -192,7 +192,7 @@ void publish_scheduler_status_evt(int id)
 
 void publish_all_schedulers_action_evt()
 {
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
+  for(int id = 0; id < CONFIG_MQTT_SCHEDULERS_NB; id++) {
     publish_scheduler_action_evt(id);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
@@ -200,7 +200,7 @@ void publish_all_schedulers_action_evt()
 
 void publish_all_schedulers_dow_evt()
 {
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
+  for(int id = 0; id < CONFIG_MQTT_SCHEDULERS_NB; id++) {
     publish_scheduler_dow_evt(id);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
@@ -208,7 +208,7 @@ void publish_all_schedulers_dow_evt()
 
 void publish_all_schedulers_time_evt()
 {
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
+  for(int id = 0; id < CONFIG_MQTT_SCHEDULERS_NB; id++) {
     publish_scheduler_time_evt(id);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
@@ -216,7 +216,7 @@ void publish_all_schedulers_time_evt()
 
 void publish_all_schedulers_status_evt()
 {
-  for(int id = 0; id < MAX_SCHEDULER_NB; id++) {
+  for(int id = 0; id < CONFIG_MQTT_SCHEDULERS_NB; id++) {
     publish_scheduler_status_evt(id);
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
@@ -319,7 +319,29 @@ void executeAction(enum SchedulerAction sa)
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send to thermostatQueue");
     }
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // start t0
+    struct ThermostatMessage tmm = {THERMOSTAT_CMD_MODE, 0, {{0,0}}};
+    tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tmm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+    }
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // start t1
+    tmm.thermostatId = 1;
+    tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tmm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+    }
+
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_HIGH) {
+    // increase target temperature for t2
     struct ThermostatMessage tma = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
     tma.data.targetTemperature = 330;
     if (xQueueSend( thermostatQueue
@@ -327,9 +349,33 @@ void executeAction(enum SchedulerAction sa)
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
       ESP_LOGE(TAG, "Cannot send tma to thermostatQueue");
     }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
+    // start t2
     struct ThermostatMessage tmm = {THERMOSTAT_CMD_MODE, 2, {{0,0}}};
     tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tmm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+    }
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+
+    // stop t0
+    tmm.thermostatId = 0;
+    tmm.data.thermostatMode = THERMOSTAT_MODE_OFF;
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tmm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+    }
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // stop t1
+    tmm.thermostatId = 1;
+    tmm.data.thermostatMode = THERMOSTAT_MODE_OFF;
     if (xQueueSend( thermostatQueue
                     ,( void * )&tmm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
@@ -345,7 +391,7 @@ void handle_scheduler(void* pvParameters)
 {
   ESP_LOGI(TAG, "handle_scheduler task started");
 
-  read_nvs_scheduler_data();
+  init_scheduler();
   start_scheduler_timer();
 
   struct SchedulerCfgMessage tempSchedulerCfg;
@@ -363,12 +409,12 @@ void handle_scheduler(void* pvParameters)
 
         for(int sid=0; sid <=1; sid++) {
           ESP_LOGI(TAG, "Checking scheduler with id: %d", sid);
-          if (schedulerStatus[sid] == SCHEDULER_STATUS_ON) {
+          if (scheduler_data[sid].schedulerStatus == SCHEDULER_STATUS_ON) {
             short dow = 1 << timeinfo.tm_wday;
-            ESP_LOGI(TAG, "Scheduler dow: %d", schedulerDow[sid]);
-            if (schedulerDow[sid] & dow || schedulerDow[sid] == 0) {
-              timeinfo.tm_hour = schedulerTime[sid].hour;
-              timeinfo.tm_min = schedulerTime[sid].minute;
+            ESP_LOGI(TAG, "Scheduler dow: %d", scheduler_data[sid].schedulerDow);
+            if (scheduler_data[sid].schedulerDow & dow || scheduler_data[sid].schedulerDow == 0) {
+              timeinfo.tm_hour = scheduler_data[sid].schedulerTime.hour;
+              timeinfo.tm_min = scheduler_data[sid].schedulerTime.minute;
               timeinfo.tm_sec = 0;
               time_t schedulerTimeNow = mktime(&timeinfo);
 
@@ -379,9 +425,9 @@ void handle_scheduler(void* pvParameters)
               strftime(strfti_buf, sizeof(strfti_buf), "%c", &timeinfo);
               ESP_LOGI(TAG, "Scheduler time is: %s", strfti_buf);
               if (lastNow < schedulerTimeNow && schedulerTimeNow <= tempSchedulerCfg.data.now) {
-                executeAction(schedulerAction[sid]);
-                if(schedulerDow[sid] == 0) {
-                  schedulerStatus[sid] = SCHEDULER_STATUS_OFF;
+                executeAction(scheduler_data[sid].schedulerAction);
+                if(scheduler_data[sid].schedulerDow == 0) {
+                  scheduler_data[sid].schedulerStatus = SCHEDULER_STATUS_OFF;
                   publish_scheduler_status_evt(sid);
                 }
               }
@@ -396,11 +442,11 @@ void handle_scheduler(void* pvParameters)
             schedulerId);
           continue;
         }
-        if (schedulerAction[schedulerId] != tempSchedulerCfg.data.action)
+        if (scheduler_data[schedulerId].schedulerAction != tempSchedulerCfg.data.action)
         {
-          schedulerAction[schedulerId] = tempSchedulerCfg.data.action;
+          scheduler_data[schedulerId].schedulerAction = tempSchedulerCfg.data.action;
           esp_err_t err = write_nvs_short(schedulerActionTAG[schedulerId],
-                                          schedulerAction[schedulerId]);
+                                          scheduler_data[schedulerId].schedulerAction);
           ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_action_evt(schedulerId);
@@ -411,12 +457,12 @@ void handle_scheduler(void* pvParameters)
             schedulerId);
           continue;
         }
-        if (schedulerDow[schedulerId]  != tempSchedulerCfg.data.dow)
+        if (scheduler_data[schedulerId].schedulerDow  != tempSchedulerCfg.data.dow)
         {
-          schedulerDow[schedulerId] = tempSchedulerCfg.data.dow;
+          scheduler_data[schedulerId].schedulerDow = tempSchedulerCfg.data.dow;
 
           esp_err_t err = write_nvs_short(schedulerDowTAG[schedulerId],
-                                          schedulerDow[schedulerId]);
+                                          scheduler_data[schedulerId].schedulerDow);
           ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_dow_evt(schedulerId);
@@ -427,14 +473,14 @@ void handle_scheduler(void* pvParameters)
             schedulerId);
           continue;
         }
-        if (schedulerTime[schedulerId].hour   != tempSchedulerCfg.data.time.hour ||
-            schedulerTime[schedulerId].minute != tempSchedulerCfg.data.time.minute)
+        if (scheduler_data[schedulerId].schedulerTime.hour   != tempSchedulerCfg.data.time.hour ||
+            scheduler_data[schedulerId].schedulerTime.minute != tempSchedulerCfg.data.time.minute)
         {
-          schedulerTime[schedulerId] = tempSchedulerCfg.data.time;
+          scheduler_data[schedulerId].schedulerTime = tempSchedulerCfg.data.time;
 
           char data[16];
           memset(data,0,16);
-          sprintf(data, "%d:%d", schedulerTime[schedulerId].hour, schedulerTime[schedulerId].minute);
+          sprintf(data, "%d:%d", scheduler_data[schedulerId].schedulerTime.hour, scheduler_data[schedulerId].schedulerTime.minute);
           esp_err_t err = write_nvs_str(schedulerTimeTAG[schedulerId],
                                           data);
           ESP_ERROR_CHECK_WITHOUT_ABORT( err );
@@ -447,11 +493,11 @@ void handle_scheduler(void* pvParameters)
             schedulerId);
           continue;
         }
-        if (schedulerStatus[schedulerId] != tempSchedulerCfg.data.status)
+        if (scheduler_data[schedulerId].schedulerStatus != tempSchedulerCfg.data.status)
         {
-          schedulerStatus[schedulerId] = tempSchedulerCfg.data.status;
+          scheduler_data[schedulerId].schedulerStatus = tempSchedulerCfg.data.status;
           esp_err_t err = write_nvs_short(schedulerStatusTAG[schedulerId],
-                                          schedulerStatus[schedulerId]);
+                                          scheduler_data[schedulerId].schedulerStatus);
           ESP_ERROR_CHECK_WITHOUT_ABORT( err );
         }
         publish_scheduler_status_evt(schedulerId);
