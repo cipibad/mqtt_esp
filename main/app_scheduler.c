@@ -124,16 +124,18 @@ void publish_scheduler_action_evt(int id)
 {
   const char * thermostat_topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/action/scheduler";
 
-  char data[16];
-  memset(data,0,16);
+  char data[32];
+  memset(data,0,32);
   sprintf(data, "%s",
           scheduler_data[id].schedulerAction == SCHEDULER_ACTION_UNSET ? "unset" :
           scheduler_data[id].schedulerAction == SCHEDULER_ACTION_RELAY_ON ? "relay_on" :
           scheduler_data[id].schedulerAction == SCHEDULER_ACTION_RELAY_OFF ? "relay_off" :
           scheduler_data[id].schedulerAction == SCHEDULER_ACTION_WATER_TEMP_LOW ? "water_temp_low" :
           scheduler_data[id].schedulerAction == SCHEDULER_ACTION_WATER_TEMP_HIGH ? "water_temp_high" :
-          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_OW_ON ? "ow_on" :
-          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_OW_OFF ? "ow_off" : "unset");
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_INC ? "room_temp_slight_inc" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_ROOM_TEMP_MODERATE_INC ? "room_temp_moderate_inc" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_DEC ? "room_temp_slight_dec" :
+          scheduler_data[id].schedulerAction == SCHEDULER_ACTION_ROOM_TEMP_MODERATE_DEC ? "room_temp_moderate_dec" : "unset");
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
@@ -312,74 +314,64 @@ void executeAction(enum SchedulerAction sa)
     }
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_LOW) {
-    struct ThermostatMessage tm = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
-    tm.data.targetTemperature = 290;
+    struct ThermostatMessage tm;
+    memset(&tm, 0, sizeof(struct ThermostatMessage));
+    tm.msgType = THERMOSTAT_CMD_WATER_TEMP_LOW;
+
     if (xQueueSend( thermostatQueue
                     ,( void * )&tm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+      ESP_LOGE(TAG, "Cannot send tm to thermostatQueue");
     }
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // start t0
-    struct ThermostatMessage tmm = {THERMOSTAT_CMD_MODE, 0, {{0,0}}};
-    tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
-    if (xQueueSend( thermostatQueue
-                    ,( void * )&tmm
-                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
-    }
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // start t1
-    tmm.thermostatId = 1;
-    tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
-    if (xQueueSend( thermostatQueue
-                    ,( void * )&tmm
-                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
-    }
-
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_HIGH) {
-    // increase target temperature for t2
-    struct ThermostatMessage tma = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
-    tma.data.targetTemperature = 330;
+    struct ThermostatMessage tm;
+    memset(&tm, 0, sizeof(struct ThermostatMessage));
+    tm.msgType = THERMOSTAT_CMD_WATER_TEMP_HIGH;
+
     if (xQueueSend( thermostatQueue
-                    ,( void * )&tma
+                    ,( void * )&tm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send tma to thermostatQueue");
+      ESP_LOGE(TAG, "Cannot send tm to thermostatQueue");
     }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  } else if (sa == SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_INC) {
+    struct ThermostatMessage tm;
+    memset(&tm, 0, sizeof(struct ThermostatMessage));
+    tm.msgType = THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_INC;
 
-    // start t2
-    struct ThermostatMessage tmm = {THERMOSTAT_CMD_MODE, 2, {{0,0}}};
-    tmm.data.thermostatMode = THERMOSTAT_MODE_HEAT;
     if (xQueueSend( thermostatQueue
-                    ,( void * )&tmm
+                    ,( void * )&tm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+      ESP_LOGE(TAG, "Cannot send tm to thermostatQueue");
     }
+  } else if (sa == SCHEDULER_ACTION_ROOM_TEMP_MODERATE_INC) {
+    struct ThermostatMessage tm;
+    memset(&tm, 0, sizeof(struct ThermostatMessage));
+    tm.msgType = THERMOSTAT_CMD_ROOM_TEMP_MODERATE_INC;
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-
-    // stop t0
-    tmm.thermostatId = 0;
-    tmm.data.thermostatMode = THERMOSTAT_MODE_OFF;
     if (xQueueSend( thermostatQueue
-                    ,( void * )&tmm
+                    ,( void * )&tm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+      ESP_LOGE(TAG, "Cannot send tm to thermostatQueue");
     }
+  } else if (sa == SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_DEC) {
+    struct ThermostatMessage tm;
+    memset(&tm, 0, sizeof(struct ThermostatMessage));
+    tm.msgType = THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_DEC;
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // stop t1
-    tmm.thermostatId = 1;
-    tmm.data.thermostatMode = THERMOSTAT_MODE_OFF;
     if (xQueueSend( thermostatQueue
-                    ,( void * )&tmm
+                    ,( void * )&tm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send tmm to thermostatQueue");
+      ESP_LOGE(TAG, "Cannot send tm to thermostatQueue");
+    }
+  } else if (sa == SCHEDULER_ACTION_ROOM_TEMP_MODERATE_DEC) {
+    struct ThermostatMessage tm;
+    memset(&tm, 0, sizeof(struct ThermostatMessage));
+    tm.msgType = THERMOSTAT_CMD_ROOM_TEMP_MODERATE_DEC;
+
+    if (xQueueSend( thermostatQueue
+                    ,( void * )&tm
+                    ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
+      ESP_LOGE(TAG, "Cannot send tm to thermostatQueue");
     }
 
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
