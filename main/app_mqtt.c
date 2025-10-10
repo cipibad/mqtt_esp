@@ -409,10 +409,14 @@ void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *paylo
     sm.data.action = SCHEDULER_ACTION_WATER_TEMP_LOW;
   else if (strcmp(payload, "water_temp_high") == 0)
     sm.data.action = SCHEDULER_ACTION_WATER_TEMP_HIGH;
-  else if (strcmp(payload, "ow_on") == 0)
-    sm.data.action = SCHEDULER_ACTION_OW_ON;
-  else if (strcmp(payload, "ow_off") == 0)
-    sm.data.action = SCHEDULER_ACTION_OW_OFF;
+  else if (strcmp(payload, "room_temp_slight_inc") == 0)
+    sm.data.action = SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_INC;
+  else if (strcmp(payload, "room_temp_moderate_inc") == 0)
+    sm.data.action = SCHEDULER_ACTION_ROOM_TEMP_MODERATE_INC;
+  else if (strcmp(payload, "room_temp_slight_dec") == 0)
+    sm.data.action = SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_DEC;
+  else if (strcmp(payload, "room_temp_moderate_dec") == 0)
+    sm.data.action = SCHEDULER_ACTION_ROOM_TEMP_MODERATE_DEC;
   else {
     ESP_LOGW(TAG, "unhandled scheduler action: %s", payload);
     return;
