@@ -112,12 +112,24 @@ endchoice
 menu "MQTT Config"
     depends on NORTH_INTERFACE_MQTT
 
+    config HOME_NAME
+         string "Home name"
+         default "home"
+         help
+             Home/location name for MQTT topics (e.g., home, office, myhome)
+
+    config ROOM_NAME
+         string "Room name"
+         default "room"
+         help
+             Room/location name for MQTT topics (e.g., bedroom, livingroom)
+
     config MQTT_USERNAME
-        depends on NORTH_INTERFACE_MQTT
-        string "Mqtt Username"
-        default "myusername"
-        help
-            Mqtt Username used to connect with
+         depends on NORTH_INTERFACE_MQTT
+         string "Mqtt Username"
+         default "myusername"
+         help
+             Mqtt Username used to connect with
 
     config MQTT_PASSWORD
         depends on NORTH_INTERFACE_MQTT

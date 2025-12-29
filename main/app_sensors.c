@@ -283,6 +283,95 @@ void publish_bh1750_data()
 }
 #endif // CONFIG_BH1750_SENSOR
 
+#ifdef CONFIG_BME280_SENSOR
+void publish_bme280_ha_data()
+{
+  const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
+  char payload[128];
+
+  sprintf(payload, "{\"source\":\"bme280\",\"temperature\":%d.%02d,\"humidity\":%d.%02d,\"pressure\":%d}",
+          bme280_temperature / 100, abs(bme280_temperature % 100),
+          bme280_humidity / 1000, abs(bme280_humidity % 1000),
+          bme280_pressure / 100);
+
+  publish_non_persistent_data(topic, payload);
+}
+#endif // CONFIG_BME280_SENSOR
+
+#ifdef CONFIG_DHT22_SENSOR_SUPPORT
+void publish_dht22_ha_data()
+{
+  const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
+  char payload[128];
+
+  sprintf(payload, "{\"source\":\"dht22\",\"temperature\":%d.%02d,\"humidity\":%d.%02d}",
+          dht22_mean_temperature / 10, abs(dht22_mean_temperature % 10),
+          dht22_mean_humidity / 10, abs(dht22_mean_humidity % 10));
+
+  publish_non_persistent_data(topic, payload);
+}
+#endif // CONFIG_DHT22_SENSOR_SUPPORT
+
+#ifdef CONFIG_DS18X20_SENSOR
+void publish_ds18x20_ha_data(int sensor_id)
+{
+  const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
+  char payload[128];
+  char addr_str[17];
+
+  sprintf(addr_str, "%016llx", (unsigned long long)addrs[sensor_id]);
+
+  sprintf(payload, "{\"source\":\"ds18x20\",\"address\":\"%s\",\"temperature\":%d.%02d}",
+          addr_str,
+          (int)(temps[sensor_id] * 10), abs((int)(temps[sensor_id] * 10) % 10));
+
+  publish_non_persistent_data(topic, payload);
+}
+#endif // CONFIG_DS18X20_SENSOR
+
+#ifdef CONFIG_BH1750_SENSOR
+void publish_bh1750_ha_data()
+{
+  const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
+  char payload[128];
+
+  if (illuminance == 0) {
+    return;
+  }
+
+  sprintf(payload, "{\"source\":\"bh1750\",\"illuminance\":%d.%02d}",
+          illuminance / 100, abs(illuminance % 100));
+
+  publish_non_persistent_data(topic, payload);
+}
+#endif // CONFIG_BH1750_SENSOR
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+void publish_soil_moisture_adc_ha_data()
+{
+  const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
+  char payload[128];
+
+  sprintf(payload, "{\"source\":\"soil_moisture\",\"moisture\":%d.%01d}",
+          soil_moisture, abs(soil_moisture % 10));
+
+  publish_non_persistent_data(topic, payload);
+}
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+void publish_soil_moisture_th_ha_data()
+{
+  const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
+  char payload[128];
+
+  sprintf(payload, "{\"source\":\"soil_moisture\",\"moisture\":%d}",
+          soil_moisture_threshold);
+
+  publish_non_persistent_data(topic, payload);
+}
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 void publish_sensors_data()
 {
 
@@ -291,30 +380,44 @@ void publish_sensors_data()
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
   publish_dht22_data();
   vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_dht22_ha_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
   publish_ds18x20_data();
   vTaskDelay(50 / portTICK_PERIOD_MS);
+  for(int i=0; i<sensor_count; i++) {
+    publish_ds18x20_ha_data(i);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
 #endif // CONFIG_DS18X20_SENSOR
 
 #ifdef CONFIG_BME280_SENSOR
   publish_bme280_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_bme280_ha_data();
   vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
   publish_soil_moisture_adc();
   vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_soil_moisture_adc_ha_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
   publish_soil_moisture_th();
   vTaskDelay(50 / portTICK_PERIOD_MS);
+  publish_soil_moisture_th_ha_data();
+  vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
 #ifdef CONFIG_BH1750_SENSOR
     publish_bh1750_data();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    publish_bh1750_ha_data();
     vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_BH1750_SENSOR
 
