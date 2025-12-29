@@ -122,20 +122,36 @@ void publish_data_to_thermostat(const char * topic, int value)
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB5_SENSOR_TYPE_MQTT
 
+ }
+
+const char* get_sensor_type_from_topic(const char * topic)
+{
+  const char *last_slash = strrchr(topic, '/');
+  if (!last_slash) return "unknown";
+
+  const char *sensor_type = last_slash + 1;
+
+  if (strcmp(sensor_type, "adc") == 0) return "soil_moisture";
+  if (strcmp(sensor_type, "th") == 0) return "soil_moisture";
+
+  return sensor_type;
 }
 
-void publish_sensor_error(const char * sensor_type, const char * error_message)
+void publish_sensor_log(const char * sensor_type, const char * log_message)
 {
   char log_topic[128];
-  sprintf(log_topic, "%s/%s/evt/log/%s", CONFIG_DEVICE_TYPE, CONFIG_CLIENT_ID, sensor_type);
-  publish_non_persistent_data(log_topic, error_message);
+  char formatted_message[256];
+  sprintf(log_topic, "device/%s/evt/log", CONFIG_CLIENT_ID);
+  sprintf(formatted_message, "[%s] %s", sensor_type, log_message);
+  publish_non_persistent_data(log_topic, formatted_message);
 }
 
 void publish_sensor_data(const char * topic, int value)
 {
   if (value == SHRT_MIN) {
+    const char * sensor_type = get_sensor_type_from_topic(topic);
     ESP_LOGE(TAG, "Invalid sensor value, skipping publish for topic: %s", topic);
-    publish_sensor_error("sensor", "Invalid sensor value detected");
+    publish_sensor_log(sensor_type, "Invalid sensor value detected");
     return;
   }
 
@@ -148,13 +164,6 @@ void publish_sensor_data(const char * topic, int value)
 }
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
-void publish_dht22_log(const char* log_message)
-{
-  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/log/dht22";
-  publish_non_persistent_data(topic, log_message);
-
-}
-
 void publish_dht22_mean_temperature()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/temperature/dht22";
@@ -250,13 +259,14 @@ void publish_soil_moisture_th()
 #ifdef CONFIG_BH1750_SENSOR
 void publish_bh1750_data()
 {
+  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
+
   if (illuminance == 0) {
+    const char * sensor_type = get_sensor_type_from_topic(topic);
     ESP_LOGE(TAG, "Invalid illuminance value (0), skipping publish");
-    publish_sensor_error("bh1750", "Invalid illuminance value detected");
+    publish_sensor_log(sensor_type, "Invalid illuminance value detected");
     return;
   }
-
-  const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
 
   char data[16];
   memset(data,0,16);
@@ -399,7 +409,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       else
         {
           ESP_LOGE(TAG, "Error: Could not read data from DHT sensor");
-          publish_dht22_log( "Error: Could not read data from DHT sensor");
+          publish_sensor_log("dht22", "Error: Could not read data from DHT sensor");
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
