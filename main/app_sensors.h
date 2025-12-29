@@ -28,13 +28,4 @@ void publish_soil_moisture_adc_ha_data();
 void publish_soil_moisture_th_ha_data();
 #endif
 
-void publish_log_message(const char *level, const char *module, const char *message);
-void publish_error_log(const char *module, const char *format, ...);
-void publish_warning_log(const char *module, const char *format, ...);
-void publish_info_log(const char *module, const char *format, ...);
-
-#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
-void publish_debug_log(const char *module, const char *format, ...);
-#endif
-
 #endif /* APP_SENSORS_H */

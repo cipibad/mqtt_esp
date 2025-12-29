@@ -3,8 +3,6 @@
 
 #include <limits.h>
 #include <string.h>
-#include <stdarg.h>
-#include "esp_log.h"
 
 #include "driver/gpio.h"
 #include "rom/gpio.h"
@@ -27,86 +25,6 @@ extern const int MQTT_CONNECTED_BIT;
 #include "esp_sleep.h"
 #include "esp_wifi.h"
 #include "app_logging.h"
-
-// Rate limiting
-static TickType_t last_log_tick = 0;
-
-static bool should_log()
-{
-  if (CONFIG_MQTT_LOG_RATE_LIMIT_MS == 0) {
-    return true;
-  }
-  
-  TickType_t current_tick = xTaskGetTickCount();
-  TickType_t elapsed = current_tick - last_log_tick;
-  TickType_t limit_ticks = CONFIG_MQTT_LOG_RATE_LIMIT_MS / portTICK_PERIOD_MS;
-  
-  if (elapsed >= limit_ticks) {
-    last_log_tick = current_tick;
-    return true;
-  }
-  return false;
-}
-
-void publish_log_message(const char *level, const char *module, const char *message)
-{
-  if (!should_log()) {
-    return;
-  }
-  
-  char log_topic[128];
-  char payload[256];
-  TickType_t tick_count = xTaskGetTickCount();
-  
-  sprintf(log_topic, "device/%s/evt/log/%s", CONFIG_CLIENT_ID, level);
-  sprintf(payload, "%lu [%s] %s, message: %s",
-          (unsigned long)(tick_count * portTICK_PERIOD_MS / 1000),
-          level, module, message);
-  
-  publish_non_persistent_data(log_topic, payload);
-}
-
-void publish_error_log(const char *module, const char *format, ...)
-{
-  char buffer[128];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-  publish_log_message(LOG_LEVEL_ERROR, module, buffer);
-}
-
-void publish_warning_log(const char *module, const char *format, ...)
-{
-  char buffer[128];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-  publish_log_message(LOG_LEVEL_WARNING, module, buffer);
-}
-
-void publish_info_log(const char *module, const char *format, ...)
-{
-  char buffer[128];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-  publish_log_message(LOG_LEVEL_INFO, module, buffer);
-}
-
-#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
-void publish_debug_log(const char *module, const char *format, ...)
-{
-  char buffer[128];
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-  publish_log_message(LOG_LEVEL_DEBUG, module, buffer);
-}
-#endif
 
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
@@ -204,32 +122,12 @@ void publish_data_to_thermostat(const char * topic, int value)
   }
 #endif //CONFIG_MQTT_THERMOSTATS_NB5_SENSOR_TYPE_MQTT
 
- }
-
-const char* get_sensor_type_from_topic(const char * topic)
-{
-  const char *last_slash = strrchr(topic, '/');
-  if (!last_slash) return "unknown";
-
-  const char *sensor_type = last_slash + 1;
-
-  if (strcmp(sensor_type, "adc") == 0) return "soil_moisture";
-  if (strcmp(sensor_type, "th") == 0) return "soil_moisture";
-
-  return sensor_type;
-}
-
-void publish_sensor_log(const char * sensor_type, const char * log_message)
-{
-  publish_info_log(LOG_MODULE_SENSOR, "[%s] %s", sensor_type, log_message);
 }
 
 void publish_sensor_data(const char * topic, int value)
 {
   if (value == SHRT_MIN) {
-    const char * sensor_type = get_sensor_type_from_topic(topic);
-    ESP_LOGE(TAG, "Invalid sensor value, skipping publish for topic: %s", topic);
-    publish_sensor_log(sensor_type, "Invalid sensor value detected");
+    LOGE(TAG, LOG_MODULE_SENSOR, "Invalid sensor value, skipping publish for topic: %s", topic);
     return;
   }
 
@@ -340,9 +238,7 @@ void publish_bh1750_data()
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
 
   if (illuminance == 0) {
-    const char * sensor_type = get_sensor_type_from_topic(topic);
-    ESP_LOGE(TAG, "Invalid illuminance value (0), skipping publish");
-    publish_sensor_log(sensor_type, "Invalid illuminance value detected");
+    LOGE(TAG, LOG_MODULE_BH1750, "Invalid illuminance value (0), skipping publish");
     return;
   }
 
@@ -641,7 +537,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
               + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
           }
 
-          ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
+          LOGI(TAG, LOG_MODULE_DHT22, "Humidity: %d.%d%% Temp: %d.%dC",
                    dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
                    dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
           publish_dht22_data();
@@ -649,7 +545,6 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       else
         {
           LOGE(TAG, LOG_MODULE_DHT22, "Could not read data from DHT sensor");
-          publish_sensor_log("dht22", "Error: Could not read data from DHT sensor");
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
@@ -679,7 +574,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #ifdef CONFIG_BME280_SENSOR
       if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
         {
-          ESP_LOGI(TAG, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
+          LOGI(TAG, LOG_MODULE_BME280, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
             bme280_temperature / 100, bme280_temperature % 100,
             bme280_pressure / 100, bme280_pressure % 100,
             bme280_humidity / 1000, bme280_humidity % 1000);
@@ -732,7 +627,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
   bits = xEventGroupGetBits(mqtt_event_group);
   if (bits & MQTT_CONNECTED_BIT) {
-    ESP_LOGI(TAG, "Going deepsleep");
+    LOGI(TAG, LOG_MODULE_SYSTEM, "Going deepsleep");
     esp_deep_sleep_set_rf_option(2);
     esp_wifi_stop();
     esp_deep_sleep(CONFIG_DEEP_SLEEP_MODE_PERIOD * 1000 * 1000);
