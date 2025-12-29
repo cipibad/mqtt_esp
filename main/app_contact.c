@@ -6,7 +6,7 @@
 #include "app_contact.h"
 #include "app_publish_data.h"
 #include "driver/gpio.h"
-#include "esp_log.h"
+#include "app_logging.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -42,11 +42,11 @@ void publish_contact_data() {
 }
 
 void app_contact_task(void *pvParameters) {
-  ESP_LOGI(TAG, "app_contact_task started");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "app_contact_task started");
   contactEventGroup = xEventGroupCreate();
   /* Was the event group created successfully? */
   if (contactEventGroup == NULL) {
-    ESP_LOGE(TAG,
+    LOGE(TAG, LOG_MODULE_SYSTEM,
              "The event group was not created because there was insufficient \
                         FreeRTOS heap available");
     return;
@@ -80,7 +80,7 @@ void app_contact_task(void *pvParameters) {
   // hook isr handler for specific gpio pin
   gpio_isr_handler_add(CONFIG_CONTACT_SENSOR_GPIO, gpio_isr_handler,
                        (void *)NULL);
-  ESP_LOGI(TAG, "gpio %d configured", CONFIG_CONTACT_SENSOR_GPIO);
+  LOGI(TAG, LOG_MODULE_SYSTEM, "gpio %d configured", CONFIG_CONTACT_SENSOR_GPIO);
 
   contact_open = gpio_get_level(CONFIG_CONTACT_SENSOR_GPIO);
 
@@ -92,7 +92,7 @@ void app_contact_task(void *pvParameters) {
       bool new_contact_open = gpio_get_level(CONFIG_CONTACT_SENSOR_GPIO);
       if (new_contact_open != contact_open) {
         contact_open = new_contact_open;
-        ESP_LOGI(TAG, "contact change detection: %d", contact_open);
+        LOGI(TAG, LOG_MODULE_SYSTEM, "contact change detection: %d", contact_open);
         publish_contact_data();
       }
     }

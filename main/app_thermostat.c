@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "esp_log.h"
+#include "app_logging.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -228,7 +228,7 @@ void thermostat_publish_local_data(int thermostat_id, int value)
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,QUEUE_TIMEOUT) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
   }
 }
 
@@ -363,7 +363,7 @@ void get_normal_thermostat_action(char * data, int id)
       sprintf(data, "heating");
       break;
     default:
-      ESP_LOGE(TAG, "bad heating state");
+      LOGE(TAG, LOG_MODULE_THERMOSTAT, "bad heating state");
     }
   } else {
     sprintf(data, "off");
@@ -380,7 +380,7 @@ void get_circuit_thermostat_action(char * data, int id)
       sprintf(data, "heating");
       break;
     default:
-      ESP_LOGE(TAG, "bad heating state");
+      LOGE(TAG, LOG_MODULE_THERMOSTAT, "bad heating state");
     }
   } else {
     sprintf(data, "off");
@@ -503,7 +503,7 @@ void update_water_pump_state()
 
 void disableThermostat(const char * reason)
 {
-  ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "Turning thermostat off, reason: %s", reason);
   thermostatState=THERMOSTAT_STATE_IDLE;
 
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
@@ -514,12 +514,12 @@ void disableThermostat(const char * reason)
 
   thermostatDuration = 0;
 
-  ESP_LOGI(TAG, "thermostat disabled");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat disabled");
 }
 
 void enableThermostat(const char * reason)
 {
-  ESP_LOGI(TAG, "Turning thermostat on, reason: %s", reason);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "Turning thermostat on, reason: %s", reason);
   thermostatState=THERMOSTAT_STATE_HEATING;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
 
@@ -529,7 +529,7 @@ void enableThermostat(const char * reason)
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   thermostatDuration = 0;
-  ESP_LOGI(TAG, "thermostat enabled");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat enabled");
 }
 
 #if CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
@@ -555,7 +555,7 @@ void enableHeating()
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
-  ESP_LOGI(TAG, "heating enabled");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "heating enabled");
 }
 
 void disableHeating()
@@ -567,37 +567,37 @@ void disableHeating()
 #endif // CONFIG_MQTT_THERMOSTAT_ENABLE_NOTIFICATIONS
 
   heatingDuration = 0;
-  ESP_LOGI(TAG, "heating disabled");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "heating disabled");
 }
 
 void dump_data()
 {
-  ESP_LOGI(TAG, "thermostat state is %d", thermostatState);
-  ESP_LOGI(TAG, "heating state is %d", heatingState);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat state is %d", thermostatState);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "heating state is %d", heatingState);
 #ifdef CONFIG_WATERPUMP_SUPPORT
-  ESP_LOGI(TAG, "waterPump state is %d", getWaterPumpStatus());
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "waterPump state is %d", getWaterPumpStatus());
 #endif // CONFIG_WATERPUMP_SUPPORT
-  ESP_LOGI(TAG, "thermostat_bump is %s", thermostat_bump ? "true" : "false");
-  ESP_LOGI(TAG, "thermostat_was_bumped is %s", thermostat_was_bumped ? "true" : "false");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat_bump is %s", thermostat_bump ? "true" : "false");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat_was_bumped is %s", thermostat_was_bumped ? "true" : "false");
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    ESP_LOGI(TAG, "thermostatMode[%d] is %d", id, thermostatMode[id]);
-    ESP_LOGI(TAG, "currentTemperature[%d] is %d", id, currentTemperature[id]);
-    ESP_LOGI(TAG, "currentTemperatureFlag[%d] is %d", id, currentTemperatureFlag[id]);
-    ESP_LOGI(TAG, "targetTemperature[%d] is %d", id, targetTemperature[id]);
-    ESP_LOGI(TAG, "temperatureTolerance[%d] is %d", id, temperatureTolerance[id]);
+    LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostatMode[%d] is %d", id, thermostatMode[id]);
+    LOGI(TAG, LOG_MODULE_THERMOSTAT, "currentTemperature[%d] is %d", id, currentTemperature[id]);
+    LOGI(TAG, LOG_MODULE_THERMOSTAT, "currentTemperatureFlag[%d] is %d", id, currentTemperatureFlag[id]);
+    LOGI(TAG, LOG_MODULE_THERMOSTAT, "targetTemperature[%d] is %d", id, targetTemperature[id]);
+    LOGI(TAG, LOG_MODULE_THERMOSTAT, "temperatureTolerance[%d] is %d", id, temperatureTolerance[id]);
 
     if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
-      ESP_LOGI(TAG, "thermostatType[%d] is THERMOSTAT_TYPE_NORMAL(%d)", id, thermostatType[id]);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostatType[%d] is THERMOSTAT_TYPE_NORMAL(%d)", id, thermostatType[id]);
     } else if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
-      ESP_LOGI(TAG, "thermostatType[%d] is THERMOSTAT_TYPE_CIRCUIT(%d)", id, thermostatType[id]);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostatType[%d] is THERMOSTAT_TYPE_CIRCUIT(%d)", id, thermostatType[id]);
     }
 
     if (thermostatType[id] == THERMOSTAT_TYPE_CIRCUIT) {
-      ESP_LOGI(TAG, "currentTemperature_1[%d] is %d", id, currentTemperature_1);
-      ESP_LOGI(TAG, "currentTemperature_2[%d] is %d", id, currentTemperature_2);
-      ESP_LOGI(TAG, "currentTemperature_3[%d] is %d", id, currentTemperature_3);
-      ESP_LOGI(TAG, "currentTemperature_4[%d] is %d", id, currentTemperature_4);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "currentTemperature_1[%d] is %d", id, currentTemperature_1);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "currentTemperature_2[%d] is %d", id, currentTemperature_2);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "currentTemperature_3[%d] is %d", id, currentTemperature_3);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "currentTemperature_4[%d] is %d", id, currentTemperature_4);
     }
   }
 }
@@ -656,7 +656,7 @@ bool not_heating()
 
 bool circuitColdEnough()
 {
-  ESP_LOGI(TAG, "checking circuit %d cold enough", circuitThermostatId);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "checking circuit %d cold enough", circuitThermostatId);
   if (circuitThermostatId == -1)
     return true;
   if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT)
@@ -667,7 +667,7 @@ bool circuitColdEnough()
 
 bool circuitTooHot(char * reason)
 {
-  ESP_LOGI(TAG, "checking circuit %d to hot", circuitThermostatId);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "checking circuit %d to hot", circuitThermostatId);
   if (circuitThermostatId == -1)
     return false;
   if ((temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT) {
@@ -689,13 +689,13 @@ bool tooHot(char* reason)
     if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OFFLINE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
-          ESP_LOGI(TAG, "thermostat[%d] is hot enough", id);
+          LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat[%d] is hot enough", id);
           sprintf(tstr, "%s thermostat is hot enough, ", thermostatFriendlyName[id]);
           strcat(reason, tstr);
           reasonUpdated = true;
         } else {
           tooHot = false;
-          ESP_LOGI(TAG, "thermostat[%d] is not too hot", id);
+          LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat[%d] is not too hot", id);
           break;
         }
       }
@@ -717,13 +717,13 @@ bool tooCold(char* reason)
     if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OFFLINE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
-          ESP_LOGI(TAG, "thermostat[%d] is too cold", id);
+          LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat[%d] is too cold", id);
           sprintf(tstr, "%s thermostat is too cold, ", thermostatFriendlyName[id]);
           strcat(reason, tstr);
           tooCold = true;
           break;
         } else {
-          ESP_LOGI(TAG, "thermostat[%d] is good", id);
+          LOGI(TAG, LOG_MODULE_THERMOSTAT, "thermostat[%d] is good", id);
         }
       }
     }
@@ -792,7 +792,7 @@ void update_thermostat()
 
 void vThermostatTimerCallback( TimerHandle_t xTimer )
 {
-  ESP_LOGI(TAG, "Thermostat timer expired");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "Thermostat timer expired");
   struct ThermostatMessage t;
   t.msgType = THERMOSTAT_LIFE_TICK;
   if (xQueueSend( thermostatQueue,
@@ -815,9 +815,9 @@ void handle_thermostat_cmd_task(void* pvParameters)
                   (void *)0,                  /* No ID. */
                   vThermostatTimerCallback );  /* Callback function. */
   if( th != NULL ) {
-    ESP_LOGI(TAG, "timer is created");
+    LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer is created");
     if (xTimerStart(th, portMAX_DELAY) != pdFALSE){
-      ESP_LOGI(TAG, "timer is active");
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer is active");
     }
   }
   struct ThermostatMessage t;
@@ -846,7 +846,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
         }
 
         if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
-          ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
+          LOGI(TAG, LOG_MODULE_THERMOSTAT, "Update temperature for thermostat %d", t.thermostatId);
           if (t.data.currentTemperature != SHRT_MIN) {
             const int prevTempSensorState = temperatureSensorState(t.thermostatId);
             currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;

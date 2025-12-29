@@ -77,7 +77,7 @@ httpd_uri_t get_humidity_dht22 = {.uri = CONFIG_HTTP_BASE_URL "/humidity/dht22",
 esp_err_t actuator_action_post_handler(httpd_req_t *req) {
   char buf[64];
   if (req->content_len > 63) {
-    ESP_LOGI(TAG, "actuator_action_post_handler: payload too big");
+    LOGI(TAG, LOG_MODULE_SYSTEM, "actuator_action_post_handler: payload too big");
     return ESP_FAIL;
   }
 
@@ -89,13 +89,13 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
         /* Retry receiving if timeout occurred */
         continue;
       }
-      ESP_LOGI(TAG, "actuator_action_post_handler: unexpected error");
+      LOGI(TAG, LOG_MODULE_SYSTEM, "actuator_action_post_handler: unexpected error");
       return ESP_FAIL;
     }
     remaining -= ret;
 
     /* Log data received */
-    ESP_LOGI(TAG, "received: %.*s", ret, buf);
+    LOGI(TAG, LOG_MODULE_SYSTEM, "received: %.*s", ret, buf);
   }
   buf[req->content_len] = 0;
 
@@ -105,7 +105,7 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
   if (json == NULL) {
     const char *error_ptr = cJSON_GetErrorPtr();
     if (error_ptr != NULL) {
-      ESP_LOGE(TAG, "Error before: %s\n", error_ptr);
+      LOGE(TAG, LOG_MODULE_SYSTEM, "Error before: %s\n", error_ptr);
     }
     const char *result_ok =
         "{\"result\": \"nok\", \"error\": \"Cannot parse json\"}";
@@ -116,7 +116,7 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
 
   const cJSON *json_cmd = cJSON_GetObjectItemCaseSensitive(json, "command");
   if (cJSON_IsString(json_cmd) && (json_cmd->valuestring != NULL)) {
-    ESP_LOGI(TAG, "JSON cmd: %s", json_cmd->valuestring);
+    LOGI(TAG, LOG_MODULE_SYSTEM, "JSON cmd: %s", json_cmd->valuestring);
     if (strncmp(json_cmd->valuestring, "open", strlen("open")) == 0) {
       command = ACTUATOR_COMMAND_OPEN;
     } else if (strncmp(json_cmd->valuestring, "close", strlen("close")) == 0) {
@@ -126,7 +126,7 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
 
   const cJSON *json_period = cJSON_GetObjectItemCaseSensitive(json, "period");
   if (cJSON_IsString(json_period) && (json_period->valuestring != NULL)) {
-    ESP_LOGI(TAG, "JSON period: %s", json_period->valuestring);
+    LOGI(TAG, LOG_MODULE_SYSTEM, "JSON period: %s", json_period->valuestring);
     if (strncmp(json_period->valuestring, "full", strlen("full")) == 0) {
       period = ACTUATOR_PERIOD_FULL;
     } else if (strncmp(json_period->valuestring, "half", strlen("half")) == 0) {
@@ -147,7 +147,7 @@ esp_err_t actuator_action_post_handler(httpd_req_t *req) {
     return ESP_OK;
   }
 
-  ESP_LOGI(TAG, "command: %d, period: %d", command, period);
+  LOGI(TAG, LOG_MODULE_SYSTEM, "command: %d, period: %d", command, period);
 
   updateActuatorState(command, period);
 
@@ -199,10 +199,10 @@ httpd_handle_t start_webserver(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
   // Start the httpd server
-  ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
+  LOGI(TAG, LOG_MODULE_SYSTEM, "Starting server on port: '%d'", config.server_port);
   if (httpd_start(&server, &config) == ESP_OK) {
     // Set URI handlers
-    ESP_LOGI(TAG, "Registering URI handlers");
+    LOGI(TAG, LOG_MODULE_SYSTEM, "Registering URI handlers");
     httpd_register_uri_handler(server, &get_index_css);
     httpd_register_uri_handler(server, &get_index_html);
     httpd_register_uri_handler(server, &get_index_js);
@@ -219,7 +219,7 @@ httpd_handle_t start_webserver(void) {
     return server;
   }
 
-  ESP_LOGI(TAG, "Error starting server!");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "Error starting server!");
   return NULL;
 }
 

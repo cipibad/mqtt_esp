@@ -1,4 +1,4 @@
-#include "esp_log.h"
+#include "app_logging.h"
 
 #include "driver/gpio.h"
 #include "rom/gpio.h"
@@ -103,7 +103,7 @@ inline int get_relay_gpio(const char * tag, int id)
       return CONFIG_MQTT_RELAY_3_GPIO;
   #endif // CONFIG_MQTT_RELAY_3_GPIO
     default:
-      ESP_LOGE(tag, "Cannot get relay gpio for %d", id);
+      LOGE(tag, LOG_MODULE_RELAY, "Cannot get relay gpio for %d", id);
       return -1;
   }
 }
@@ -156,7 +156,7 @@ inline int get_relay_serial_on_cmd(const char * tag, int id)
       return CONFIG_MQTT_RELAY_3_SERIAL_ON;
   #endif // CONFIG_MQTT_RELAY_3_SERIAL_ON
     default:
-      ESP_LOGE(tag, "Cannot get serial on cmd for %d", id);
+      LOGE(tag, LOG_MODULE_RELAY, "Cannot get serial on cmd for %d", id);
       return -1;
   }
 }
@@ -181,7 +181,7 @@ inline int get_relay_serial_off_cmd(const char * tag, int id)
       return CONFIG_MQTT_RELAY_3_SERIAL_OFF;
   #endif // CONFIG_MQTT_RELAY_3_SERIAL_OFF
     default:
-      ESP_LOGE(tag, "Cannot get serial off cmd for %d", id);
+      LOGE(tag, LOG_MODULE_RELAY, "Cannot get serial off cmd for %d", id);
       return -1;
   }
 }
@@ -190,12 +190,12 @@ inline int get_relay_serial_off_cmd(const char * tag, int id)
 void vTimerCallback( TimerHandle_t xTimer )
 {
   int id = (int)pvTimerGetTimerID( xTimer );
-  ESP_LOGI(TAG, "timer %d expired, sending stop msg", id);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer %d expired, sending stop msg", id);
   struct RelayMessage r = {RELAY_CMD_STATUS, id, RELAY_STATUS_OFF};
   if (xQueueSend( relayQueue
                   ,( void * )&r
                   ,QUEUE_TIMEOUT) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot send to relayQueue");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to relayQueue");
   }
 }
 
@@ -289,16 +289,16 @@ void publish_all_relays_timeout()
 
 void update_timer(int id)
 {
-  ESP_LOGI(TAG, "update_timer for %d, timeout: %d", id, relaySleepTimeout[id]);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "update_timer for %d, timeout: %d", id, relaySleepTimeout[id]);
   if (relaySleepTimer[id] != NULL) {
     if (xTimerIsTimerActive(relaySleepTimer[id]) != pdFALSE){
-      ESP_LOGI(TAG, "Found started timer, stopping");
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "Found started timer, stopping");
       xTimerStop( relaySleepTimer[id], portMAX_DELAY );
     }
   }
   if ((relayStatus[id] == GPIO_HIGH) && relaySleepTimeout[id] != 0) {
     if (relaySleepTimer[id] == NULL) {
-      ESP_LOGI(TAG, "No Timer found for %d, creating one", id);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "No Timer found for %d, creating one", id);
       relaySleepTimer[id] =
         xTimerCreate( relayTimerName[id],           /* Text name. */
                       pdMS_TO_TICKS(relaySleepTimeout[id]*1000),  /* Period. */
@@ -307,19 +307,19 @@ void update_timer(int id)
                       vTimerCallback );  /* Callback function. */
     }
     if (relaySleepTimer[id] == NULL) {
-      ESP_LOGE(TAG, "No Timer can be created for %d, cannot handle timeout", id);
+      LOGE(TAG, LOG_MODULE_THERMOSTAT, "No Timer can be created for %d, cannot handle timeout", id);
       return;
     }
     if (xTimerChangePeriod(relaySleepTimer[id], pdMS_TO_TICKS(relaySleepTimeout[id]*1000), portMAX_DELAY) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot change period for relay %d timer", id);
+      LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot change period for relay %d timer", id);
     }
   }
 }
 
 void update_relay_status(int id, char value)
 {
-  ESP_LOGI(TAG, "update_relay_status: id: %d, value: %d", id, value);
-  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id] == GPIO_HIGH);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "update_relay_status: id: %d, value: %d", id, value);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "relayStatus[%d] = %d", id, relayStatus[id] == GPIO_HIGH);
   if (is_relay_serial_type(id) && !is_serial_interface_online()) {
     return;
   }
@@ -327,14 +327,14 @@ void update_relay_status(int id, char value)
   if (value != (relayStatus[id] == GPIO_HIGH)) {
     if (value == RELAY_STATUS_ON) {
       relayStatus[id] = GPIO_HIGH;
-      ESP_LOGI(TAG, "enabling relay %d", id);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "enabling relay %d", id);
     }
     if (value == RELAY_STATUS_OFF) {
       relayStatus[id] = GPIO_LOW;
-      ESP_LOGI(TAG, "disabling relay %d", id);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "disabling relay %d", id);
     }
     if (is_relay_gpio_type(id)) {
-      ESP_LOGI(TAG, "updating GPIO %d", get_relay_gpio(TAG, id));
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "updating GPIO %d", get_relay_gpio(TAG, id));
       gpio_set_level(get_relay_gpio(TAG, id), relayStatus[id]);
     }
     #ifdef CONFIG_AT_SERVER
@@ -353,7 +353,7 @@ void update_relay_status(int id, char value)
           cmd & 0xFF
         );
 
-        ESP_LOGI(TAG, "sending serial cmd %s", at_cmd);
+        LOGI(TAG, LOG_MODULE_THERMOSTAT, "sending serial cmd %s", at_cmd);
         uart_write_bytes(UART_NUM_0, at_cmd, 16);
     }
     #endif // CONFIG_AT_SERVER
@@ -365,8 +365,8 @@ void update_relay_status(int id, char value)
 
 void update_relay_sleep(int id, int onTimeout)
 {
-  ESP_LOGI(TAG, "update_relay_sleep: id: %d, value: %d", id, onTimeout);
-  ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relaySleepTimeout[id]);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "update_relay_sleep: id: %d, value: %d", id, onTimeout);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "relayStatus[%d] = %d", id, relaySleepTimeout[id]);
 
   if (onTimeout != relaySleepTimeout[id]) {
     relaySleepTimeout[id] = onTimeout;
@@ -380,7 +380,7 @@ void update_relay_sleep(int id, int onTimeout)
 
 void handle_relay_task(void* pvParameters)
 {
-  ESP_LOGI(TAG, "handle_relay_cmd_task started");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "handle_relay_cmd_task started");
 
   struct RelayMessage r;
   while(1) {

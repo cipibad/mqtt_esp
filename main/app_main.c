@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#include "esp_log.h"
+#include "app_logging.h"
 #include "nvs_flash.h"
 
 #include "freertos/FreeRTOS.h"
@@ -113,9 +113,9 @@ static const char *TAG = "MQTT(S?)_MAIN";
 
 void restart_in_3_minutes_task(void *pvParameter)
 {
-  ESP_LOGI(TAG, "Prepare to esp board in 3 minutes!");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "Prepare to esp board in 3 minutes!");
   vTaskDelay((3 * 60 * 1000 - 10 * 1000) / portTICK_PERIOD_MS);
-  ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "Prepare to restart system in 10 seconds!");
   vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
   esp_restart();
 }
@@ -175,14 +175,14 @@ void blink_task(void *pvParameter)
 #endif // CONFIG_STATUS_LED
 void app_main(void)
 {
-  ESP_LOGI(TAG, "[APP] Startup..");
-  ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-  ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
-  ESP_LOGI(TAG, "[APP] Client ID: " CONFIG_CLIENT_ID);
+  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Startup..");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] IDF version: %s", esp_get_idf_version());
+  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Client ID: " CONFIG_CLIENT_ID);
 
   uint8_t mac[6];
   esp_efuse_mac_get_default(mac);
-  ESP_LOGI(TAG, "[APP] MAC Address: " MACSTR, MAC2STR(mac) );
+  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] MAC Address: " MACSTR, MAC2STR(mac) );
 
   esp_log_level_set("*", ESP_LOG_INFO);
   esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
@@ -206,7 +206,7 @@ void app_main(void)
   }
   ESP_ERROR_CHECK( err );
 
-  ESP_LOGI(TAG, "nvs_flash_init done");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "nvs_flash_init done");
 
 #if CONFIG_MQTT_RELAYS_NB
   relays_init();

@@ -24,7 +24,7 @@ extern QueueHandle_t otaQueue;
 
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
-#include "esp_log.h"
+#include "app_logging.h"
 #include "esp_ota_ops.h"
 
 #include "nvs.h"
@@ -84,7 +84,7 @@ int hostname_to_ip(char * hostname , char* ip)
 	if ( (he = gethostbyname( hostname ) ) == NULL)
     {
       // get the host info
-      ESP_LOGI(TAG, "gethostbyname");
+      LOGI(TAG, LOG_MODULE_OTA, "gethostbyname");
       return 1;
     }
 
@@ -113,14 +113,14 @@ static int read_until(const char *buffer, char delim, int len)
 
 static bool connect_to_http_server()
 {
-  ESP_LOGI(TAG, "Server IP: %s Server Port:%s", EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
+  LOGI(TAG, LOG_MODULE_OTA, "Server IP: %s Server Port:%s", EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
 
   int  http_connect_flag = -1;
   struct sockaddr_in sock_info;
 
   socket_id = socket(AF_INET, SOCK_STREAM, 0);
   if (socket_id == -1) {
-    ESP_LOGE(TAG, "Create socket failed!");
+    LOGE(TAG, LOG_MODULE_OTA, "Create socket failed!");
     return false;
   }
 
@@ -136,11 +136,11 @@ static bool connect_to_http_server()
   // connect to http server
   http_connect_flag = connect(socket_id, (struct sockaddr *)&sock_info, sizeof(sock_info));
   if (http_connect_flag == -1) {
-    ESP_LOGE(TAG, "Connect to server failed! errno=%d", errno);
+    LOGE(TAG, LOG_MODULE_OTA, "Connect to server failed! errno=%d", errno);
     close(socket_id);
     return false;
   } else {
-    ESP_LOGI(TAG, "Connected to server");
+    LOGI(TAG, LOG_MODULE_OTA, "Connected to server");
     return true;
   }
   return false;
@@ -148,7 +148,7 @@ static bool connect_to_http_server()
 
 static void __attribute__((noreturn)) task_fatal_error()
 {
-  ESP_LOGE(TAG, "Exiting task due to fatal error...");
+  LOGE(TAG, LOG_MODULE_OTA, "Exiting task due to fatal error...");
   close(socket_id);
   (void)vTaskDelete(NULL);
 
@@ -178,20 +178,20 @@ bool _esp_ota_firm_parse_http(esp_ota_firm_t *ota_firm, const char *text, size_t
       ota_firm->ota_size = ota_firm->content_len;
       ota_firm->ota_offset = 0;
 #endif
-      ESP_LOGI(TAG, "parse Content-Length:%d, ota_size %d", ota_firm->content_len, ota_firm->ota_size);
+      LOGI(TAG, LOG_MODULE_OTA, "parse Content-Length:%d, ota_size %d", ota_firm->content_len, ota_firm->ota_size);
     }
 
     i_read_len = read_until(&text[i], '\n', total_len - i);
 
     if (i_read_len > total_len - i) {
-      ESP_LOGE(TAG, "recv malformed http header");
+      LOGE(TAG, LOG_MODULE_OTA, "recv malformed http header");
       task_fatal_error();
     }
 
     // if resolve \r\n line, http header is finished
     if (i_read_len == 2) {
       if (ota_firm->content_len == 0) {
-        ESP_LOGE(TAG, "did not parse Content-Length item");
+        LOGE(TAG, LOG_MODULE_OTA, "did not parse Content-Length item");
         task_fatal_error();
       }
 
@@ -215,7 +215,7 @@ static size_t esp_ota_firm_do_parse_msg(esp_ota_firm_t *ota_firm, const char *in
   case ESP_OTA_INIT:
     if (_esp_ota_firm_parse_http(ota_firm, in_buf, in_len, &tmp)) {
       ota_firm->state = ESP_OTA_PREPARE;
-      ESP_LOGD(TAG, "Http parse %d bytes", tmp);
+      LOGD(TAG, LOG_MODULE_OTA, "Http parse %d bytes", tmp);
       parsed_bytes = tmp;
     }
     break;
@@ -227,8 +227,8 @@ static size_t esp_ota_firm_do_parse_msg(esp_ota_firm_t *ota_firm, const char *in
       ota_firm->bytes = ota_firm->read_bytes - ota_firm->ota_offset;
       ota_firm->write_bytes += ota_firm->read_bytes - ota_firm->ota_offset;
       ota_firm->state = ESP_OTA_START;
-      ESP_LOGD(TAG, "Receive %d bytes and start to update", ota_firm->read_bytes);
-      ESP_LOGD(TAG, "Write %d total %d", ota_firm->bytes, ota_firm->write_bytes);
+      LOGD(TAG, LOG_MODULE_OTA, "Receive %d bytes and start to update", ota_firm->read_bytes);
+      LOGD(TAG, LOG_MODULE_OTA, "Write %d total %d", ota_firm->bytes, ota_firm->write_bytes);
     }
 
     break;
@@ -243,7 +243,7 @@ static size_t esp_ota_firm_do_parse_msg(esp_ota_firm_t *ota_firm, const char *in
 
     ota_firm->write_bytes += ota_firm->bytes;
 
-    ESP_LOGD(TAG, "Write %d total %d", ota_firm->bytes, ota_firm->write_bytes);
+    LOGD(TAG, LOG_MODULE_OTA, "Write %d total %d", ota_firm->bytes, ota_firm->write_bytes);
 
     break;
   case ESP_OTA_RECVED:
@@ -252,7 +252,7 @@ static size_t esp_ota_firm_do_parse_msg(esp_ota_firm_t *ota_firm, const char *in
     break;
   default:
     parsed_bytes = 0;
-    ESP_LOGD(TAG, "State is %d", ota_firm->state);
+    LOGD(TAG, LOG_MODULE_OTA, "State is %d", ota_firm->state);
     break;
   }
 
@@ -263,11 +263,11 @@ static void esp_ota_firm_parse_msg(esp_ota_firm_t *ota_firm, const char *in_buf,
 {
   size_t parse_bytes = 0;
 
-  ESP_LOGD(TAG, "Input %d bytes", in_len);
+  LOGD(TAG, LOG_MODULE_OTA, "Input %d bytes", in_len);
 
   do {
     size_t bytes = esp_ota_firm_do_parse_msg(ota_firm, in_buf + parse_bytes, in_len - parse_bytes);
-    ESP_LOGD(TAG, "Parse %d bytes", bytes);
+    LOGD(TAG, LOG_MODULE_OTA, "Parse %d bytes", bytes);
     if (bytes)
       parse_bytes += bytes;
   } while (parse_bytes != in_len);
@@ -300,7 +300,7 @@ static void esp_ota_firm_init(esp_ota_firm_t *ota_firm, const esp_partition_t *u
   ota_firm->ota_num = get_ota_partition_count();
   ota_firm->update_ota_num = update_partition->subtype - ESP_PARTITION_SUBTYPE_APP_OTA_0;
 
-  ESP_LOGI(TAG, "Totoal OTA number %d update to %d part", ota_firm->ota_num, ota_firm->update_ota_num);
+  LOGI(TAG, LOG_MODULE_OTA, "Totoal OTA number %d update to %d part", ota_firm->ota_num, ota_firm->update_ota_num);
 
 }
 
@@ -313,31 +313,31 @@ void handle_ota_update_task(void *pvParameters)
   esp_ota_handle_t update_handle = 0 ;
   const esp_partition_t *update_partition = NULL;
 
-  ESP_LOGI(TAG, "Starting OTA update task... @ %p flash %s", handle_ota_update_task, CONFIG_ESPTOOLPY_FLASHSIZE);
+  LOGI(TAG, LOG_MODULE_OTA, "Starting OTA update task... @ %p flash %s", handle_ota_update_task, CONFIG_ESPTOOLPY_FLASHSIZE);
 
   const esp_partition_t *configured = esp_ota_get_boot_partition();
   const esp_partition_t *running = esp_ota_get_running_partition();
 
   if (configured != running) {
-    ESP_LOGW(TAG, "Configured OTA boot partition at offset 0x%08x, but running from offset 0x%08x",
+    LOGW(TAG, LOG_MODULE_OTA, "Configured OTA boot partition at offset 0x%08x, but running from offset 0x%08x",
              configured->address, running->address);
-    ESP_LOGW(TAG, "(This can happen if either the OTA boot data or preferred boot image become corrupted somehow.)");
+    LOGW(TAG, LOG_MODULE_OTA, "(This can happen if either the OTA boot data or preferred boot image become corrupted somehow.)");
   }
-  ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
+  LOGI(TAG, LOG_MODULE_OTA, "Running partition type %d subtype %d (offset 0x%08x)",
            running->type, running->subtype, running->address);
   struct OtaMessage o;
   while(1) {
 
     if( xQueueReceive( otaQueue, &o , portMAX_DELAY) )
       {
-        ESP_LOGI(TAG, "OTA cmd received....");
+        LOGI(TAG, LOG_MODULE_OTA, "OTA cmd received....");
         publish_ota_data(OTA_ONGOING);
 
         /*connect to http server*/
         if (connect_to_http_server()) {
-          ESP_LOGI(TAG, "Connected to http server");
+          LOGI(TAG, LOG_MODULE_OTA, "Connected to http server");
         } else {
-          ESP_LOGE(TAG, "Connect to http server failed!");
+          LOGE(TAG, LOG_MODULE_OTA, "Connect to http server failed!");
           publish_ota_data(OTA_FAILED);
           continue;
         }
@@ -351,7 +351,7 @@ void handle_ota_update_task(void *pvParameters)
         char *http_request = NULL;
         int get_len = asprintf(&http_request, GET_FORMAT, EXAMPLE_FILENAME, EXAMPLE_SERVER_IP, EXAMPLE_SERVER_PORT);
         if (get_len < 0) {
-          ESP_LOGE(TAG, "Failed to allocate memory for GET request buffer");
+          LOGE(TAG, LOG_MODULE_OTA, "Failed to allocate memory for GET request buffer");
           close(socket_id);
           publish_ota_data(OTA_FAILED);
           continue;
@@ -360,27 +360,27 @@ void handle_ota_update_task(void *pvParameters)
         free(http_request);
 
         if (res < 0) {
-          ESP_LOGE(TAG, "Send GET request to server failed");
+          LOGE(TAG, LOG_MODULE_OTA, "Send GET request to server failed");
           close(socket_id);
           publish_ota_data(OTA_FAILED);
           continue;
         } else {
-          ESP_LOGI(TAG, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
+          LOGI(TAG, LOG_MODULE_OTA, "Send GET request to server succeeded, file: %s", EXAMPLE_FILENAME);
         }
 
         update_partition = esp_ota_get_next_update_partition(NULL);
-        ESP_LOGI(TAG, "Writing to partition subtype %d at offset 0x%x",
+        LOGI(TAG, LOG_MODULE_OTA, "Writing to partition subtype %d at offset 0x%x",
                  update_partition->subtype, update_partition->address);
         assert(update_partition != NULL);
 
         err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
         if (err != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_begin failed, error=%d", err);
+          LOGE(TAG, LOG_MODULE_OTA, "esp_ota_begin failed, error=%d", err);
           close(socket_id);
           publish_ota_data(OTA_FAILED);
           continue;
         }
-        ESP_LOGI(TAG, "esp_ota_begin succeeded");
+        LOGI(TAG, LOG_MODULE_OTA, "esp_ota_begin succeeded");
 
         bool flag = true;
         esp_ota_firm_t ota_firm;
@@ -393,7 +393,7 @@ void handle_ota_update_task(void *pvParameters)
           memset(ota_write_data, 0, BUFFSIZE);
           int buff_len = recv(socket_id, text, TEXT_BUFFSIZE, 0);
           if (buff_len < 0) { /*receive error*/
-            ESP_LOGE(TAG, "Error: receive data error! errno=%d", errno);
+            LOGE(TAG, LOG_MODULE_OTA, "Error: receive data error! errno=%d", errno);
             close(socket_id);
             publish_ota_data(OTA_FAILED);
             flag=false;
@@ -409,42 +409,42 @@ void handle_ota_update_task(void *pvParameters)
 
             err = esp_ota_write( update_handle, (const void *)ota_write_data, buff_len);
             if (err != ESP_OK) {
-              ESP_LOGE(TAG, "Error: esp_ota_write failed! err=0x%x", err);
+              LOGE(TAG, LOG_MODULE_OTA, "Error: esp_ota_write failed! err=0x%x", err);
               close(socket_id);
               publish_ota_data(OTA_FAILED);
               flag=false;
               continue;
             }
             binary_file_length += buff_len;
-            ESP_LOGI(TAG, "Have written image length %d", binary_file_length);
+            LOGI(TAG, LOG_MODULE_OTA, "Have written image length %d", binary_file_length);
           } else if (buff_len == 0) {  /*packet over*/
             flag = false;
-            ESP_LOGI(TAG, "Connection closed, all packets received");
+            LOGI(TAG, LOG_MODULE_OTA, "Connection closed, all packets received");
             close(socket_id);
           } else {
-            ESP_LOGE(TAG, "Unexpected recv result");
+            LOGE(TAG, LOG_MODULE_OTA, "Unexpected recv result");
           }
 
           if (esp_ota_firm_is_finished(&ota_firm))
             break;
         }
 
-        ESP_LOGI(TAG, "Total Write binary data length : %d", binary_file_length);
+        LOGI(TAG, LOG_MODULE_OTA, "Total Write binary data length : %d", binary_file_length);
 
         if (esp_ota_end(update_handle) != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_end failed!");
+          LOGE(TAG, LOG_MODULE_OTA, "esp_ota_end failed!");
           close(socket_id);
           publish_ota_data(OTA_FAILED);
           continue;
         }
         err = esp_ota_set_boot_partition(update_partition);
         if (err != ESP_OK) {
-          ESP_LOGE(TAG, "esp_ota_set_boot_partition failed! err=0x%x", err);
+          LOGE(TAG, LOG_MODULE_OTA, "esp_ota_set_boot_partition failed! err=0x%x", err);
           close(socket_id);
           publish_ota_data(OTA_FAILED);
           continue;
         }
-        ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+        LOGI(TAG, LOG_MODULE_OTA, "Prepare to restart system in 10 seconds!");
         publish_ota_data(OTA_SUCCESFULL);
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         esp_restart();

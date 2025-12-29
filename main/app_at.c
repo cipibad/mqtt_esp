@@ -1,6 +1,6 @@
 #include "esp_system.h"
 #ifdef CONFIG_AT_SERVER
-#include "esp_log.h"
+#include "app_logging.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -93,7 +93,7 @@ void handle_at_cmd(char* at_cmd) {
 void AtInitTimerCallback( TimerHandle_t xTimer )
 {
     const char *pcTimerName = pcTimerGetTimerName( xTimer );
-    ESP_LOGI(TAG, "timer %s expired", pcTimerName);
+    LOGI(TAG, LOG_MODULE_SYSTEM, "timer %s expired", pcTimerName);
     if (at_status == AT_STATUS_INIT) {
         // in case no message was received we assume we are enabled
         enable_serial_relays();
@@ -111,7 +111,7 @@ void app_at_task(void* pvParameters)
     };
     uart_param_config(UART_NUM_0, &uart_config);
     uart_driver_install(UART_NUM_0, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
-    ESP_LOGI(TAG, "UART AT server ready");
+    LOGI(TAG, LOG_MODULE_SYSTEM, "UART AT server ready");
 
     // in case no at command received in 10 seconds after init, we assume we are online
     TimerHandle_t atInitTimer = xTimerCreate( "atInitTimer",           /* Text name. */
@@ -120,11 +120,11 @@ void app_at_task(void* pvParameters)
                     (void *)1,                  /* ID. */
                     AtInitTimerCallback );  /* Callback function. */
     if (atInitTimer == NULL) {
-        ESP_LOGE(TAG, "Cannot create atInitTimer timer");
+        LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot create atInitTimer timer");
         return;
     }
     if (xTimerStart(atInitTimer, 0) != pdPASS) {
-        ESP_LOGE(TAG, "Cannot start atInitTimer");
+        LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot start atInitTimer");
         return;
     }
 
@@ -138,7 +138,7 @@ void app_at_task(void* pvParameters)
         int len = uart_read_bytes(UART_NUM_0, (uint8_t*) data, BUF_SIZE, 100 / portTICK_RATE_MS);
         if (len > 0) {
             data[len] = 0;
-            ESP_LOGI(TAG, "Read: %d bytes: >%.*s<", len, len, data);
+            LOGI(TAG, LOG_MODULE_SYSTEM, "Read: %d bytes: >%.*s<", len, len, data);
             char *token = strtok(data, "\r\n");
             while(token) {
                 handle_at_cmd(token);

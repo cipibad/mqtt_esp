@@ -2,7 +2,7 @@
 #ifdef CONFIG_TARGET_DEVICE_ESP8266
 #include <string.h>
 #include "esp_system.h"
-#include "esp_log.h"
+#include "app_logging.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
 
@@ -35,7 +35,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
   switch (event->event_id) {
 #if defined(CONFIG_WIFI_MODE_MIXED) || defined(CONFIG_WIFI_MODE_ACCESS_POINT)
   case SYSTEM_EVENT_AP_START:
-    ESP_LOGI(TAG, "SoftAP started");
+    LOGI(TAG, LOG_MODULE_WIFI, "SoftAP started");
 #ifdef CONFIG_NORTH_INTERFACE_HTTP
     /* Start the web server */
     if (server == NULL) {
@@ -44,7 +44,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 #endif // CONFIG_NORTH_INTERFACE_HTTP
     break;
   case SYSTEM_EVENT_AP_STOP:
-    ESP_LOGI(TAG, "SoftAP stopped");
+    LOGI(TAG, LOG_MODULE_WIFI, "SoftAP stopped");
 #ifdef CONFIG_NORTH_INTERFACE_HTTP
     /* Stop the web server */
     if (server) {
@@ -54,26 +54,26 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 #endif // CONFIG_NORTH_INTERFACE_HTTP
     break;
   case SYSTEM_EVENT_AP_STACONNECTED:
-    ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d",
+    LOGI(TAG, LOG_MODULE_WIFI, "station:"MACSTR" join, AID=%d",
             MAC2STR(event->event_info.sta_connected.mac),
             event->event_info.sta_connected.aid);
     break;
   case SYSTEM_EVENT_AP_STADISCONNECTED:
-    ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d",
+    LOGI(TAG, LOG_MODULE_WIFI, "station:"MACSTR"leave, AID=%d",
             MAC2STR(event->event_info.sta_disconnected.mac),
             event->event_info.sta_disconnected.aid);
     break;
 #endif // defined(CONFIG_WIFI_MODE_MIXED) || defined(CONFIG_WIFI_MODE_ACCESS_POINT)
   case SYSTEM_EVENT_STA_START:
-    ESP_LOGW(TAG, "Wifi: SYSTEM_EVENT_STA_START");
+    LOGW(TAG, LOG_MODULE_WIFI, "Wifi: SYSTEM_EVENT_STA_START");
     esp_wifi_connect();
     break;
   case SYSTEM_EVENT_STA_GOT_IP:
-    ESP_LOGW(TAG, "SYSTEM_EVENT_STA_GOT_IP");
+    LOGW(TAG, LOG_MODULE_WIFI, "SYSTEM_EVENT_STA_GOT_IP");
     xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
-    ESP_LOGW(TAG, "SYSTEM_EVENT_STA_DISCONNECTED");
+    LOGW(TAG, LOG_MODULE_WIFI, "SYSTEM_EVENT_STA_DISCONNECTED");
     esp_wifi_connect();
     xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
     break;
@@ -137,17 +137,17 @@ void wifi_init(void)
   };
 
   if (strlen(wifi_ssid) && strlen(wifi_pass)) {
-    ESP_LOGI(TAG, "using nvs wifi config");
+    LOGI(TAG, LOG_MODULE_WIFI, "using nvs wifi config");
     strcpy((char*)wifi_config_sta.sta.ssid, wifi_ssid);
     strcpy((char*)wifi_config_sta.sta.password, wifi_pass);
   }
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config_sta));
-  ESP_LOGI(TAG, "connecting to WiFi ssid:[%s]", wifi_config_sta.sta.ssid);
-  ESP_LOGI(TAG, "with pass:[%s]", wifi_config_sta.sta.password);
+  LOGI(TAG, LOG_MODULE_WIFI, "connecting to WiFi ssid:[%s]", wifi_config_sta.sta.ssid);
+  LOGI(TAG, LOG_MODULE_WIFI, "with pass:[%s]", wifi_config_sta.sta.password);
 #endif // defined(CONFIG_WIFI_MODE_STATION) || defined(CONFIG_WIFI_MODE_MIXED)
 
   ESP_ERROR_CHECK(esp_wifi_start());
-  ESP_LOGI(TAG, "Waiting for wifi");
+  LOGI(TAG, LOG_MODULE_WIFI, "Waiting for wifi");
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
 }
 #endif //CONFIG_TARGET_DEVICE_ESP8266

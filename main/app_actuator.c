@@ -6,7 +6,7 @@
 #include "app_main.h"
 #include "app_publish_data.h"
 #include "driver/gpio.h"
-#include "esp_log.h"
+#include "app_logging.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "rom/gpio.h"
@@ -32,15 +32,15 @@ void initControlPin(int pin, int* status) {
 
 void update_relay_status(int pin, int* status, int value)
 {
-  ESP_LOGI(TAG, "updateMotorControlPin: pin: %d, status: %d, value: %d", pin, *status, value);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "updateMotorControlPin: pin: %d, status: %d, value: %d", pin, *status, value);
   if (value != (*status == GPIO_HIGH)) {
     if (value == GPIO_STATUS_ON) {
       *status = GPIO_HIGH;
-      ESP_LOGI(TAG, "enabling GPIO %d", pin);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "enabling GPIO %d", pin);
     }
     if (value == GPIO_STATUS_OFF) {
       *status = GPIO_LOW;
-      ESP_LOGI(TAG, "disabling GPIO %d", pin);
+      LOGI(TAG, LOG_MODULE_THERMOSTAT, "disabling GPIO %d", pin);
     }
     gpio_set_level(pin, *status);
   }
@@ -49,7 +49,7 @@ void update_relay_status(int pin, int* status, int value)
 
 void actuatorTimerCallback(TimerHandle_t xTimer) {
   const char* pcTimerName = pcTimerGetTimerName(xTimer);
-  ESP_LOGI(TAG, "timer %s expired", pcTimerName);
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer %s expired", pcTimerName);
   update_relay_status(CONFIG_ACTUATOR_MASTER_POSITIVE_GPIO, &actuatorMasterPositivePinStatus, GPIO_STATUS_OFF);
   update_relay_status(CONFIG_ACTUATOR_MASTER_NEGATIVE_GPIO, &actuatorMasterNegativePinStatus, GPIO_STATUS_OFF);
   vTaskDelay(ACTUATOR_PERIOD_INTER_RELAY_OPERATION / portTICK_PERIOD_MS);
@@ -57,28 +57,28 @@ void actuatorTimerCallback(TimerHandle_t xTimer) {
   update_relay_status(CONFIG_ACTUATOR_CLOSE_GPIO, &actuatorClosePinStatus, GPIO_STATUS_OFF);
   actuatorStatus = ACTUATOR_STATUS_OFF;
   //  publish_waterpump_status();
-  ESP_LOGI(TAG, "actuator is now off");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "actuator is now off");
 }
 
 void openActuator(ActuatorPeriod_t period) {
   if (actuatorTimer == NULL) {
-    ESP_LOGE(TAG, "No actuatorTimer found");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "No actuatorTimer found");
     return;
   }
 
   if (xTimerIsTimerActive(actuatorTimer) != pdFALSE) {
-    ESP_LOGE(TAG, "actuatorTimer is active while it should not be");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "actuatorTimer is active while it should not be");
     return;
   }
 
   if (xTimerChangePeriod(actuatorTimer, pdMS_TO_TICKS(period + ACTUATOR_PERIOD_INTER_RELAY_OPERATION),
                          portMAX_DELAY) != pdPASS) {
-    ESP_LOGE(TAG, "cannot update actuatorTimer period");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "cannot update actuatorTimer period");
     return;
   }
 
   if (xTimerStart(actuatorTimer, 0) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot start actuatorTimer");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot start actuatorTimer");
     return;
   }
 
@@ -90,17 +90,17 @@ void openActuator(ActuatorPeriod_t period) {
   actuatorStatus = ACTUATOR_STATUS_OPEN_TRANSITION;
   actuatorLevel += period / ACTUATOR_PERIOD_UNIT;
   //  publish_waterpump_status();
-  ESP_LOGI(TAG, "actuator opening is on-going");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "actuator opening is on-going");
 }
 
 void closeActuator(ActuatorPeriod_t period) {
   if (actuatorTimer == NULL) {
-    ESP_LOGE(TAG, "No actuatorTimer found");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "No actuatorTimer found");
     return;
   }
 
   if (xTimerIsTimerActive(actuatorTimer) != pdFALSE) {
-    ESP_LOGE(TAG, "actuatorTimer is active while it should not be");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "actuatorTimer is active while it should not be");
     return;
   }
 
@@ -111,12 +111,12 @@ void closeActuator(ActuatorPeriod_t period) {
 
   if (xTimerChangePeriod(actuatorTimer, pdMS_TO_TICKS(period + ACTUATOR_PERIOD_INTER_RELAY_OPERATION + closeExtraPeriod),
                          portMAX_DELAY) != pdPASS) {
-    ESP_LOGE(TAG, "cannot update actuatorTimer period");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "cannot update actuatorTimer period");
     return;
   }
 
   if (xTimerStart(actuatorTimer, 0) != pdPASS) {
-    ESP_LOGE(TAG, "Cannot start actuatorTimer");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot start actuatorTimer");
     return;
   }
 
@@ -129,27 +129,27 @@ void closeActuator(ActuatorPeriod_t period) {
   actuatorLevel -= period / ACTUATOR_PERIOD_UNIT;
 
   //  publish_waterpump_status();
-  ESP_LOGI(TAG, "actuator closing is on-going");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "actuator closing is on-going");
 }
 
 void updateActuatorState(ActuatorCommand_t command, ActuatorPeriod_t period) {
   if (actuatorStatus == ACTUATOR_STATUS_OPEN_TRANSITION) {
-    ESP_LOGE(TAG, "another actuator opening command is ongoing");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "another actuator opening command is ongoing");
     return;
   }
   if (actuatorStatus == ACTUATOR_STATUS_CLOSE_TRANSITION) {
-    ESP_LOGE(TAG, "another actuator closing command is ongoing");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "another actuator closing command is ongoing");
     return;
   }
   if (actuatorStatus != ACTUATOR_STATUS_OFF) {
-    ESP_LOGE(TAG, "another actuator action is on-going");
+    LOGE(TAG, LOG_MODULE_THERMOSTAT, "another actuator action is on-going");
     return;
   }
 
   if (command == ACTUATOR_COMMAND_OPEN) {
     switch (actuatorLevel) {
       case ACTUATOR_LEVEL_OPEN:
-        ESP_LOGE(TAG, "actuator is already open");
+        LOGE(TAG, LOG_MODULE_THERMOSTAT, "actuator is already open");
         return;
         break;
       case ACTUATOR_LEVEL_OPEN_3_4:
@@ -174,7 +174,7 @@ void updateActuatorState(ActuatorCommand_t command, ActuatorPeriod_t period) {
   } else if (command == ACTUATOR_COMMAND_CLOSE) {
     switch (actuatorLevel) {
       case ACTUATOR_LEVEL_CLOSED:
-        ESP_LOGE(TAG, "actuator is already closed");
+        LOGE(TAG, LOG_MODULE_THERMOSTAT, "actuator is already closed");
         return;
         break;
       case ACTUATOR_LEVEL_OPEN_1_4:
@@ -200,7 +200,7 @@ void updateActuatorState(ActuatorCommand_t command, ActuatorPeriod_t period) {
 }
 
 void initActuator() {
-  ESP_LOGI(TAG, "Initializing");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "Initializing");
   actuatorStatus = ACTUATOR_STATUS_INIT;
   actuatorLevel = ACTUATOR_LEVEL_UNSET;
   actuatorTimer =
@@ -217,7 +217,7 @@ void initActuator() {
 
   vTaskDelay(ACTUATOR_PERIOD_INTER_RELAY_OPERATION / portTICK_PERIOD_MS);
 
-  ESP_LOGI(TAG, "Performing close after start-up");
+  LOGI(TAG, LOG_MODULE_THERMOSTAT, "Performing close after start-up");
   closeActuator(ACTUATOR_PERIOD_FULL);
   actuatorLevel = ACTUATOR_LEVEL_CLOSED;
 }

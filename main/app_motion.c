@@ -7,7 +7,7 @@
 
 #include "driver/gpio.h"
 
-#include "esp_log.h"
+#include "app_logging.h"
 
 #include "app_motion.h"
 #include "app_publish_data.h"
@@ -44,7 +44,7 @@ static void gpio_isr_handler(void *arg)
 
 void motion_detection_timer_callback( TimerHandle_t xTimer )
 {
-    ESP_LOGI(TAG, "timer expired, should disable motion status now");
+    LOGI(TAG, LOG_MODULE_ACTUATOR, "timer expired, should disable motion status now");
     xEventGroupSetBits (motionEventGroup, MOTION_TIMER_BIT);
 }
 
@@ -71,16 +71,15 @@ void publish_motion_data()
 
 void app_motion_task(void* pvParameters)
 {
-    ESP_LOGI(TAG, "app_motion task started");
+    LOGI(TAG, LOG_MODULE_ACTUATOR, "app_motion task started");
     motionEventGroup = xEventGroupCreate();
     /* Was the event group created successfully? */
     if( motionEventGroup == NULL )
     {
-        ESP_LOGE(TAG, "The event group was not created because there was insufficient \
-                        FreeRTOS heap available");
+        LOGE(TAG, LOG_MODULE_ACTUATOR, "The event group was not created because there was insufficient FreeRTOS heap available");
         return;
     }
-    ESP_LOGI(TAG, "event group created, waiting sensor initialization");
+    LOGI(TAG, LOG_MODULE_ACTUATOR, "event group created, waiting sensor initialization");
 
     motion_detection_timer = xTimerCreate( "motion_detection_timer",           /* Text name. */
                     pdMS_TO_TICKS(CONFIG_MOTION_SENSOR_DISABLE_TIMER * 1000),  /* Period. */
@@ -88,7 +87,7 @@ void app_motion_task(void* pvParameters)
                     (void *)0,                  /* no ID. */
                     motion_detection_timer_callback );  /* Callback function. */
     if (motion_detection_timer == NULL) {
-        ESP_LOGE(TAG, "No motion_detection_timer found");
+        LOGE(TAG, LOG_MODULE_ACTUATOR, "No motion_detection_timer found");
         return;
     }
 
@@ -113,7 +112,7 @@ void app_motion_task(void* pvParameters)
     gpio_install_isr_service(0);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(CONFIG_MOTION_SENSOR_GPIO, gpio_isr_handler, (void *) NULL);
-    ESP_LOGI(TAG, "gpio %d configured", CONFIG_MOTION_SENSOR_GPIO);
+    LOGI(TAG, LOG_MODULE_ACTUATOR, "gpio %d configured", CONFIG_MOTION_SENSOR_GPIO);
 
     EventBits_t mBits;
     while(1) {
@@ -121,7 +120,7 @@ void app_motion_task(void* pvParameters)
                                     true, false, portMAX_DELAY);
         if (mBits & MOTION_GPIO_INTR_BIT) {
             bool new_motion_detected = gpio_get_level(CONFIG_MOTION_SENSOR_GPIO);
-            ESP_LOGI(TAG, "new_motion_detected: %d", new_motion_detected);
+            LOGI(TAG, LOG_MODULE_ACTUATOR, "new_motion_detected: %d", new_motion_detected);
 
             if (new_motion_detected){
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
@@ -136,10 +135,10 @@ void app_motion_task(void* pvParameters)
                 } else {
                     if( xTimerStop(motion_detection_timer, 0 ) != pdPASS )
                     {
-                        ESP_LOGE(TAG, "Cannot stop motion_detection_timer");
+                        LOGE(TAG, LOG_MODULE_ACTUATOR, "Cannot stop motion_detection_timer");
                         continue;
                     }
-                    ESP_LOGI(TAG, "Stopped motion_detection_timer");
+                    LOGI(TAG, LOG_MODULE_ACTUATOR, "Stopped motion_detection_timer");
                 }
             } else {
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
@@ -151,10 +150,10 @@ void app_motion_task(void* pvParameters)
                 if (motion_detected) {
                     if( xTimerStart(motion_detection_timer, 0 ) != pdPASS )
                     {
-                        ESP_LOGE(TAG, "Cannot start motion_detection_timer");
+                        LOGE(TAG, LOG_MODULE_ACTUATOR, "Cannot start motion_detection_timer");
                         continue;
                     }
-                    ESP_LOGI(TAG, "Started motion_detection_timer");
+                    LOGI(TAG, LOG_MODULE_ACTUATOR, "Started motion_detection_timer");
                 }
             }
         } else if (mBits & MOTION_TIMER_BIT) {

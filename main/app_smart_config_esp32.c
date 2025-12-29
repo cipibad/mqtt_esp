@@ -2,7 +2,7 @@
 #ifdef CONFIG_TARGET_DEVICE_ESP32
 #include <string.h>
 
-#include "esp_log.h"
+#include "app_logging.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_smartconfig.h"
@@ -64,11 +64,11 @@ static void event_handler(void* arg, esp_event_base_t event_base,
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     xEventGroupSetBits(s_wifi_event_group, CONNECTED_BIT);
   } else if (event_base == SC_EVENT && event_id == SC_EVENT_SCAN_DONE) {
-    ESP_LOGI(TAG, "Scan done");
+    LOGI(TAG, LOG_MODULE_WIFI, "Scan done");
   } else if (event_base == SC_EVENT && event_id == SC_EVENT_FOUND_CHANNEL) {
-    ESP_LOGI(TAG, "Found channel");
+    LOGI(TAG, LOG_MODULE_WIFI, "Found channel");
   } else if (event_base == SC_EVENT && event_id == SC_EVENT_GOT_SSID_PSWD) {
-    ESP_LOGI(TAG, "Got SSID and password");
+    LOGI(TAG, LOG_MODULE_WIFI, "Got SSID and password");
 
     smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
 
@@ -77,8 +77,8 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
     memcpy(wifi_ssid, evt->ssid, sizeof(evt->ssid));
     memcpy(wifi_pass, evt->password, sizeof(evt->password));
-    ESP_LOGI(TAG, "SSID:%s", wifi_ssid);
-    ESP_LOGI(TAG, "PASSWORD:%s", wifi_pass);
+    LOGI(TAG, LOG_MODULE_WIFI, "SSID:%s", wifi_ssid);
+    LOGI(TAG, LOG_MODULE_WIFI, "PASSWORD:%s", wifi_pass);
 
     wifi_config_t wifi_config;
 
@@ -119,10 +119,10 @@ static void initialise_wifi(void)
 
 void smartconfig_cmd_task(void* pvParameters)
 {
-  ESP_LOGI(TAG, "smartconfig_cmd_task started");
+  LOGI(TAG, LOG_MODULE_WIFI, "smartconfig_cmd_task started");
   struct SmartConfigMessage scm;;
   if (smartconfigFlag) {
-    ESP_LOGI(TAG, "starting smartconfig");
+    LOGI(TAG, LOG_MODULE_WIFI, "starting smartconfig");
     initialise_wifi();
 
     EventBits_t uxBits;
@@ -133,10 +133,10 @@ void smartconfig_cmd_task(void* pvParameters)
     while (1) {
       uxBits = xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
       if(uxBits & CONNECTED_BIT) {
-        ESP_LOGI(TAG, "WiFi Connected to ap");
+        LOGI(TAG, LOG_MODULE_WIFI, "WiFi Connected to ap");
       }
       if(uxBits & ESPTOUCH_DONE_BIT) {
-        ESP_LOGI(TAG, "smartconfig over");
+        LOGI(TAG, LOG_MODULE_WIFI, "smartconfig over");
         esp_err_t err=write_nvs_str(wifi_ssid_tag, wifi_ssid);
         ESP_ERROR_CHECK( err );
 
@@ -144,33 +144,33 @@ void smartconfig_cmd_task(void* pvParameters)
         ESP_ERROR_CHECK( err );
 
 
-        ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+        LOGI(TAG, LOG_MODULE_WIFI, "Prepare to restart system in 10 seconds!");
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         esp_restart();
       }
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
   } else {
-    ESP_LOGI(TAG, "smartconfig not enabled, waiting request");
+    LOGI(TAG, LOG_MODULE_WIFI, "smartconfig not enabled, waiting request");
     TickType_t pushTick = 0;
     TickType_t lastRead = 0;
     const TickType_t ticksToWait = 3000/portTICK_PERIOD_MS ; // 3 seconds
-    ESP_LOGI(TAG, "ticksToWait: " TICKS_FORMAT, ticksToWait);
+    LOGI(TAG, LOG_MODULE_WIFI, "ticksToWait: " TICKS_FORMAT, ticksToWait);
     while (1) {
       if( xQueueReceive( smartconfigQueue, &scm , portMAX_DELAY) )
         {
-          ESP_LOGI(TAG, "received switch event at: %d", scm.ticks);
+          LOGI(TAG, LOG_MODULE_WIFI, "received switch event at: %d", scm.ticks);
           if (scm.ticks - lastRead < 5) {
-            ESP_LOGI(TAG, "duplicate call, ignored ");
+            LOGI(TAG, LOG_MODULE_WIFI, "duplicate call, ignored ");
             lastRead = scm.ticks;
             continue;
           }
           lastRead = scm.ticks;
           if (pushTick == 0) {
-            ESP_LOGI(TAG, "down ");
+            LOGI(TAG, LOG_MODULE_WIFI, "down ");
             pushTick = scm.ticks;
           } else {
-            ESP_LOGI(TAG, "up ");
+            LOGI(TAG, LOG_MODULE_WIFI, "up ");
             if ((scm.ticks - pushTick ) < ticksToWait) {
 #if CONFIG_MQTT_RELAYS_NB
               struct RelayMessage r={RELAY_CMD_STATUS, scm.relayId, !(relayStatus[(int)scm.relayId] == GPIO_HIGH)};
@@ -180,15 +180,15 @@ void smartconfig_cmd_task(void* pvParameters)
 #endif //CONFIG_MQTT_RELAYS_NB
             }
             else {
-              ESP_LOGI(TAG, "received smartconfig request:");
+              LOGI(TAG, LOG_MODULE_WIFI, "received smartconfig request:");
               ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
-              ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
+              LOGI(TAG, LOG_MODULE_WIFI, "Prepare to restart system in 10 seconds!");
               vTaskDelay(10000 / portTICK_PERIOD_MS);
               esp_restart();
             }
             pushTick = 0;
           }
-          ESP_LOGI(TAG, "pushTick: " TICKS_FORMAT, pushTick);
+          LOGI(TAG, LOG_MODULE_WIFI, "pushTick: " TICKS_FORMAT, pushTick);
         }
     }
   }

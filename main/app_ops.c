@@ -1,6 +1,5 @@
 #include "esp_system.h"
 #ifdef CONFIG_MQTT_OPS
-#include "esp_log.h"
 #include "app_logging.h"
 
 #include "freertos/FreeRTOS.h"
@@ -64,7 +63,7 @@ void publish_ops_stack_data()
                                         uxArraySize,
                                         &ulTotalRunTime );
 
-  ESP_LOGI(TAG, "Got informations for %lu tasks, total runtime: %d",
+  LOGI(TAG, LOG_MODULE_SYSTEM, "Got informations for %lu tasks, total runtime: %d",
           uxArraySize, ulTotalRunTime);
 
     /* For each populated position in the pxTaskStatusArray array,
@@ -77,7 +76,7 @@ void publish_ops_stack_data()
       if (strlen(task_data) < remaining_data) {
         strcat(data, task_data);
       } else {
-        ESP_LOGE(TAG, "Not enough data space to read all tasks data, sending what we have");
+        LOGE(TAG, LOG_MODULE_SYSTEM, "Not enough data space to read all tasks data, sending what we have");
         break;
       }
       remaining_data = DATA_SIZE - strlen(data) - 1;

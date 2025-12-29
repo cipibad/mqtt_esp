@@ -11,7 +11,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 
-#include "esp_log.h"
+#include "app_logging.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
 
@@ -39,11 +39,11 @@ void coap_publish_data(const char * topic,
                        const char * data)
 {
     if (strlen(topic) > COAP_MAX_RESOURCE_SIZE - 1) {
-        ESP_LOGW(TAG, "Topic size(%d) is greater than max accepted(%d), cannot send message",
+        LOGW(TAG, LOG_MODULE_WIFI, "Topic size(%d) is greater than max accepted(%d), cannot send message",
             strlen(topic), COAP_MAX_RESOURCE_SIZE - 1);
     }
     if (strlen(data) > COAP_MAX_DATA_SIZE - 1) {
-    ESP_LOGW(TAG, "Data size(%d) is greater than max accepted(%d), cannot send message",
+    LOGW(TAG, LOG_MODULE_WIFI, "Data size(%d) is greater than max accepted(%d), cannot send message",
         strlen(data), COAP_MAX_DATA_SIZE - 1);
     }
 
@@ -54,7 +54,7 @@ void coap_publish_data(const char * topic,
     if (xQueueSend(coapClientQueue
                     ,( void * )&msg
                     ,COAP_QUEUE_TIMEOUT) != pdPASS) {
-        ESP_LOGE(TAG, "Cannot send to scheduleCfgQueue");
+        LOGE(TAG, LOG_MODULE_WIFI, "Cannot send to scheduleCfgQueue");
     }
 }
 
@@ -67,7 +67,7 @@ static void message_handler(struct coap_context_t *ctx, const coap_endpoint_t *l
     if (COAP_RESPONSE_CLASS(received->hdr->code) == 2) {
         if (coap_get_data(received, &data_len, &data)) {
             if(data_len) {
-                ESP_LOGI(TAG, "Received: %.*s", data_len, data);
+                LOGI(TAG, LOG_MODULE_WIFI, "Received: %.*s", data_len, data);
             }
         }
     }
@@ -99,12 +99,12 @@ void coap_client_thread(void *p)
     */
     xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT,
                         false, true, portMAX_DELAY);
-    ESP_LOGI(TAG, "AP is connected");
+    LOGI(TAG, LOG_MODULE_WIFI, "AP is connected");
 
     hp = gethostbyname(CONFIG_COAP_SERVER);
 
     while (hp == NULL) {
-        ESP_LOGE(TAG, "DNS lookup failed for " CONFIG_COAP_SERVER ", will retry in 10 seconds");
+        LOGE(TAG, LOG_MODULE_WIFI, "DNS lookup failed for " CONFIG_COAP_SERVER ", will retry in 10 seconds");
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         continue;
     }
@@ -113,7 +113,7 @@ void coap_client_thread(void *p)
 
     Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
     ip4_addr = (struct ip4_addr *)hp->h_addr;
-    ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*ip4_addr));
+    LOGI(TAG, LOG_MODULE_WIFI, "DNS lookup succeeded. IP=%s", inet_ntoa(*ip4_addr));
 
     while (1) {
         //wait new message on  coapClientQueue
@@ -123,7 +123,7 @@ void coap_client_thread(void *p)
 
             strcpy(server_uri, "coap://" CONFIG_COAP_SERVER ":" CONFIG_COAP_PORT "/");
             strcat(server_uri, receivedMsg.resource);
-            ESP_LOGI(TAG, "Publishing data: %s to uri: %s", receivedMsg.data, server_uri);
+            LOGI(TAG, LOG_MODULE_WIFI, "Publishing data: %s to uri: %s", receivedMsg.data, server_uri);
 
             /* Wait for the callback to set the CONNECTED_BIT in the
             event group.
@@ -132,7 +132,7 @@ void coap_client_thread(void *p)
                                 false, true, portMAX_DELAY);
 
             if (coap_split_uri((const uint8_t *)server_uri, strlen(server_uri), &uri) == -1) {
-                ESP_LOGE(TAG, "CoAP server uri error");
+                LOGE(TAG, LOG_MODULE_WIFI, "CoAP server uri error");
                 continue;
             }
 
@@ -168,7 +168,7 @@ void coap_client_thread(void *p)
                             buf += COAP_OPT_SIZE(buf);
                         }
                     } else {
-                        ESP_LOGI(TAG,"uri.path.length is not set");
+                        LOGI(TAG, LOG_MODULE_WIFI,"uri.path.length is not set");
                     }
 
                     coap_add_data(request, strlen(receivedMsg.data), (unsigned char *)receivedMsg.data);
@@ -176,10 +176,10 @@ void coap_client_thread(void *p)
                     coap_show_pdu(request);
 
                     coap_register_response_handler(ctx, message_handler);
-                    ESP_LOGI(TAG, "sending coap message");
+                    LOGI(TAG, LOG_MODULE_WIFI, "sending coap message");
                     tid = coap_send_confirmed(ctx, ctx->endpoint, &dst_addr, request);
                     if (tid == COAP_INVALID_TID) {
-                        ESP_LOGI(TAG,"error sending coap message");
+                        LOGI(TAG, LOG_MODULE_WIFI,"error sending coap message");
                         coap_delete_pdu(request);
                         continue;
                     }
@@ -198,15 +198,15 @@ void coap_client_thread(void *p)
                         if (result > 0) {
                             if (FD_ISSET( ctx->sockfd, &readfds ))
                                 coap_read(ctx);
-                            ESP_LOGI(TAG, "received answer");
+                            LOGI(TAG, LOG_MODULE_WIFI, "received answer");
                             _coap_connection_status = COAP_LAST_MESSAGE_PASSED;
                             break;
                         } else if (result < 0) {
-                            ESP_LOGE(TAG, "select error");
+                            LOGE(TAG, LOG_MODULE_WIFI, "select error");
                             _coap_connection_status = COAP_LAST_MESSAGE_FAILED;
                             break;
                         } else {
-                            ESP_LOGE(TAG, "select timeout");
+                            LOGE(TAG, LOG_MODULE_WIFI, "select timeout");
                             _coap_connection_status = COAP_LAST_MESSAGE_FAILED;
                             break;
                         }
