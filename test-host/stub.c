@@ -92,3 +92,12 @@ void publish_persistent_data(const char * topic, const char * data)
 {}
 void publish_non_persistent_data(const char * topic, const char * data)
 {}
+void publish_schedulers_data()
+{}
+void system_restart()
+{}
+void * schedulerCfgQueue;
+int temperatureSensorState(int id)
+{
+  return 0;
+}
