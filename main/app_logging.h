@@ -30,21 +30,14 @@
 #define LOG_LEVEL_DEBUG "debug"
 #endif
 
+// Dual logging enabled (console + MQTT)
+#define DUAL_LOGGING_ENABLED (strcmp(CONFIG_LOG_OUTPUT_MODE, "dual") == 0)
+
 // Define log level thresholds based on config
-#define LOG_LEVEL_ENABLED_DEBUG  (strcmp(CONFIG_LOG_OUTPUT_MODE, "mqtt") != 0 && \
-                                        strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0)
-#define LOG_LEVEL_ENABLED_INFO   (strcmp(CONFIG_LOG_OUTPUT_MODE, "mqtt") != 0 && \
-                                        (strcmp(CONFIG_MQTT_LOG_LEVEL, "info") == 0 || \
-                                         strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0))
-#define LOG_LEVEL_ENABLED_WARNING (strcmp(CONFIG_LOG_OUTPUT_MODE, "mqtt") != 0 && \
-                                        (strcmp(CONFIG_MQTT_LOG_LEVEL, "warning") == 0 || \
-                                         strcmp(CONFIG_MQTT_LOG_LEVEL, "info") == 0 || \
-                                         strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0))
-#define LOG_LEVEL_ENABLED_ERROR   (strcmp(CONFIG_LOG_OUTPUT_MODE, "mqtt") != 0 && \
-                                        (strcmp(CONFIG_MQTT_LOG_LEVEL, "error") == 0 || \
-                                         strcmp(CONFIG_MQTT_LOG_LEVEL, "warning") == 0 || \
-                                         strcmp(CONFIG_MQTT_LOG_LEVEL, "info") == 0 || \
-                                         strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0))
+#define LOG_LEVEL_ENABLED_DEBUG  (DUAL_LOGGING_ENABLED && strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0)
+#define LOG_LEVEL_ENABLED_INFO   (DUAL_LOGGING_ENABLED && (strcmp(CONFIG_MQTT_LOG_LEVEL, "info") == 0 || strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0))
+#define LOG_LEVEL_ENABLED_WARNING (DUAL_LOGGING_ENABLED && (strcmp(CONFIG_MQTT_LOG_LEVEL, "warning") == 0 || strcmp(CONFIG_MQTT_LOG_LEVEL, "info") == 0 || strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0))
+#define LOG_LEVEL_ENABLED_ERROR   (DUAL_LOGGING_ENABLED && (strcmp(CONFIG_MQTT_LOG_LEVEL, "error") == 0 || strcmp(CONFIG_MQTT_LOG_LEVEL, "warning") == 0 || strcmp(CONFIG_MQTT_LOG_LEVEL, "info") == 0 || strcmp(CONFIG_MQTT_LOG_LEVEL, "debug") == 0))
 
 void publish_log_message(const char *level, const char *module, const char *message);
 void publish_error_log(const char *module, const char *format, ...);
@@ -55,7 +48,7 @@ void publish_info_log(const char *module, const char *format, ...);
 void publish_debug_log(const char *module, const char *format, ...);
 #endif
 
-// Dual logging wrapper macros
+// Dual logging wrapper macros (always log to console, optionally to MQTT)
 #define LOGE(tag, module, ...) \
     do { \
         ESP_LOGE(tag, __VA_ARGS__); \

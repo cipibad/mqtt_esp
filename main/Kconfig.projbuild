@@ -1224,21 +1224,27 @@ config CONTACT_SENSOR_GPIO_PULL_NONE
 
 endmenu
 
-config LOG_OUTPUT_MODE
-    string "Log output mode"
-    default "legacy"
+choice LOG_OUTPUT_MODE
+    bool "Log output mode"
+    default LOG_OUTPUT_MODE_LEGACY
     help
         Controls where log messages are sent:
         - legacy: Console only (ESP_LOGX functions)
-        - mqtt: MQTT only (publish_*_log functions)
         - dual: Both console and MQTT (LOG* wrapper macros)
 
+config LOG_OUTPUT_MODE_LEGACY
+    bool "Console only (backward compatible)"
+config LOG_OUTPUT_MODE_DUAL
+    bool "Both console and MQTT (recommended)"
+endchoice
+
 config MQTT_LOG_LEVEL
-    string "Minimum log level to publish"
+    string "Minimum log level to publish to MQTT"
     default "info"
+    depends on LOG_OUTPUT_MODE_DUAL
     help
         Minimum log level to publish to MQTT. Only applies when
-        LOG_OUTPUT_MODE is "mqtt" or "dual".
+        LOG_OUTPUT_MODE is "dual".
         Options: debug, info, warning, error.
 
 config MQTT_LOG_RATE_LIMIT_MS

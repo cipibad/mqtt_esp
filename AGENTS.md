@@ -131,12 +131,11 @@ This firmware supports structured logging with configurable output modes.
 
 #### Log Output Modes
 
-Configuration: `CONFIG_LOG_OUTPUT_MODE`
+Configuration: `LOG_OUTPUT_MODE` choice in menuconfig
 
 | Mode | Description | Example Usage |
 |------|-------------|---------------|
 | **legacy** | Console only (default, backward compatible) | `ESP_LOGE(TAG, "Error message")` |
-| **mqtt** | MQTT only (remote logging) | `publish_error_log("module", "Error message")` |
 | **dual** | Both console and MQTT (recommended for production) | `LOGE(TAG, "module", "Error message")` |
 
 #### Logging Macros
@@ -144,17 +143,14 @@ Configuration: `CONFIG_LOG_OUTPUT_MODE`
 ```c
 #include "app_logging.h"
 
-// Dual logging (console + MQTT)
+// Dual logging (console + MQTT) - always logs to console, optionally to MQTT
 LOGE(TAG, "module", "Error message: %d", error_code);
 LOGW(TAG, "module", "Warning: %s", warning_msg);
 LOGI(TAG, "module", "Info message");
 LOGD(TAG, "module", "Debug: value=%d", value);
 
-// Console only (legacy)
+// Console only (legacy mode)
 ESP_LOGE(TAG, "Error message");
-
-// MQTT only
-publish_error_log("module", "Error message: %d", error_code);
 ```
 
 #### Standardized Module Names
