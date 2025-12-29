@@ -125,12 +125,132 @@ Use `extern "C"` for C headers in C++ test files.
 - Message structs: `{ msgType, id, union data }` pattern
 - Always use explicit sizes in `memset` and `memcpy`
 
-### Logging
-- Define TAG at file scope: `static const char *TAG = "MODULE_NAME";`
-- Set log levels: `esp_log_level_set("*", ESP_LOG_INFO)`
-- Use descriptive log messages with relevant data
-- Log state changes and important events
-- Reduce verbose logging in production builds
+### Structured Logging
+
+This firmware supports structured logging with configurable output modes.
+
+#### Log Output Modes
+
+Configuration: `CONFIG_LOG_OUTPUT_MODE`
+
+| Mode | Description | Example Usage |
+|------|-------------|---------------|
+| **legacy** | Console only (default, backward compatible) | `ESP_LOGE(TAG, "Error message")` |
+| **mqtt** | MQTT only (remote logging) | `publish_error_log("module", "Error message")` |
+| **dual** | Both console and MQTT (recommended for production) | `LOGE(TAG, "module", "Error message")` |
+
+#### Logging Macros
+
+```c
+#include "app_logging.h"
+
+// Dual logging (console + MQTT)
+LOGE(TAG, "module", "Error message: %d", error_code);
+LOGW(TAG, "module", "Warning: %s", warning_msg);
+LOGI(TAG, "module", "Info message");
+LOGD(TAG, "module", "Debug: value=%d", value);
+
+// Console only (legacy)
+ESP_LOGE(TAG, "Error message");
+
+// MQTT only
+publish_error_log("module", "Error message: %d", error_code);
+```
+
+#### Standardized Module Names
+
+Use predefined module names from `app_logging.h`:
+- `LOG_MODULE_MQTT`
+- `LOG_MODULE_SENSOR`
+- `LOG_MODULE_SYSTEM`
+- `LOG_MODULE_BME280`
+- `LOG_MODULE_DHT22`
+- `LOG_MODULE_DS18X20`
+- `LOG_MODULE_BH1750`
+- `LOG_MODULE_SOIL_MOISTURE`
+- `LOG_MODULE_ACTUATOR`
+- `LOG_MODULE_RELAY`
+- `LOG_MODULE_THERMOSTAT`
+- `LOG_MODULE_VALVE`
+- `LOG_MODULE_WATERPUMP`
+- `LOG_MODULE_COAP`
+- `LOG_MODULE_OTA`
+- `LOG_MODULE_WIFI`
+
+#### Log Levels
+
+Configuration: `CONFIG_MQTT_LOG_LEVEL`
+
+| Level | Default Threshold | Example |
+|-------|------------------|---------|
+| **DEBUG** | Lowest | Detailed diagnostic info |
+| **INFO** | Default | General operations |
+| **WARNING** | Warnings | Unusual conditions |
+| **ERROR** | Highest | Critical errors |
+
+#### Rate Limiting
+
+Configuration: `CONFIG_MQTT_LOG_RATE_LIMIT_MS`
+
+- Default: 1000ms (1 log/second max)
+- Set to 0: Disable rate limiting
+- Applies to ALL log levels including ERROR
+
+#### MQTT Topics
+
+```
+device/{CLIENT_ID}/evt/log/
+├── error     → Critical errors
+├── warning    → Warnings
+├── info       → General info
+└── debug      → Debug messages
+```
+
+#### Payload Format
+
+Plain text (memory efficient):
+```
+86400 [INFO] mqtt, message: MQTT connected
+```
+
+Structure: `TICK_COUNT [LEVEL] module: {module}, message: {message}`
+
+#### Migration Example
+
+**Before (Legacy):**
+```c
+ESP_LOGE(TAG, "Sensor read failed: %d", error);
+```
+
+**After (Dual Logging):**
+```c
+LOGE(TAG, LOG_MODULE_SENSOR, "Sensor read failed: %d", error);
+```
+
+#### Configuration Examples
+
+**Default (INFO level, dual logging):**
+```
+make menuconfig
+  → Component config
+    → MQTT configuration
+      → Log output mode = dual
+      → Minimum log level = info
+      → Minimum time between logs = 1000
+```
+
+**Debug mode (all logs, no rate limit):**
+```
+  → Log output mode = dual
+  → Minimum log level = debug
+  → Minimum time between logs = 0
+```
+
+**Production (ERROR only, legacy console):**
+```
+  → Log output mode = legacy
+  → Minimum log level = error
+```
 
 ### Constants and Macros
 - Define numeric constants in macros at top of files
