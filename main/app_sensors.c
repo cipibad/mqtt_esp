@@ -40,10 +40,12 @@ extern const int MQTT_CONNECTED_BIT;
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
 #include "app_sensors_soil_adc.h"
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 #include "app_sensors_soil_digital.h"
 #endif
 
@@ -133,10 +135,12 @@ void publish_ha_autoconfig()
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
   offset += sprintf(sensors + offset, "\"soil_moisture_adc\",");
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
   offset += sprintf(sensors + offset, "\"soil_moisture_digital\",");
 #endif
 
@@ -191,18 +195,21 @@ void publish_sensors_data()
 #endif // CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
-  soil_moisture_publish();
+
+  soil_moisture_adc_publish();
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  soil_moisture_publish_ha();
+  soil_moisture_adc_publish_ha();
   vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-  soil_moisture_publish();
+
+  soil_moisture_adc_publish();
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  soil_moisture_publish_ha();
+  soil_moisture_adc_publish_ha();
   vTaskDelay(50 / portTICK_PERIOD_MS);
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 
 #ifdef CONFIG_BH1750_SENSOR
   bh1750_publish();
@@ -226,11 +233,13 @@ void sensors_read(void* pvParameters)
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
-  soil_moisture_init();
+
+  soil_moisture_adc_init();
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-  soil_moisture_init();
+
+  soil_moisture_adc_adc_init();
 #endif
 
   while (1)
@@ -262,12 +271,15 @@ void sensors_read(void* pvParameters)
 #endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
-      soil_moisture_read();
+
+      soil_moisture_digital_adc_read();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-      soil_moisture_read();
+
+      soil_moisture_adc_read();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 
 #ifdef CONFIG_DEEP_SLEEP_MODE
 #ifdef CONFIG_NORTH_INTERFACE_MQTT

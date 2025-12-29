@@ -15,7 +15,7 @@
 
 static short soil_moisture = SHRT_MIN;
 
-void soil_moisture_init(void)
+void soil_moisture_adc_adc_init(void)
 {
   adc_config_t adc_config;
   adc_config.mode = ADC_READ_TOUT_MODE;
@@ -23,7 +23,7 @@ void soil_moisture_init(void)
   ESP_ERROR_CHECK(adc_init(&adc_config));
 }
 
-void soil_moisture_read(void)
+void soil_moisture_adc_read(void)
 {
   uint16_t soil_moisture_data = 0;
   if (ESP_OK == adc_read(&soil_moisture_data)) {
@@ -62,7 +62,7 @@ static void publish_soil_moisture_adc_ha(void)
   publish_non_persistent_data(topic, payload);
 }
 
-void soil_moisture_publish(void)
+void soil_moisture_adc_publish(void)
 {
   publish_soil_moisture_adc();
   vTaskDelay(50 / portTICK_PERIOD_MS);
@@ -70,7 +70,7 @@ void soil_moisture_publish(void)
   vTaskDelay(50 / portTICK_PERIOD_MS);
 }
 
-void soil_moisture_publish_ha(void)
+void soil_moisture_adc_publish_ha(void)
 {
   publish_soil_moisture_adc_ha();
   vTaskDelay(50 / portTICK_PERIOD_MS);

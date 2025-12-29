@@ -23,11 +23,12 @@ void publish_bh1750_ha_data();
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
-void publish_soil_moisture_adc_ha_data();
+void soil_moisture_adc_publish_ha(void);
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-void publish_soil_moisture_th_ha_data();
+void soil_moisture_digital_publish_ha(void);
 #endif
 
 #endif /* APP_SENSORS_H */
+

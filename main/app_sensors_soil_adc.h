@@ -3,9 +3,9 @@
 
 #include "app_sensors.h"
 
-void soil_moisture_init(void);
-void soil_moisture_read(void);
-void soil_moisture_publish(void);
-void soil_moisture_publish_ha(void);
+void soil_moisture_adc_init(void);
+void soil_moisture_adc_read(void);
+void soil_moisture_adc_publish(void);
+void soil_moisture_adc_publish_ha(void);
 
 #endif // APP_SENSORS_SOIL_ADC_H

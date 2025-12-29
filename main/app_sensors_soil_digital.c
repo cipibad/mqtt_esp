@@ -13,54 +13,54 @@
 #include "app_publish_data.h"
 #include "app_logging.h"
 
-static short soil_moisture_threshold = SHRT_MIN;
+static short soil_moisture_digital_threshold = SHRT_MIN;
 
-void soil_moisture_init(void)
+void soil_moisture_digital_digital_digital_init(void)
 {
   gpio_set_direction(CONFIG_SOIL_MOISTURE_SENSOR_GPIO, GPIO_MODE_INPUT);
 }
 
-void soil_moisture_read(void)
+void soil_moisture_digital_digital_read(void)
 {
-  soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
+  soil_moisture_digital_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
   LOGI(LOG_MODULE_SOIL_MOISTURE, "Soil moisture threshold %s",
-         soil_moisture_threshold ? "high" : "low");
+         soil_moisture_digital_threshold ? "high" : "low");
 }
 
-static void publish_soil_moisture_th(void)
+static void publish_soil_moisture_digital_th(void)
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/moisture/th";
 
-  publish_data_to_thermostat(topic, soil_moisture_threshold * 10);
+  publish_data_to_thermostat(topic, soil_moisture_digital_threshold * 10);
 
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%d", soil_moisture_threshold);
+  sprintf(data, "%d", soil_moisture_digital_threshold);
   publish_non_persistent_data(topic, data);
 }
 
-static void publish_soil_moisture_th_ha(void)
+static void publish_soil_moisture_digital_th_ha(void)
 {
   const char * topic = CONFIG_HOME_NAME "/" CONFIG_ROOM_NAME "/sensor";
   char payload[128];
 
   sprintf(payload, "{\"source\":\"soil_moisture\",\"moisture\":%d}",
-          soil_moisture_threshold);
+          soil_moisture_digital_threshold);
 
   publish_non_persistent_data(topic, payload);
 }
 
-void soil_moisture_publish(void)
+void soil_moisture_digital_digital_publish(void)
 {
-  publish_soil_moisture_th();
+  publish_soil_moisture_digital_th();
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  publish_soil_moisture_th_ha();
+  publish_soil_moisture_digital_th_ha();
   vTaskDelay(50 / portTICK_PERIOD_MS);
 }
 
-void soil_moisture_publish_ha(void)
+void soil_moisture_digital_digital_publish_ha(void)
 {
-  publish_soil_moisture_th_ha();
+  publish_soil_moisture_digital_th_ha();
   vTaskDelay(50 / portTICK_PERIOD_MS);
 }
 
