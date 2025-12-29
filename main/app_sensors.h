@@ -3,6 +3,7 @@
 
 void sensors_read(void* pvParameters);
 void publish_sensors_data();
+void publish_ha_autoconfig();
 
 #ifdef CONFIG_BME280_SENSOR
 void publish_bme280_ha_data();

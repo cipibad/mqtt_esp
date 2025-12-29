@@ -372,8 +372,67 @@ void publish_soil_moisture_th_ha_data()
 }
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
+void publish_ha_autoconfig()
+{
+  char config_topic[128];
+  char payload[512];
+  char sensors[256];
+  int offset = 0;
+
+  memset(sensors, 0, sizeof(sensors));
+  memset(payload, 0, sizeof(payload));
+
+  sensors[0] = '\0';
+  offset = sprintf(sensors, "[");
+
+#ifdef CONFIG_BME280_SENSOR
+  offset += sprintf(sensors + offset, "\"bme280\",");
+#endif
+
+#ifdef CONFIG_DHT22_SENSOR_SUPPORT
+  offset += sprintf(sensors + offset, "\"dht22\",");
+#endif
+
+#ifdef CONFIG_DS18X20_SENSOR
+  offset += sprintf(sensors + offset, "\"ds18x20\",");
+#endif
+
+#ifdef CONFIG_BH1750_SENSOR
+  offset += sprintf(sensors + offset, "\"bh1750\",");
+#endif
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+  offset += sprintf(sensors + offset, "\"soil_moisture_adc\",");
+#endif
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+  offset += sprintf(sensors + offset, "\"soil_moisture_digital\",");
+#endif
+
+  if (offset > 1) {
+    sensors[offset - 1] = ']';
+    sensors[offset] = '\0';
+  } else {
+    strcpy(sensors, "[]");
+  }
+
+  sprintf(config_topic, "device/%s/evt/config", CONFIG_CLIENT_ID);
+  sprintf(payload,
+          "{\"device_type\":\"%s\",\"client_id\":\"%s\",\"home_name\":\"%s\",\"room_name\":\"%s\",\"topic\":\"%s/%s/sensor\",\"sensors\":%s}",
+          CONFIG_DEVICE_TYPE,
+          CONFIG_CLIENT_ID,
+          CONFIG_HOME_NAME,
+          CONFIG_ROOM_NAME,
+          CONFIG_HOME_NAME,
+          CONFIG_ROOM_NAME,
+          sensors);
+
+  publish_non_persistent_data(config_topic, payload);
+}
+
 void publish_sensors_data()
 {
+  publish_ha_autoconfig();
 
 #ifndef CONFIG_DEEP_SLEEP_MODE
 
