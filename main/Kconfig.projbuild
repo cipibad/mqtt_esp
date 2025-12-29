@@ -1216,11 +1216,35 @@ menu "Contact sensor configuration"
         bool "Contact senson GPIO input pull UP"
         config CONTACT_SENSOR_GPIO_PULL_DOWN
         bool "Contact senson GPIO input pull DOWN"
-        config CONTACT_SENSOR_GPIO_PULL_NONE
-        bool "Contact senson NO GPIO input pull"
+config CONTACT_SENSOR_GPIO_PULL_NONE
+            bool "Contact senson NO GPIO input pull"
     endchoice
 
-endmenu # "Contact sensor configuration"
+    endmenu # "Contact sensor configuration"
 
 endmenu
+
+config LOG_OUTPUT_MODE
+    string "Log output mode"
+    default "legacy"
+    help
+        Controls where log messages are sent:
+        - legacy: Console only (ESP_LOGX functions)
+        - mqtt: MQTT only (publish_*_log functions)
+        - dual: Both console and MQTT (LOG* wrapper macros)
+
+config MQTT_LOG_LEVEL
+    string "Minimum log level to publish"
+    default "info"
+    help
+        Minimum log level to publish to MQTT. Only applies when
+        LOG_OUTPUT_MODE is "mqtt" or "dual".
+        Options: debug, info, warning, error.
+
+config MQTT_LOG_RATE_LIMIT_MS
+    int "Minimum time between logs (ms)"
+    default 1000
+    help
+        Rate limiting to prevent MQTT spam. ALL logs sent faster than
+        this interval will be dropped. Set to 0 to disable rate limiting.
 

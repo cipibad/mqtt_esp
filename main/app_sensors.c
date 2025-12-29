@@ -3,6 +3,7 @@
 
 #include <limits.h>
 #include <string.h>
+#include <stdarg.h>
 #include "esp_log.h"
 
 #include "driver/gpio.h"
@@ -25,6 +26,112 @@ extern const int MQTT_CONNECTED_BIT;
 
 #include "esp_sleep.h"
 #include "esp_wifi.h"
+
+// Standardized module names for logging
+#define LOG_MODULE_MQTT "mqtt"
+#define LOG_MODULE_SENSOR "sensor"
+#define LOG_MODULE_SYSTEM "system"
+#define LOG_MODULE_BME280 "bme280"
+#define LOG_MODULE_DHT22 "dht22"
+#define LOG_MODULE_DS18X20 "ds18x20"
+#define LOG_MODULE_BH1750 "bh1750"
+#define LOG_MODULE_SOIL_MOISTURE "soil_moisture"
+#define LOG_MODULE_ACTUATOR "actuator"
+#define LOG_MODULE_RELAY "relay"
+#define LOG_MODULE_THERMOSTAT "thermostat"
+#define LOG_MODULE_VALVE "valve"
+#define LOG_MODULE_WATERPUMP "waterpump"
+#define LOG_MODULE_COAP "coap"
+#define LOG_MODULE_OTA "ota"
+#define LOG_MODULE_WIFI "wifi"
+
+// Log level constants
+#define LOG_LEVEL_ERROR "error"
+#define LOG_LEVEL_WARNING "warning"
+#define LOG_LEVEL_INFO "info"
+#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
+#define LOG_LEVEL_DEBUG "debug"
+#endif
+
+// Rate limiting
+static TickType_t last_log_tick = 0;
+
+static bool should_log()
+{
+  if (CONFIG_MQTT_LOG_RATE_LIMIT_MS == 0) {
+    return true;
+  }
+  
+  TickType_t current_tick = xTaskGetTickCount();
+  TickType_t elapsed = current_tick - last_log_tick;
+  TickType_t limit_ticks = CONFIG_MQTT_LOG_RATE_LIMIT_MS / portTICK_PERIOD_MS;
+  
+  if (elapsed >= limit_ticks) {
+    last_log_tick = current_tick;
+    return true;
+  }
+  return false;
+}
+
+void publish_log_message(const char *level, const char *module, const char *message)
+{
+  if (!should_log()) {
+    return;
+  }
+  
+  char log_topic[128];
+  char payload[256];
+  TickType_t tick_count = xTaskGetTickCount();
+  
+  sprintf(log_topic, "device/%s/evt/log/%s", CONFIG_CLIENT_ID, level);
+  sprintf(payload, "%lu [%s] %s, message: %s",
+          (unsigned long)(tick_count * portTICK_PERIOD_MS / 1000),
+          level, module, message);
+  
+  publish_non_persistent_data(log_topic, payload);
+}
+
+void publish_error_log(const char *module, const char *format, ...)
+{
+  char buffer[128];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  va_end(args);
+  publish_log_message(LOG_LEVEL_ERROR, module, buffer);
+}
+
+void publish_warning_log(const char *module, const char *format, ...)
+{
+  char buffer[128];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  va_end(args);
+  publish_log_message(LOG_LEVEL_WARNING, module, buffer);
+}
+
+void publish_info_log(const char *module, const char *format, ...)
+{
+  char buffer[128];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  va_end(args);
+  publish_log_message(LOG_LEVEL_INFO, module, buffer);
+}
+
+#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
+void publish_debug_log(const char *module, const char *format, ...)
+{
+  char buffer[128];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args);
+  va_end(args);
+  publish_log_message(LOG_LEVEL_DEBUG, module, buffer);
+}
+#endif
 
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
@@ -139,11 +246,7 @@ const char* get_sensor_type_from_topic(const char * topic)
 
 void publish_sensor_log(const char * sensor_type, const char * log_message)
 {
-  char log_topic[128];
-  char formatted_message[256];
-  sprintf(log_topic, "device/%s/evt/log", CONFIG_CLIENT_ID);
-  sprintf(formatted_message, "[%s] %s", sensor_type, log_message);
-  publish_non_persistent_data(log_topic, formatted_message);
+  publish_info_log(LOG_MODULE_SENSOR, "[%s] %s", sensor_type, log_message);
 }
 
 void publish_sensor_data(const char * topic, int value)
