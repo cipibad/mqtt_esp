@@ -15,7 +15,6 @@
 EventGroupHandle_t wifi_event_group;
 const int WIFI_CONNECTED_BIT = BIT0;
 
-static const char *TAG = "MQTTS_WIFI";
 
 const char * wifi_ssid_tag = "wifi_ssid";
 const char * wifi_pass_tag = "wifi_pass";
@@ -29,16 +28,16 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-    LOGW(TAG, LOG_MODULE_WIFI, "Wifi: SYSTEM_EVENT_STA_START");
+    LOGW(LOG_MODULE_WIFI, "Wifi: SYSTEM_EVENT_STA_START");
     esp_wifi_connect();
   } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-    LOGW(TAG, LOG_MODULE_WIFI, "SYSTEM_EVENT_STA_DISCONNECTED");
+    LOGW(LOG_MODULE_WIFI, "SYSTEM_EVENT_STA_DISCONNECTED");
     xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
     esp_wifi_connect();
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
     xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
-    LOGI(TAG, LOG_MODULE_WIFI, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+    LOGI(LOG_MODULE_WIFI, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
   }
 }
 
@@ -85,17 +84,17 @@ void wifi_init(void)
   };
 
   if (strlen(wifi_ssid) && strlen(wifi_pass)) {
-    LOGI(TAG, LOG_MODULE_WIFI, "using nvs wifi config");
+    LOGI(LOG_MODULE_WIFI, "using nvs wifi config");
     strcpy((char*)wifi_config.sta.ssid, wifi_ssid);
     strcpy((char*)wifi_config.sta.password, wifi_pass);
   }
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-  LOGI(TAG, LOG_MODULE_WIFI, "start the WIFI SSID:[%s]", wifi_config.sta.ssid);
-  LOGI(TAG, LOG_MODULE_WIFI, "connecting with pass:[%s]", wifi_config.sta.password);
+  LOGI(LOG_MODULE_WIFI, "start the WIFI SSID:[%s]", wifi_config.sta.ssid);
+  LOGI(LOG_MODULE_WIFI, "connecting with pass:[%s]", wifi_config.sta.password);
   ESP_ERROR_CHECK(esp_wifi_start());
-  LOGI(TAG, LOG_MODULE_WIFI, "wifi_init_sta finished, waiting for wifi");
+  LOGI(LOG_MODULE_WIFI, "wifi_init_sta finished, waiting for wifi");
 
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
 

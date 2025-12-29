@@ -82,7 +82,6 @@ short soil_moisture = SHRT_MIN;
 short soil_moisture_threshold = SHRT_MIN;
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
-static const char *TAG = "APP_SENSOR";
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
@@ -127,7 +126,7 @@ void publish_data_to_thermostat(const char * topic, int value)
 void publish_sensor_data(const char * topic, int value)
 {
   if (value == SHRT_MIN) {
-    LOGE(TAG, LOG_MODULE_SENSOR, "Invalid sensor value, skipping publish for topic: %s", topic);
+    LOGE(LOG_MODULE_SENSOR, "Invalid sensor value, skipping publish for topic: %s", topic);
     return;
   }
 
@@ -238,7 +237,7 @@ void publish_bh1750_data()
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
 
   if (illuminance == 0) {
-    LOGE(TAG, LOG_MODULE_BH1750, "Invalid illuminance value (0), skipping publish");
+    LOGE(LOG_MODULE_BH1750, "Invalid illuminance value (0), skipping publish");
     return;
   }
 
@@ -476,7 +475,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
                                   CONFIG_I2C_SENSOR_SDA_GPIO,
                                    CONFIG_I2C_SENSOR_SCL_GPIO);
   if (err != ESP_OK) {
-    LOGE(TAG, LOG_MODULE_BME280, "Cannot init bme280 sensor");
+    LOGE(LOG_MODULE_BME280, "Cannot init bme280 sensor");
   }
 #endif //CONFIG_BME280_SENSOR
 
@@ -537,21 +536,21 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
               + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
           }
 
-          LOGI(TAG, LOG_MODULE_DHT22, "Humidity: %d.%d%% Temp: %d.%dC",
+          LOGI(LOG_MODULE_DHT22, "Humidity: %d.%d%% Temp: %d.%dC",
                    dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
                    dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
           publish_dht22_data();
         }
       else
         {
-          LOGE(TAG, LOG_MODULE_DHT22, "Could not read data from DHT sensor");
+          LOGE(LOG_MODULE_DHT22, "Could not read data from DHT sensor");
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
        sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
-        LOGW(TAG, LOG_MODULE_DS18X20, "No sensors detected");
+        LOGW(LOG_MODULE_DS18X20, "No sensors detected");
       } else {
         ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
         for (int j = 0; j < sensor_count; j++)
@@ -564,7 +563,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
             short temp_c = (short)(temps[j] * 10);
-            LOGI(TAG, LOG_MODULE_DS18X20, "Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
+            LOGI(LOG_MODULE_DS18X20, "Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
           }
         publish_ds18x20_data();
 
@@ -574,7 +573,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #ifdef CONFIG_BME280_SENSOR
       if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
         {
-          LOGI(TAG, LOG_MODULE_BME280, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
+          LOGI(LOG_MODULE_BME280, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
             bme280_temperature / 100, bme280_temperature % 100,
             bme280_pressure / 100, bme280_pressure % 100,
             bme280_humidity / 1000, bme280_humidity % 1000);
@@ -582,19 +581,19 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
         }
        else
         {
-          LOGE(TAG, LOG_MODULE_BME280, "Could not read data from BME sensor");
+          LOGE(LOG_MODULE_BME280, "Could not read data from BME sensor");
         }
 #endif //CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_BH1750_SENSOR
        esp_err_t ret = i2c_master_BH1750_read(&illuminance);
        if (ret == ESP_ERR_TIMEOUT) {
-           LOGE(TAG, LOG_MODULE_BH1750, "I2C Timeout");
+           LOGE(LOG_MODULE_BH1750, "I2C Timeout");
        } else if (ret == ESP_OK) {
-           LOGI(TAG, LOG_MODULE_BH1750, "Illuminance: %d.%02d lx", illuminance/100, illuminance%100);
+           LOGI(LOG_MODULE_BH1750, "Illuminance: %d.%02d lx", illuminance/100, illuminance%100);
            publish_bh1750_data();
        } else {
-           LOGW(TAG, LOG_MODULE_BH1750, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
+           LOGW(LOG_MODULE_BH1750, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
    }
 #endif // CONFIG_BH1750_SENSOR
 
@@ -606,16 +605,16 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
     uint16_t soil_moisture_data = 0;
     if (ESP_OK == adc_read(&soil_moisture_data)) {
         soil_moisture = 1023 - soil_moisture_data;
-        LOGI(TAG, LOG_MODULE_SOIL_MOISTURE, "adc read: %d", soil_moisture);
+        LOGI(LOG_MODULE_SOIL_MOISTURE, "adc read: %d", soil_moisture);
         publish_soil_moisture_adc();
     } else {
-      LOGE(TAG, LOG_MODULE_SOIL_MOISTURE, "Could not read data from adc");
+      LOGE(LOG_MODULE_SOIL_MOISTURE, "Could not read data from adc");
     }
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
      soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
-    LOGI(TAG, LOG_MODULE_SOIL_MOISTURE, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
+    LOGI(LOG_MODULE_SOIL_MOISTURE, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
     publish_soil_moisture_th();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
@@ -627,7 +626,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
   bits = xEventGroupGetBits(mqtt_event_group);
   if (bits & MQTT_CONNECTED_BIT) {
-    LOGI(TAG, LOG_MODULE_SYSTEM, "Going deepsleep");
+    LOGI(LOG_MODULE_SYSTEM, "Going deepsleep");
     esp_deep_sleep_set_rf_option(2);
     esp_wifi_stop();
     esp_deep_sleep(CONFIG_DEEP_SLEEP_MODE_PERIOD * 1000 * 1000);

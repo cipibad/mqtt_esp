@@ -49,43 +49,43 @@ void publish_debug_log(const char *module, const char *format, ...);
 #endif
 
 // Dual logging wrapper macros (always log to console, optionally to MQTT)
-#define LOGE(tag, module, ...) \
+#define LOGE(module, ...) \
     do { \
-        ESP_LOGE(tag, __VA_ARGS__); \
+        ESP_LOGE(module, __VA_ARGS__); \
         if (LOG_LEVEL_ENABLED_ERROR) { \
             publish_error_log(module, __VA_ARGS__); \
         } \
     } while(0)
 
-#define LOGW(tag, module, ...) \
+#define LOGW(module, ...) \
     do { \
-        ESP_LOGW(tag, __VA_ARGS__); \
+        ESP_LOGW(module, __VA_ARGS__); \
         if (LOG_LEVEL_ENABLED_WARNING) { \
             publish_warning_log(module, __VA_ARGS__); \
         } \
     } while(0)
 
-#define LOGI(tag, module, ...) \
+#define LOGI(module, ...) \
     do { \
-        ESP_LOGI(tag, __VA_ARGS__); \
+        ESP_LOGI(module, __VA_ARGS__); \
         if (LOG_LEVEL_ENABLED_INFO) { \
             publish_info_log(module, __VA_ARGS__); \
         } \
     } while(0)
 
 #ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
-#define LOGD(tag, module, ...) \
+#define LOGD(module, ...) \
     do { \
-        ESP_LOGD(tag, __VA_ARGS__); \
+        ESP_LOGD(module, __VA_ARGS__); \
         if (LOG_LEVEL_ENABLED_DEBUG) { \
             publish_debug_log(module, __VA_ARGS__); \
         } \
     } while(0)
 
 #else // CONFIG_MQTT_LOG_LEVEL_DEBUG
-#define LOGD(tag, module, ...) \
+#define LOGD(module, ...) \
     do { \
-        ESP_LOGD(tag, __VA_ARGS__); \
+        ESP_LOGD(module, __VA_ARGS__); \
     } while(0)
 #endif // CONFIG_MQTT_LOG_LEVEL_DEBUG
 

@@ -30,18 +30,17 @@ const int PRESENCE_TIMER_BIT = BIT1;
 TimerHandle_t presence_detection_timer = NULL;
 TimerHandle_t presence_cooldown_timer = NULL;
 
-static const char *TAG = "PRESENCE";
 
 void presence_cooldown_timer_callback( TimerHandle_t xTimer )
 {
-    LOGI(TAG, LOG_MODULE_SYSTEM, "cooldown expired, should disable cooldown status now");
+    LOGI(LOG_MODULE_SYSTEM, "cooldown expired, should disable cooldown status now");
     presence_cooldown = false;
     xEventGroupSetBits (presenceEventGroup, PRESENCE_NEW_DATA_BIT);
 }
 
 void presence_detection_timer_callback( TimerHandle_t xTimer )
 {
-    LOGI(TAG, LOG_MODULE_SYSTEM, "detection timer expired, should disable presence status now");
+    LOGI(LOG_MODULE_SYSTEM, "detection timer expired, should disable presence status now");
     xEventGroupSetBits (presenceEventGroup, PRESENCE_TIMER_BIT);
 }
 
@@ -57,12 +56,12 @@ void publish_presence_data()
 
 void app_presence_task(void* pvParameters)
 {
-    LOGI(TAG, LOG_MODULE_SYSTEM, "app_presence task started");
+    LOGI(LOG_MODULE_SYSTEM, "app_presence task started");
     presenceEventGroup = xEventGroupCreate();
     /* Was the event group created successfully? */
     if( presenceEventGroup == NULL )
     {
-        LOGE(TAG, LOG_MODULE_SYSTEM, "The event group was not created because there was insufficient \
+        LOGE(LOG_MODULE_SYSTEM, "The event group was not created because there was insufficient \
                         FreeRTOS heap available");
         return;
     }
@@ -73,7 +72,7 @@ void app_presence_task(void* pvParameters)
                     (void *)0,                  /* no ID. */
                     presence_detection_timer_callback );  /* Callback function. */
     if (presence_detection_timer == NULL) {
-        LOGE(TAG, LOG_MODULE_SYSTEM, "No presence_detection_timer found");
+        LOGE(LOG_MODULE_SYSTEM, "No presence_detection_timer found");
         return;
     }
 
@@ -83,7 +82,7 @@ void app_presence_task(void* pvParameters)
                     (void *)0,                  /* no ID. */
                     presence_cooldown_timer_callback );  /* Callback function. */
     if (presence_cooldown_timer == NULL) {
-        LOGE(TAG, LOG_MODULE_SYSTEM, "No presence_cooldown_timer found");
+        LOGE(LOG_MODULE_SYSTEM, "No presence_cooldown_timer found");
         return;
     }
 
@@ -107,26 +106,26 @@ void app_presence_task(void* pvParameters)
                     if (xQueueSend( relayQueue,
                                     ( void * )&r,
                                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
-                    LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot send to relayQueue");
+                    LOGE(LOG_MODULE_SYSTEM, "Cannot send to relayQueue");
                     }
                 }
                 if( xTimerStop(presence_detection_timer, 0 ) != pdPASS )
                 {
-                    LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot stop presence_detection_timer");
+                    LOGE(LOG_MODULE_SYSTEM, "Cannot stop presence_detection_timer");
                     continue;
                 }
-                LOGI(TAG, LOG_MODULE_SYSTEM, "Stopped presence_detection_timer");
+                LOGI(LOG_MODULE_SYSTEM, "Stopped presence_detection_timer");
             }
             else if (presence_detected) { // should stop with delay, start timer
                 if( xTimerIsTimerActive( presence_detection_timer ) == pdFALSE ) {
                     if( xTimerStart(presence_detection_timer, 0 ) != pdPASS )
                     {
-                        LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot start presence_detection_timer");
+                        LOGE(LOG_MODULE_SYSTEM, "Cannot start presence_detection_timer");
                         continue;
                     }
-                    LOGI(TAG, LOG_MODULE_SYSTEM, "Started presence_detection_timer");
+                    LOGI(LOG_MODULE_SYSTEM, "Started presence_detection_timer");
                 } else {
-                    LOGI(TAG, LOG_MODULE_SYSTEM, "Timer already active: presence_detection_timer");
+                    LOGI(LOG_MODULE_SYSTEM, "Timer already active: presence_detection_timer");
                 }
             }
         } else if (mBits & PRESENCE_TIMER_BIT) {
@@ -137,19 +136,19 @@ void app_presence_task(void* pvParameters)
             if( xTimerIsTimerActive( presence_cooldown_timer ) == pdFALSE ) {
                 if( xTimerStart(presence_cooldown_timer, 0 ) != pdPASS )
                 {
-                    LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot start presence_cooldown_timer");
+                    LOGE(LOG_MODULE_SYSTEM, "Cannot start presence_cooldown_timer");
                     continue;
                 }
-                LOGI(TAG, LOG_MODULE_SYSTEM, "Started presence_cooldown_timer");
+                LOGI(LOG_MODULE_SYSTEM, "Started presence_cooldown_timer");
             } else {
-                LOGI(TAG, LOG_MODULE_SYSTEM, "Timer already active: presence_cooldown_timer");
+                LOGI(LOG_MODULE_SYSTEM, "Timer already active: presence_cooldown_timer");
             }
 
             struct RelayMessage r = {RELAY_CMD_STATUS, 0, RELAY_STATUS_OFF};
             if (xQueueSend( relayQueue,
                             ( void * )&r,
                             RELAY_QUEUE_TIMEOUT) != pdPASS) {
-                LOGE(TAG, LOG_MODULE_SYSTEM, "Cannot send to relayQueue");
+                LOGE(LOG_MODULE_SYSTEM, "Cannot send to relayQueue");
             }
         }
     }

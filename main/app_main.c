@@ -109,13 +109,12 @@ extern const int WIFI_CONNECTED_BIT;
 extern const char * smartconfigTAG;
 extern int smartconfigFlag;
 
-static const char *TAG = "MQTT(S?)_MAIN";
 
 void restart_in_3_minutes_task(void *pvParameter)
 {
-  LOGI(TAG, LOG_MODULE_SYSTEM, "Prepare to esp board in 3 minutes!");
+  LOGI(LOG_MODULE_SYSTEM, "Prepare to esp board in 3 minutes!");
   vTaskDelay((3 * 60 * 1000 - 10 * 1000) / portTICK_PERIOD_MS);
-  LOGI(TAG, LOG_MODULE_SYSTEM, "Prepare to restart system in 10 seconds!");
+  LOGI(LOG_MODULE_SYSTEM, "Prepare to restart system in 10 seconds!");
   vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
   esp_restart();
 }
@@ -175,14 +174,14 @@ void blink_task(void *pvParameter)
 #endif // CONFIG_STATUS_LED
 void app_main(void)
 {
-  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Startup..");
-  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] IDF version: %s", esp_get_idf_version());
-  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Client ID: " CONFIG_CLIENT_ID);
+  LOGI(LOG_MODULE_SYSTEM, "[APP] Startup..");
+  LOGI(LOG_MODULE_SYSTEM, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+  LOGI(LOG_MODULE_SYSTEM, "[APP] IDF version: %s", esp_get_idf_version());
+  LOGI(LOG_MODULE_SYSTEM, "[APP] Client ID: " CONFIG_CLIENT_ID);
 
   uint8_t mac[6];
   esp_efuse_mac_get_default(mac);
-  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] MAC Address: " MACSTR, MAC2STR(mac) );
+  LOGI(LOG_MODULE_SYSTEM, "[APP] MAC Address: " MACSTR, MAC2STR(mac) );
 
   esp_log_level_set("*", ESP_LOG_INFO);
   esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
@@ -206,7 +205,7 @@ void app_main(void)
   }
   ESP_ERROR_CHECK( err );
 
-  LOGI(TAG, LOG_MODULE_SYSTEM, "nvs_flash_init done");
+  LOGI(LOG_MODULE_SYSTEM, "nvs_flash_init done");
 
 #if CONFIG_MQTT_RELAYS_NB
   relays_init();

@@ -11,7 +11,6 @@
 #include "freertos/event_groups.h"
 
 #define portYIELD_FROM_ISR() taskYIELD()
-static const char *TAG = "CONTACT";
 
 EventGroupHandle_t contactEventGroup;
 const int CONTACT_GPIO_INTR_BIT = BIT0;
@@ -42,11 +41,11 @@ void publish_contact_data() {
 }
 
 void app_contact_task(void *pvParameters) {
-  LOGI(TAG, LOG_MODULE_SYSTEM, "app_contact_task started");
+  LOGI(LOG_MODULE_SYSTEM, "app_contact_task started");
   contactEventGroup = xEventGroupCreate();
   /* Was the event group created successfully? */
   if (contactEventGroup == NULL) {
-    LOGE(TAG, LOG_MODULE_SYSTEM,
+    LOGE(LOG_MODULE_SYSTEM,
              "The event group was not created because there was insufficient \
                         FreeRTOS heap available");
     return;
@@ -80,7 +79,7 @@ void app_contact_task(void *pvParameters) {
   // hook isr handler for specific gpio pin
   gpio_isr_handler_add(CONFIG_CONTACT_SENSOR_GPIO, gpio_isr_handler,
                        (void *)NULL);
-  LOGI(TAG, LOG_MODULE_SYSTEM, "gpio %d configured", CONFIG_CONTACT_SENSOR_GPIO);
+  LOGI(LOG_MODULE_SYSTEM, "gpio %d configured", CONFIG_CONTACT_SENSOR_GPIO);
 
   contact_open = gpio_get_level(CONFIG_CONTACT_SENSOR_GPIO);
 
@@ -92,7 +91,7 @@ void app_contact_task(void *pvParameters) {
       bool new_contact_open = gpio_get_level(CONFIG_CONTACT_SENSOR_GPIO);
       if (new_contact_open != contact_open) {
         contact_open = new_contact_open;
-        LOGI(TAG, LOG_MODULE_SYSTEM, "contact change detection: %d", contact_open);
+        LOGI(LOG_MODULE_SYSTEM, "contact change detection: %d", contact_open);
         publish_contact_data();
       }
     }

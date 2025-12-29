@@ -7,7 +7,7 @@
 #define TAG "system"
 
 void system_restart(void){
-    LOGI(TAG, LOG_MODULE_SYSTEM, "Restarting in 5 seconds following system command");
+    LOGI(LOG_MODULE_SYSTEM, "Restarting in 5 seconds following system command");
     vTaskDelay(5 * 1000 / portTICK_PERIOD_MS);
     esp_restart();
 }

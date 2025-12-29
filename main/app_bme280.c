@@ -14,7 +14,6 @@
 #include "app_bme280.h"
 #include "app_logging.h"
 
-#define TAG "BME280"
 
 /**
  * @brief test code to write mpu6050
@@ -139,13 +138,13 @@ esp_err_t bme_read_data(int32_t *temperature, int32_t *pressure, int32_t *humidi
     *pressure = bme280_compensate_pressure_int32(v_uncomp_pressure_s32) / 1.33322;
     *humidity = 1000. * bme280_compensate_humidity_int32(v_uncomp_humidity_s32) / 1024;
 
-     LOGI(TAG, LOG_MODULE_BME280, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg, Humidity: %d.%03d %%rH",
+     LOGI(LOG_MODULE_BME280, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg, Humidity: %d.%03d %%rH",
               (*temperature) / 100, (*temperature) % 100,
               (*pressure) / 100, (*pressure) % 100,
               (*humidity)/1000, (*humidity) % 1000);
      return ESP_OK;
    } else {
-     LOGE(TAG, LOG_MODULE_BME280, "measure error. code: %d", com_rslt);
+     LOGE(LOG_MODULE_BME280, "measure error. code: %d", com_rslt);
    }
   return ESP_FAIL;
 }

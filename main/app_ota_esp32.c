@@ -20,7 +20,6 @@
 #include "app_ota.h"
 #include "app_publish_data.h"
 
-static const char *TAG = "MQTTS_OTA";
 
 extern QueueHandle_t otaQueue;
 
@@ -55,17 +54,17 @@ void handle_ota_update_task(void* pvParameters)
   esp_ota_handle_t update_handle = 0 ;
   const esp_partition_t *update_partition = NULL;
 
-  LOGI(TAG, LOG_MODULE_OTA, "Starting OTA example...");
+  LOGI(LOG_MODULE_OTA, "Starting OTA example...");
 
   const esp_partition_t *configured = esp_ota_get_boot_partition();
   const esp_partition_t *running = esp_ota_get_running_partition();
 
   if (configured != running) {
-    LOGW(TAG, LOG_MODULE_OTA, "Configured OTA boot partition at offset 0x%08x, but running from offset 0x%08x",
+    LOGW(LOG_MODULE_OTA, "Configured OTA boot partition at offset 0x%08x, but running from offset 0x%08x",
              configured->address, running->address);
-    LOGW(TAG, LOG_MODULE_OTA, "(This can happen if either the OTA boot data or preferred boot image become corrupted somehow.)");
+    LOGW(LOG_MODULE_OTA, "(This can happen if either the OTA boot data or preferred boot image become corrupted somehow.)");
   }
-  LOGI(TAG, LOG_MODULE_OTA, "Running partition type %d subtype %d (offset 0x%08x)",
+  LOGI(LOG_MODULE_OTA, "Running partition type %d subtype %d (offset 0x%08x)",
            running->type, running->subtype, running->address);
   struct OtaMessage o;
   char * url = "https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin";
@@ -86,35 +85,35 @@ void handle_ota_update_task(void* pvParameters)
         };
         esp_http_client_handle_t client = esp_http_client_init(&config);
         if (client == NULL) {
-          LOGE(TAG, LOG_MODULE_OTA, "Failed to initialise HTTP connection");
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGE(LOG_MODULE_OTA, "Failed to initialise HTTP connection");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
         err = esp_http_client_open(client, 0);
         if (err != ESP_OK) {
-          LOGE(TAG, LOG_MODULE_OTA, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+          LOGE(LOG_MODULE_OTA, "Failed to open HTTP connection: %s", esp_err_to_name(err));
           esp_http_client_cleanup(client);
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
         esp_http_client_fetch_headers(client);
 
         update_partition = esp_ota_get_next_update_partition(NULL);
-        LOGI(TAG, LOG_MODULE_OTA, "Writing to partition subtype %d at offset 0x%x",
+        LOGI(LOG_MODULE_OTA, "Writing to partition subtype %d at offset 0x%x",
                  update_partition->subtype, update_partition->address);
         assert(update_partition != NULL);
 
         err = esp_ota_begin(update_partition, OTA_SIZE_UNKNOWN, &update_handle);
         if (err != ESP_OK) {
-          LOGE(TAG, LOG_MODULE_OTA, "esp_ota_begin failed (%s)", esp_err_to_name(err));
+          LOGE(LOG_MODULE_OTA, "esp_ota_begin failed (%s)", esp_err_to_name(err));
           http_cleanup(client);
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
-        LOGI(TAG, LOG_MODULE_OTA, "esp_ota_begin succeeded");
+        LOGI(LOG_MODULE_OTA, "esp_ota_begin succeeded");
 
         int binary_file_length = 0;
         /*deal with all receive packet*/
@@ -122,7 +121,7 @@ void handle_ota_update_task(void* pvParameters)
         while (!failed) {
           int data_read = esp_http_client_read(client, ota_write_data, BUFFSIZE);
           if (data_read < 0) {
-            LOGE(TAG, LOG_MODULE_OTA, "Error: SSL data read error");
+            LOGE(LOG_MODULE_OTA, "Error: SSL data read error");
             failed=true;
             break;
           } else if (data_read > 0) {
@@ -132,46 +131,46 @@ void handle_ota_update_task(void* pvParameters)
               break;
             }
             binary_file_length += data_read;
-            LOGD(TAG, LOG_MODULE_OTA, "Written image length %d", binary_file_length);
+            LOGD(LOG_MODULE_OTA, "Written image length %d", binary_file_length);
           } else if (data_read == 0) {
-            LOGI(TAG, LOG_MODULE_OTA, "Connection closed,all data received");
+            LOGI(LOG_MODULE_OTA, "Connection closed,all data received");
             break;
           }
         }
         if(failed) {
           http_cleanup(client);
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
 
-        LOGI(TAG, LOG_MODULE_OTA, "Total Write binary data length : %d", binary_file_length);
+        LOGI(LOG_MODULE_OTA, "Total Write binary data length : %d", binary_file_length);
 
         if (esp_ota_end(update_handle) != ESP_OK) {
-          LOGE(TAG, LOG_MODULE_OTA, "esp_ota_end failed!");
+          LOGE(LOG_MODULE_OTA, "esp_ota_end failed!");
           http_cleanup(client);
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
 
         if (esp_partition_check_identity(esp_ota_get_running_partition(), update_partition) == true) {
-          LOGI(TAG, LOG_MODULE_OTA, "The current running firmware is same as the firmware just downloaded");
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGI(LOG_MODULE_OTA, "The current running firmware is same as the firmware just downloaded");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
 
         err = esp_ota_set_boot_partition(update_partition);
         if (err != ESP_OK) {
-          LOGE(TAG, LOG_MODULE_OTA, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(err));
+          LOGE(LOG_MODULE_OTA, "esp_ota_set_boot_partition failed (%s)!", esp_err_to_name(err));
           http_cleanup(client);
-          LOGE(TAG, LOG_MODULE_OTA, "Firmware Upgrade Failed");
+          LOGE(LOG_MODULE_OTA, "Firmware Upgrade Failed");
           publish_ota_data(OTA_FAILED);
           continue;
         }
 
-        LOGI(TAG, LOG_MODULE_OTA, "Firmware Upgrade Success, will restart in 10 seconds");
+        LOGI(LOG_MODULE_OTA, "Firmware Upgrade Success, will restart in 10 seconds");
         publish_ota_data(OTA_SUCCESFULL);
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         esp_restart();

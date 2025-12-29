@@ -74,7 +74,6 @@ int mqtt_reconnect_counter;
 extern QueueHandle_t mqttQueue;
 extern SemaphoreHandle_t xSemaphore;
 
-static const char *TAG = "MQTTS_MQTTS";
 
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_MQTT
 #define CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_MQTT 1
@@ -174,7 +173,7 @@ bool handle_ota_mqtt_event(esp_mqtt_event_handle_t event)
     if (xQueueSend( otaQueue
                     ,( void * )&o
                     ,OTA_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_OTA, "Cannot send to otaQueue");
+      LOGE(LOG_MODULE_OTA, "Cannot send to otaQueue");
 
     }
     return true;
@@ -241,7 +240,7 @@ void handle_system_mqtt_cmd(const char* topic, int topic_len, const char* payloa
       system_restart();
       return;
     }
-  LOGW(TAG, LOG_MODULE_MQTT, "unhandled system action: %s", action);
+  LOGW(LOG_MODULE_MQTT, "unhandled system action: %s", action);
 }
 
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
@@ -254,7 +253,7 @@ void handle_thermostat_mqtt_bump_cmd(const char *payload)
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
   }
 }
 
@@ -271,14 +270,14 @@ void handle_thermostat_mqtt_mode_cmd(signed char thermostatId, const char *paylo
     tm.data.thermostatMode = THERMOSTAT_MODE_OFF;
 
   if (tm.data.thermostatMode == THERMOSTAT_MODE_UNSET) {
-    LOGE(TAG, LOG_MODULE_MQTT, "wrong payload");
+    LOGE(LOG_MODULE_MQTT, "wrong payload");
     return;
   }
 
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
   }
 }
 
@@ -293,7 +292,7 @@ void handle_thermostat_mqtt_temp_cmd(signed char thermostatId, const char *paylo
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
   }
 }
 
@@ -308,7 +307,7 @@ void handle_thermostat_mqtt_tolerance_cmd(signed char thermostatId, const char *
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
   }
 }
 
@@ -336,7 +335,7 @@ void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* pa
       }
     }
   }
-  LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled water thermostat: %s", action);
+  LOGW(LOG_MODULE_THERMOSTAT, "unhandled water thermostat: %s", action);
 }
 
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
@@ -358,7 +357,7 @@ void handle_relay_mqtt_status_cmd(signed char relayId, const char *payload)
   if (xQueueSend( relayQueue
                   ,( void * )&rm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_RELAY, "Cannot send to relayQueue");
+    LOGE(LOG_MODULE_RELAY, "Cannot send to relayQueue");
   }
 }
 
@@ -374,7 +373,7 @@ void handle_relay_mqtt_sleep_cmd(signed char relayId, const char *payload)
   if (xQueueSend( relayQueue
                   ,( void * )&rm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_RELAY, "Cannot send to relayQueue");
+    LOGE(LOG_MODULE_RELAY, "Cannot send to relayQueue");
   }
 }
 
@@ -393,10 +392,10 @@ void handle_relay_mqtt_cmd(const char* topic, int topic_len, const char* payload
       handle_relay_mqtt_sleep_cmd(relayId, payload);
       return;
     }
-    LOGW(TAG, LOG_MODULE_RELAY, "unhandled relay action: %s", action);
+    LOGW(LOG_MODULE_RELAY, "unhandled relay action: %s", action);
     return;
   }
-  LOGW(TAG, LOG_MODULE_RELAY, "unhandled relay id: %d", relayId);
+  LOGW(LOG_MODULE_RELAY, "unhandled relay id: %d", relayId);
 }
 
 #endif // CONFIG_MQTT_RELAYS_NB
@@ -416,7 +415,7 @@ void handle_valve_mqtt_status_cmd(const char *payload)
   if (xQueueSend( valveQueue
                   ,( void * )&vm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_VALVE, "Cannot send to valveQueue");
+    LOGE(LOG_MODULE_VALVE, "Cannot send to valveQueue");
   }
 }
 
@@ -429,7 +428,7 @@ void handle_valve_mqtt_cmd(const char* topic, int topic_len, const char* payload
     handle_valve_mqtt_status_cmd(payload);
     return;
   }
-  LOGW(TAG, LOG_MODULE_VALVE, "unhandled valve action: %s", action);
+  LOGW(LOG_MODULE_VALVE, "unhandled valve action: %s", action);
   return;
 }
 #endif // CONFIG_VALVE_SUPPORT
@@ -455,13 +454,13 @@ void handle_scheduler_mqtt_action_cmd(signed char schedulerId, const char *paylo
   else if (strcmp(payload, "ow_off") == 0)
     sm.data.action = SCHEDULER_ACTION_OW_OFF;
   else {
-    LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled scheduler action: %s", payload);
+    LOGW(LOG_MODULE_THERMOSTAT, "unhandled scheduler action: %s", payload);
     return;
   }
   if (xQueueSend( schedulerCfgQueue
                   ,( void * )&sm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
   }
 }
 
@@ -476,7 +475,7 @@ void handle_scheduler_mqtt_dow_cmd(signed char schedulerId, const char *payload)
   if (xQueueSend( schedulerCfgQueue
                   ,( void * )&sm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
   }
 }
 
@@ -493,7 +492,7 @@ void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload
 
   char *token = strtok(str, ":");
   if (!token) {
-    LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 1: %s", payload);
+    LOGW(LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 1: %s", payload);
     return;
   }
 
@@ -501,7 +500,7 @@ void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload
 
   token = strtok(NULL, ":");
   if (!token) {
-    LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 2: %s", payload);
+    LOGW(LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 2: %s", payload);
     return;
   }
   sm.data.time.minute = atoi(token);
@@ -509,7 +508,7 @@ void handle_scheduler_mqtt_time_cmd(signed char schedulerId, const char *payload
   if (xQueueSend( schedulerCfgQueue
                   ,( void * )&sm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
   }
 }
 
@@ -525,14 +524,14 @@ void handle_scheduler_mqtt_status_cmd(signed char schedulerId, const char *paylo
   else if (strcmp(payload, "OFF") == 0)
     sm.data.status = SCHEDULER_STATUS_OFF;
   else {
-    LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled scheduler status: %s", payload);
+    LOGW(LOG_MODULE_THERMOSTAT, "unhandled scheduler status: %s", payload);
     return;
   }
 
   if (xQueueSend( schedulerCfgQueue
                   ,( void * )&sm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to schedulerCfgQueue");
   }
 }
 
@@ -559,10 +558,10 @@ void handle_scheduler_mqtt_cmd(const char* topic, int topic_len, const char* pay
       handle_scheduler_mqtt_status_cmd(schedulerId, payload);
       return;
     }
-    LOGW(TAG, LOG_MODULE_RELAY, "unhandled relay action: %s", action);
+    LOGW(LOG_MODULE_RELAY, "unhandled relay action: %s", action);
     return;
   }
-  LOGW(TAG, LOG_MODULE_RELAY, "unhandled relay id: %d", schedulerId);
+  LOGW(LOG_MODULE_RELAY, "unhandled relay id: %d", schedulerId);
 }
 
 #endif // CONFIG_MQTT_SCHEDULERS
@@ -580,7 +579,7 @@ void thermostat_publish_data(int thermostat_id, const char * payload)
   if (xQueueSend( thermostatQueue
                   ,( void * )&tm
                   ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
   }
 }
 
@@ -641,7 +640,7 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
   //FIXME this check should be generic and 16 should get a define
   if (event->data_len > 16 - 1) { //including '\0'
-    LOGE(TAG, LOG_MODULE_MQTT, "payload to big");
+    LOGE(LOG_MODULE_MQTT, "payload to big");
     return;
   }
 #if CONFIG_MQTT_THERMOSTATS_MQTT_SENSORS > 0
@@ -694,12 +693,12 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
       return;
     }
 #endif // CONFIG_MQTT_SCHEDULERS
-  LOGE(TAG, LOG_MODULE_MQTT, "Unhandled service %s for cmd action", service);
+  LOGE(LOG_MODULE_MQTT, "Unhandled service %s for cmd action", service);
   }
 
   if (handle_ota_mqtt_event(event))
     return;
-  LOGI(TAG, LOG_MODULE_MQTT, "Unhandled topic %.*s", event->topic_len, event->topic);
+  LOGI(LOG_MODULE_MQTT, "Unhandled topic %.*s", event->topic_len, event->topic);
 }
 
 void mqtt_publish_data(const char * topic,
@@ -711,24 +710,24 @@ void mqtt_publish_data(const char * topic,
       xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
       int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
       if (qos == QOS_0) {
-        LOGI(TAG, LOG_MODULE_MQTT, "published qos0 data, topic: %s", topic);
+        LOGI(LOG_MODULE_MQTT, "published qos0 data, topic: %s", topic);
       } else if (msg_id > 0) {
-        LOGI(TAG, LOG_MODULE_MQTT, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
+        LOGI(LOG_MODULE_MQTT, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
         if (bits & MQTT_PUBLISHED_BIT) {
-          LOGI(TAG, LOG_MODULE_MQTT, "publish ack received, msg_id=%d", msg_id);
+          LOGI(LOG_MODULE_MQTT, "publish ack received, msg_id=%d", msg_id);
         } else {
-          LOGW(TAG, LOG_MODULE_MQTT, "publish ack not received, msg_id=%d", msg_id);
+          LOGW(LOG_MODULE_MQTT, "publish ack not received, msg_id=%d", msg_id);
         }
       } else {
-        LOGW(TAG, LOG_MODULE_MQTT, "failed to publish qos1, msg_id=%d", msg_id);
+        LOGW(LOG_MODULE_MQTT, "failed to publish qos1, msg_id=%d", msg_id);
       }
       xSemaphoreGive( xSemaphore );
     } else {
-      LOGW(TAG, LOG_MODULE_MQTT, "cannot get semaphore");
+      LOGW(LOG_MODULE_MQTT, "cannot get semaphore");
     }
   } else {
-    LOGW(TAG, LOG_MODULE_MQTT, "cannot publish topic %s, mqtt init not finished", topic);
+    LOGW(LOG_MODULE_MQTT, "cannot publish topic %s, mqtt init not finished", topic);
   }
 }
 
@@ -756,18 +755,18 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     if (xQueueSend( mqttQueue
                     ,( void * )&unused
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_MQTT, "Cannot send to mqttQueue");
+      LOGE(LOG_MODULE_MQTT, "Cannot send to mqttQueue");
     }
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT connected, reason=%d", connect_reason);
+    LOGI(LOG_MODULE_MQTT, "MQTT connected, reason=%d", connect_reason);
     mqtt_reconnect_counter=0;
     break;
   case MQTT_EVENT_DISCONNECTED:
-    LOGE(TAG, LOG_MODULE_MQTT, "MQTT disconnected, reason=%d, reconnects=%d",
+    LOGE(LOG_MODULE_MQTT, "MQTT disconnected, reason=%d, reconnects=%d",
           connect_reason, mqtt_reconnect_counter);
     connect_reason=mqtt_disconnect;
     xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_SUBSCRIBED_BIT | MQTT_PUBLISHED_BIT | MQTT_INIT_FINISHED_BIT);
     mqtt_reconnect_counter += 1; //one reconnect each 10 seconds
-    LOGI(TAG, LOG_MODULE_MQTT, "mqtt_reconnect_counter: %d", mqtt_reconnect_counter);
+    LOGI(LOG_MODULE_MQTT, "mqtt_reconnect_counter: %d", mqtt_reconnect_counter);
     if (mqtt_reconnect_counter  > (6 * 5)) //5 mins, force wifi reconnect
       {
         esp_wifi_stop();
@@ -779,30 +778,30 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
   case MQTT_EVENT_SUBSCRIBED:
     xEventGroupSetBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT);
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+    LOGI(LOG_MODULE_MQTT, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
     break;
   case MQTT_EVENT_UNSUBSCRIBED:
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+    LOGI(LOG_MODULE_MQTT, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
     break;
   case MQTT_EVENT_PUBLISHED:
     xEventGroupSetBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+    LOGI(LOG_MODULE_MQTT, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
     break;
   case MQTT_EVENT_DATA:
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT_EVENT_DATA");
-    LOGI(TAG, LOG_MODULE_MQTT, "TOPIC=%.*s", event->topic_len, event->topic);
-    LOGI(TAG, LOG_MODULE_MQTT, "DATA=%.*s", event->data_len, event->data);
+    LOGI(LOG_MODULE_MQTT, "MQTT_EVENT_DATA");
+    LOGI(LOG_MODULE_MQTT, "TOPIC=%.*s", event->topic_len, event->topic);
+    LOGI(LOG_MODULE_MQTT, "DATA=%.*s", event->data_len, event->data);
     dispatch_mqtt_event(event);
     break;
   case MQTT_EVENT_ERROR:
-    LOGE(TAG, LOG_MODULE_MQTT, "MQTT connection failed");
+    LOGE(LOG_MODULE_MQTT, "MQTT connection failed");
     break;
   case MQTT_EVENT_BEFORE_CONNECT:
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT_EVENT_BEFORE_CONNECT");
+    LOGI(LOG_MODULE_MQTT, "MQTT_EVENT_BEFORE_CONNECT");
     break;
 #ifdef CONFIG_TARGET_DEVICE_ESP32
   case MQTT_EVENT_ANY:
-    LOGI(TAG, LOG_MODULE_MQTT, "MQTT_EVENT_ANY");
+    LOGI(LOG_MODULE_MQTT, "MQTT_EVENT_ANY");
     break;
 #endif //CONFIG_TARGET_DEVICE_ESP32
   }
@@ -819,15 +818,15 @@ static void mqtt_subscribe(esp_mqtt_client_handle_t client)
       xEventGroupClearBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT);
       msg_id = esp_mqtt_client_subscribe(client, SUBSCRIPTIONS[i], 1);
       if (msg_id > 0) {
-        LOGI(TAG, LOG_MODULE_MQTT, "sent subscribe %s successful, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
+        LOGI(LOG_MODULE_MQTT, "sent subscribe %s successful, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
         EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_SUBSCRIBED_BIT, false, true, MQTT_FLAG_TIMEOUT);
         if (bits & MQTT_SUBSCRIBED_BIT) {
-          LOGI(TAG, LOG_MODULE_MQTT, "subscribe ack received, msg_id=%d", msg_id);
+          LOGI(LOG_MODULE_MQTT, "subscribe ack received, msg_id=%d", msg_id);
         } else {
-          LOGW(TAG, LOG_MODULE_MQTT, "subscribe ack not received, msg_id=%d", msg_id);
+          LOGW(LOG_MODULE_MQTT, "subscribe ack not received, msg_id=%d", msg_id);
         }
       } else {
-        LOGW(TAG, LOG_MODULE_MQTT, "failed to subscribe %s, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
+        LOGW(LOG_MODULE_MQTT, "failed to subscribe %s, msg_id=%d", SUBSCRIPTIONS[i], msg_id);
       }
     }
   }
@@ -856,7 +855,7 @@ void mqtt_init_and_start()
     .keepalive = MQTT_TIMEOUT
   };
 
-  LOGI(TAG, LOG_MODULE_SYSTEM, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+  LOGI(LOG_MODULE_SYSTEM, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_start(client);
   xEventGroupWaitBits(mqtt_event_group, MQTT_CONNECTED_BIT, false, true, portMAX_DELAY);
@@ -865,7 +864,7 @@ void mqtt_init_and_start()
 void handle_mqtt_sub_pub(void* pvParameters)
 {
   connect_reason=esp_reset_reason();
-  LOGI(TAG, LOG_MODULE_SYSTEM, "Reset reason: %d", connect_reason);
+  LOGI(LOG_MODULE_SYSTEM, "Reset reason: %d", connect_reason);
   void * unused;
   while(1) {
     if( xQueueReceive( mqttQueue, &unused , portMAX_DELAY) )

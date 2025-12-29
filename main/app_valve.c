@@ -17,7 +17,6 @@
 
 #define OPERATION_TIMEOUT 15
 
-static const char *TAG = "VALVE";
 extern QueueHandle_t valveQueue;
 
 static TimerHandle_t valveOpenTimer;
@@ -34,7 +33,7 @@ void publish_valve_status()
   switch (valveStatus)
   {
   case VALVE_STATUS_INIT:
-    LOGW(TAG, LOG_MODULE_VALVE, "no notification in idle status");
+    LOGW(LOG_MODULE_VALVE, "no notification in idle status");
     break;
   case VALVE_STATUS_CLOSED:
     strcat(data, "closed");
@@ -49,7 +48,7 @@ void publish_valve_status()
     strcat(data, "open->closed");
     break;
   default:
-    LOGE(TAG, LOG_MODULE_VALVE, "no notification in unknown status %d", valveStatus);
+    LOGE(LOG_MODULE_VALVE, "no notification in unknown status %d", valveStatus);
     break;
   }
   if (strlen(data) > 0) {
@@ -60,86 +59,86 @@ void publish_valve_status()
 void openValveTimerCallback( TimerHandle_t xTimer )
 {
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
-  LOGI(TAG, LOG_MODULE_VALVE, "timer %s expired", pcTimerName);
+  LOGI(LOG_MODULE_VALVE, "timer %s expired", pcTimerName);
   update_relay_status(CONFIG_VALVE_OPEN_RELAY_ID, RELAY_STATUS_OFF);
   valveStatus = VALVE_STATUS_OPEN;
   publish_valve_status();
-  LOGI(TAG, LOG_MODULE_VALVE, "valve is now open");
+  LOGI(LOG_MODULE_VALVE, "valve is now open");
 }
 
 void closeValveTimerCallback( TimerHandle_t xTimer )
 {
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
-  LOGI(TAG, LOG_MODULE_VALVE, "timer %s expired", pcTimerName);
+  LOGI(LOG_MODULE_VALVE, "timer %s expired", pcTimerName);
   update_relay_status(CONFIG_VALVE_CLOSE_RELAY_ID, RELAY_STATUS_OFF);
   valveStatus = VALVE_STATUS_CLOSED;
   publish_valve_status();
-  LOGI(TAG, LOG_MODULE_VALVE, "valve is now closed");
+  LOGI(LOG_MODULE_VALVE, "valve is now closed");
 }
 
 void openValve()
 {
     if (valveOpenTimer == NULL)
     {
-      LOGE(TAG, LOG_MODULE_VALVE, "No valveOpenTimer found");
+      LOGE(LOG_MODULE_VALVE, "No valveOpenTimer found");
       return;
     }
     if( xTimerStart( valveOpenTimer, 0 ) != pdPASS )
     {
-      LOGE(TAG, LOG_MODULE_VALVE, "Cannot start valveOpenTimer");
+      LOGE(LOG_MODULE_VALVE, "Cannot start valveOpenTimer");
       return;
     }
     update_relay_status(CONFIG_VALVE_OPEN_RELAY_ID, RELAY_STATUS_ON);
     valveStatus = VALVE_STATUS_CLOSED_OPEN_TRANSITION;
     publish_valve_status();
-    LOGI(TAG, LOG_MODULE_VALVE, "valve opening is on-going");
+    LOGI(LOG_MODULE_VALVE, "valve opening is on-going");
 }
 
 void closeValve()
 {
     if (valveCloseTimer == NULL)
     {
-      LOGE(TAG, LOG_MODULE_VALVE, "No valveCloseTimer found");
+      LOGE(LOG_MODULE_VALVE, "No valveCloseTimer found");
       return;
     }
     if( xTimerStart( valveCloseTimer, 0 ) != pdPASS )
     {
-      LOGE(TAG, LOG_MODULE_VALVE, "Cannot start valveCloseTimer");
+      LOGE(LOG_MODULE_VALVE, "Cannot start valveCloseTimer");
       return;
     }
     update_relay_status(CONFIG_VALVE_CLOSE_RELAY_ID, RELAY_STATUS_ON);
     valveStatus = VALVE_STATUS_OPEN_CLOSED_TRANSITION;
     publish_valve_status();
-    LOGI(TAG, LOG_MODULE_VALVE, "valve closing is on-going");
+    LOGI(LOG_MODULE_VALVE, "valve closing is on-going");
 }
 
 void update_valve_status(valve_status_t new_valve_state)
 {
   if (new_valve_state == VALVE_STATUS_OPEN) {
     if (valveStatus == VALVE_STATUS_OPEN) {
-      LOGE(TAG, LOG_MODULE_VALVE, "valve is already open");
+      LOGE(LOG_MODULE_VALVE, "valve is already open");
       return;
     }
     if (valveStatus == VALVE_STATUS_CLOSED_OPEN_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_VALVE, "valve opening is on-going");
+      LOGE(LOG_MODULE_VALVE, "valve opening is on-going");
       return;
     }
     if (valveStatus == VALVE_STATUS_OPEN_CLOSED_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_VALVE, "valve closing is on-going");
+      LOGE(LOG_MODULE_VALVE, "valve closing is on-going");
       return;
     }
     openValve();
   } else if (new_valve_state == VALVE_STATUS_CLOSED) {
     if (valveStatus == VALVE_STATUS_CLOSED) {
-      LOGE(TAG, LOG_MODULE_VALVE, "valve is already closed");
+      LOGE(LOG_MODULE_VALVE, "valve is already closed");
       return;
     }
     if (valveStatus == VALVE_STATUS_CLOSED_OPEN_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_VALVE, "valve opening is on-going");
+      LOGE(LOG_MODULE_VALVE, "valve opening is on-going");
       return;
     }
     if (valveStatus == VALVE_STATUS_OPEN_CLOSED_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_VALVE, "valve closing is on-going");
+      LOGE(LOG_MODULE_VALVE, "valve closing is on-going");
       return;
     }
     closeValve();
@@ -165,7 +164,7 @@ void init_valve()
 
 void app_valve_task(void* pvParameters)
 {
-  LOGI(TAG, LOG_MODULE_VALVE, "app_valve_task started");
+  LOGI(LOG_MODULE_VALVE, "app_valve_task started");
 
   if (is_relay_serial_type(CONFIG_VALVE_OPEN_RELAY_ID) || is_relay_serial_type(CONFIG_VALVE_CLOSE_RELAY_ID)) {
     while (!is_serial_interface_online()) {

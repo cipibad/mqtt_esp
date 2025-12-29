@@ -15,7 +15,6 @@
 
 #include <string.h>
 
-static const char *TAG = "APP_WATERPUMP";
 
 TimerHandle_t valveOnTimer;
 TimerHandle_t valveOffTimer;
@@ -36,15 +35,15 @@ void initMotorControlPin(int pin, int* status)
 
 void updateMotorControlPinStatus(int pin, int* status, int value)
 {
-  LOGI(TAG, LOG_MODULE_WATERPUMP, "updateMotorControlPin: pin: %d, status: %d, value: %d", pin, *status, value);
+  LOGI(LOG_MODULE_WATERPUMP, "updateMotorControlPin: pin: %d, status: %d, value: %d", pin, *status, value);
   if (value != (*status == GPIO_HIGH)) {
     if (value == GPIO_STATUS_ON) {
       *status = GPIO_HIGH;
-      LOGI(TAG, LOG_MODULE_WATERPUMP, "enabling GPIO %d", pin);
+      LOGI(LOG_MODULE_WATERPUMP, "enabling GPIO %d", pin);
     }
     if (value == GPIO_STATUS_OFF) {
       *status = GPIO_LOW;
-      LOGI(TAG, LOG_MODULE_WATERPUMP, "disabling GPIO %d", pin);
+      LOGI(LOG_MODULE_WATERPUMP, "disabling GPIO %d", pin);
     }
     gpio_set_level(pin, *status);
   }
@@ -59,7 +58,7 @@ void publish_waterpump_status()
   switch (waterPumpStatus)
   {
   case WATERPUMP_STATUS_INIT:
-    LOGW(TAG, LOG_MODULE_WATERPUMP, "no notification in idle status");
+    LOGW(LOG_MODULE_WATERPUMP, "no notification in idle status");
     break;
   case WATERPUMP_STATUS_OFF:
     strcat(data, "off");
@@ -74,7 +73,7 @@ void publish_waterpump_status()
     strcat(data, "on->off");
     break;
   default:
-    LOGE(TAG, LOG_MODULE_WATERPUMP, "no notification in unknown status %d", waterPumpStatus);
+    LOGE(LOG_MODULE_WATERPUMP, "no notification in unknown status %d", waterPumpStatus);
     break;
   }
 
@@ -94,12 +93,12 @@ void publish_waterpump_notification_evt(const char* msg)
 void openValveTimerCallback( TimerHandle_t xTimer )
 {
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
-  LOGI(TAG, LOG_MODULE_WATERPUMP, "timer %s expired", pcTimerName);
+  LOGI(LOG_MODULE_WATERPUMP, "timer %s expired", pcTimerName);
   updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_OFF);
   update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_ON);
   waterPumpStatus = WATERPUMP_STATUS_ON;
   publish_waterpump_status();
-  LOGI(TAG, LOG_MODULE_WATERPUMP, "waterpump is now enabled");
+  LOGI(LOG_MODULE_WATERPUMP, "waterpump is now enabled");
   #if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
   publish_waterpump_notification_evt("Waterpump is now enabled");
   #endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
@@ -109,12 +108,12 @@ void openValveTimerCallback( TimerHandle_t xTimer )
 void closeValveTimerCallback( TimerHandle_t xTimer )
 {
   const char *pcTimerName = pcTimerGetTimerName( xTimer );
-  LOGI(TAG, LOG_MODULE_WATERPUMP, "timer %s expired", pcTimerName);
+  LOGI(LOG_MODULE_WATERPUMP, "timer %s expired", pcTimerName);
   updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_OFF);
 
   waterPumpStatus = WATERPUMP_STATUS_OFF;
   publish_waterpump_status();
-  LOGI(TAG, LOG_MODULE_WATERPUMP, "waterpump is now disabled");
+  LOGI(LOG_MODULE_WATERPUMP, "waterpump is now disabled");
   #if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
   publish_waterpump_notification_evt("Waterpump is now disabled");
   #endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
@@ -124,18 +123,18 @@ void closeValveTimerCallback( TimerHandle_t xTimer )
 void enableWaterPump()
 {
     if (valveOnTimer == NULL) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "No valveOnTimer found");
+      LOGE(LOG_MODULE_WATERPUMP, "No valveOnTimer found");
       return;
     }
     if( xTimerStart( valveOnTimer, 0 ) != pdPASS )
     {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "Cannot start valveOnTimer");
+      LOGE(LOG_MODULE_WATERPUMP, "Cannot start valveOnTimer");
       return;
     }
     updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_ON);
     waterPumpStatus = WATERPUMP_STATUS_OFF_ON_TRANSITION;
     publish_waterpump_status();
-    LOGI(TAG, LOG_MODULE_WATERPUMP, "waterpump enabling is on-going");
+    LOGI(LOG_MODULE_WATERPUMP, "waterpump enabling is on-going");
 
 }
 
@@ -143,48 +142,48 @@ void disableWaterPump()
 {
     if (valveOffTimer == NULL)
     {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "No valveOffTimer found");
+      LOGE(LOG_MODULE_WATERPUMP, "No valveOffTimer found");
       return;
     }
     if( xTimerStart( valveOffTimer, 0 ) != pdPASS )
     {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "Cannot start valveOffTimer");
+      LOGE(LOG_MODULE_WATERPUMP, "Cannot start valveOffTimer");
       return;
     }
     update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_OFF);
     updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_ON);
     waterPumpStatus = WATERPUMP_STATUS_ON_OFF_TRANSITION;
     publish_waterpump_status();
-    LOGI(TAG, LOG_MODULE_WATERPUMP, "waterpump disabling is on-going");
+    LOGI(LOG_MODULE_WATERPUMP, "waterpump disabling is on-going");
 }
 
 void updateWaterPumpState(int new_waterpump_state)
 {
   if (new_waterpump_state == WATERPUMP_STATUS_ON) {
     if (waterPumpStatus == WATERPUMP_STATUS_ON) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "waterpump is already enabled");
+      LOGE(LOG_MODULE_WATERPUMP, "waterpump is already enabled");
       return;
     }
     if (waterPumpStatus == WATERPUMP_STATUS_OFF_ON_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "waterpump enabling is on-going");
+      LOGE(LOG_MODULE_WATERPUMP, "waterpump enabling is on-going");
       return;
     }
     if (waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "waterpump disabling is on-going");
+      LOGE(LOG_MODULE_WATERPUMP, "waterpump disabling is on-going");
       return;
     }
     enableWaterPump();
   } else if (new_waterpump_state == WATERPUMP_STATUS_OFF) {
     if (waterPumpStatus == WATERPUMP_STATUS_OFF) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "waterpump is already disabled");
+      LOGE(LOG_MODULE_WATERPUMP, "waterpump is already disabled");
       return;
     }
     if (waterPumpStatus == WATERPUMP_STATUS_OFF_ON_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "waterpump enabling is on-going");
+      LOGE(LOG_MODULE_WATERPUMP, "waterpump enabling is on-going");
       return;
     }
     if (waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION) {
-      LOGE(TAG, LOG_MODULE_WATERPUMP, "waterpump disabling is on-going");
+      LOGE(LOG_MODULE_WATERPUMP, "waterpump disabling is on-going");
       return;
     }
     disableWaterPump();

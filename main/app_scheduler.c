@@ -24,7 +24,6 @@
 extern QueueHandle_t thermostatQueue;
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
 
-static const char *TAG = "SCHEDULER";
 extern QueueHandle_t schedulerCfgQueue;
 extern QueueHandle_t relayQueue;
 
@@ -101,14 +100,14 @@ void read_nvs_scheduler_data()
 
     char *token = strtok(data, ":");
     if (!token) {
-      LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 1: %s", data);
+      LOGW(LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 1: %s", data);
       continue;
     }
     schedulerTime[id].hour = atoi(token);
 
     token = strtok(NULL, ":");
     if (!token) {
-      LOGW(TAG, LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 2: %s", data);
+      LOGW(LOG_MODULE_THERMOSTAT, "unhandled scheduler time token 2: %s", data);
       continue;
     }
     schedulerTime[id].minute = atoi(token);
@@ -238,7 +237,7 @@ void update_time_from_ntp()
 
     // wait for time to be set
     while (timeinfo.tm_year < (2022 - 1900) && ++retry < retry_count) {
-      LOGI(TAG, LOG_MODULE_THERMOSTAT, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+      LOGI(LOG_MODULE_THERMOSTAT, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
       vTaskDelay(2000 / portTICK_PERIOD_MS);
       time(&now);
       localtime_r(&now, &timeinfo);
@@ -246,17 +245,17 @@ void update_time_from_ntp()
 
     char strftime_buf[64];
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    LOGI(TAG, LOG_MODULE_THERMOSTAT, "Current time after ntp update: %s", strftime_buf);
+    LOGI(LOG_MODULE_THERMOSTAT, "Current time after ntp update: %s", strftime_buf);
     lastNow = now;
 
-    LOGI(TAG, LOG_MODULE_THERMOSTAT, "Sleeping %d seconds to execute at exact minute", 60 - timeinfo.tm_sec);
+    LOGI(LOG_MODULE_THERMOSTAT, "Sleeping %d seconds to execute at exact minute", 60 - timeinfo.tm_sec);
     vTaskDelay((60 - timeinfo.tm_sec) * 1000 / portTICK_PERIOD_MS);
 }
 
 void vSchedulerCallback( TimerHandle_t xTimer )
 {
 
-  LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer scheduler expired, checking scheduled actions");
+  LOGI(LOG_MODULE_THERMOSTAT, "timer scheduler expired, checking scheduled actions");
 
 
   //trigerring
@@ -266,13 +265,13 @@ void vSchedulerCallback( TimerHandle_t xTimer )
   if (xQueueSend(schedulerCfgQueue
                  ,( void * )&s
                  ,SCHEDULE_QUEUE_TIMEOUT) != pdPASS) {
-    LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to scheduleCfgQueue");
+    LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to scheduleCfgQueue");
   }
 }
 
 void start_scheduler_timer()
 {
-  LOGI(TAG, LOG_MODULE_THERMOSTAT, "Initializing SNTP");
+  LOGI(LOG_MODULE_THERMOSTAT, "Initializing SNTP");
 
   sntp_setoperatingmode(SNTP_OPMODE_POLL);
   sntp_setservername(0, "pool.ntp.org");
@@ -287,9 +286,9 @@ void start_scheduler_timer()
                   (void *)0,                  /* No ID. */
                   vSchedulerCallback );  /* Callback function. */
   if( th != NULL ) {
-    LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer is created");
+    LOGI(LOG_MODULE_THERMOSTAT, "timer is created");
     if (xTimerStart(th, portMAX_DELAY) != pdFALSE){
-      LOGI(TAG, LOG_MODULE_THERMOSTAT, "timer is active");
+      LOGI(LOG_MODULE_THERMOSTAT, "timer is active");
     }
   }
 }
@@ -301,14 +300,14 @@ void executeAction(enum SchedulerAction sa)
     if (xQueueSend( relayQueue,
                     ( void * )&r,
                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to relayQueue");
+      LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to relayQueue");
     }
   } else if (sa == SCHEDULER_ACTION_RELAY_OFF) {
     struct RelayMessage r = {RELAY_CMD_STATUS, 0, RELAY_STATUS_OFF};
     if (xQueueSend( relayQueue,
                     ( void * )&r,
                     RELAY_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to relayQueue");
+      LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to relayQueue");
     }
 #if CONFIG_MQTT_THERMOSTATS_NB > 0
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_LOW) {
@@ -317,7 +316,7 @@ void executeAction(enum SchedulerAction sa)
     if (xQueueSend( thermostatQueue
                     ,( void * )&tm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
+      LOGE(LOG_MODULE_THERMOSTAT, "Cannot send to thermostatQueue");
     }
   } else if (sa == SCHEDULER_ACTION_WATER_TEMP_HIGH) {
     struct ThermostatMessage tma = {THERMOSTAT_CMD_TARGET_TEMPERATURE, 2, {{0,0}}};
@@ -325,7 +324,7 @@ void executeAction(enum SchedulerAction sa)
     if (xQueueSend( thermostatQueue
                     ,( void * )&tma
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send tma to thermostatQueue");
+      LOGE(LOG_MODULE_THERMOSTAT, "Cannot send tma to thermostatQueue");
     }
 
     struct ThermostatMessage tmm = {THERMOSTAT_CMD_MODE, 2, {{0,0}}};
@@ -333,7 +332,7 @@ void executeAction(enum SchedulerAction sa)
     if (xQueueSend( thermostatQueue
                     ,( void * )&tmm
                     ,THERMOSTAT_QUEUE_TIMEOUT) != pdPASS) {
-      LOGE(TAG, LOG_MODULE_THERMOSTAT, "Cannot send tmm to thermostatQueue");
+      LOGE(LOG_MODULE_THERMOSTAT, "Cannot send tmm to thermostatQueue");
     }
 
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0
@@ -343,7 +342,7 @@ void executeAction(enum SchedulerAction sa)
 
 void handle_scheduler(void* pvParameters)
 {
-  LOGI(TAG, LOG_MODULE_THERMOSTAT, "handle_scheduler task started");
+  LOGI(LOG_MODULE_THERMOSTAT, "handle_scheduler task started");
 
   read_nvs_scheduler_data();
   start_scheduler_timer();
@@ -359,13 +358,13 @@ void handle_scheduler(void* pvParameters)
 
         char strftime_buf[64];
         strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-        LOGI(TAG, LOG_MODULE_THERMOSTAT, "Current scheduler trigger time is: %s", strftime_buf);
+        LOGI(LOG_MODULE_THERMOSTAT, "Current scheduler trigger time is: %s", strftime_buf);
 
         for(int sid=0; sid <=1; sid++) {
-          LOGI(TAG, LOG_MODULE_THERMOSTAT, "Checking scheduler with id: %d", sid);
+          LOGI(LOG_MODULE_THERMOSTAT, "Checking scheduler with id: %d", sid);
           if (schedulerStatus[sid] == SCHEDULER_STATUS_ON) {
             short dow = 1 << timeinfo.tm_wday;
-            LOGI(TAG, LOG_MODULE_THERMOSTAT, "Scheduler dow: %d", schedulerDow[sid]);
+            LOGI(LOG_MODULE_THERMOSTAT, "Scheduler dow: %d", schedulerDow[sid]);
             if (schedulerDow[sid] & dow || schedulerDow[sid] == 0) {
               timeinfo.tm_hour = schedulerTime[sid].hour;
               timeinfo.tm_min = schedulerTime[sid].minute;
@@ -377,7 +376,7 @@ void handle_scheduler(void* pvParameters)
               localtime_r(&schedulerTimeNow, &ti);
               char strfti_buf[64];
               strftime(strfti_buf, sizeof(strfti_buf), "%c", &timeinfo);
-              LOGI(TAG, LOG_MODULE_THERMOSTAT, "Scheduler time is: %s", strfti_buf);
+              LOGI(LOG_MODULE_THERMOSTAT, "Scheduler time is: %s", strfti_buf);
               if (lastNow < schedulerTimeNow && schedulerTimeNow <= tempSchedulerCfg.data.now) {
                 executeAction(schedulerAction[sid]);
                 if(schedulerDow[sid] == 0) {
@@ -392,7 +391,7 @@ void handle_scheduler(void* pvParameters)
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_ACTION) {
         unsigned char schedulerId = tempSchedulerCfg.schedulerId;
         if (schedulerId > 1) {
-          LOGE(TAG, LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
+          LOGE(LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
             schedulerId);
           continue;
         }
@@ -407,7 +406,7 @@ void handle_scheduler(void* pvParameters)
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_DOW) {
         unsigned char schedulerId = tempSchedulerCfg.schedulerId;
         if (schedulerId > 1) {
-          LOGE(TAG, LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
+          LOGE(LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
             schedulerId);
           continue;
         }
@@ -423,7 +422,7 @@ void handle_scheduler(void* pvParameters)
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_TIME) {
         unsigned char schedulerId = tempSchedulerCfg.schedulerId;
         if (schedulerId > 1) {
-          LOGE(TAG, LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
+          LOGE(LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
             schedulerId);
           continue;
         }
@@ -443,7 +442,7 @@ void handle_scheduler(void* pvParameters)
       } else if (tempSchedulerCfg.msgType == SCHEDULER_CMD_STATUS) {
         unsigned char schedulerId = tempSchedulerCfg.schedulerId;
         if (schedulerId > 1) {
-          LOGE(TAG, LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
+          LOGE(LOG_MODULE_THERMOSTAT, "Unexpected schedulerId: %d",
             schedulerId);
           continue;
         }
@@ -456,7 +455,7 @@ void handle_scheduler(void* pvParameters)
         }
         publish_scheduler_status_evt(schedulerId);
       } else {
-        LOGE(TAG, LOG_MODULE_THERMOSTAT, "Unknown actionId: %d",
+        LOGE(LOG_MODULE_THERMOSTAT, "Unknown actionId: %d",
                  tempSchedulerCfg.msgType);
       }
     }

@@ -12,7 +12,6 @@
 
 #include "app_publish_data.h"
 
-static const char *TAG = "MQTTS_OPS";
 
 #ifdef CONFIG_MQTT_OPS_HEAP
 void publish_ops_heap_data()
@@ -49,21 +48,21 @@ void publish_ops_stack_data()
   /* Take a snapshot of the number of tasks in case it changes while this
   function is executing. */
   uxArraySize = uxTaskGetNumberOfTasks();
-   LOGI(TAG, LOG_MODULE_SYSTEM, "Publishing tasks data for %lu tasks", uxArraySize);
+   LOGI(LOG_MODULE_SYSTEM, "Publishing tasks data for %lu tasks", uxArraySize);
 
   /* Allocate a TaskStatus_t structure for each task.  An array could be
   allocated statically at compile time. */
   pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
 
   if( pxTaskStatusArray == NULL ) {
-      LOGE(TAG, LOG_MODULE_SYSTEM, "Could not allocate tasks memory");
+      LOGE(LOG_MODULE_SYSTEM, "Could not allocate tasks memory");
   } else {
     /* Generate raw status information about each task. */
     uxArraySize = uxTaskGetSystemState( pxTaskStatusArray,
                                         uxArraySize,
                                         &ulTotalRunTime );
 
-  LOGI(TAG, LOG_MODULE_SYSTEM, "Got informations for %lu tasks, total runtime: %d",
+  LOGI(LOG_MODULE_SYSTEM, "Got informations for %lu tasks, total runtime: %d",
           uxArraySize, ulTotalRunTime);
 
     /* For each populated position in the pxTaskStatusArray array,
@@ -76,7 +75,7 @@ void publish_ops_stack_data()
       if (strlen(task_data) < remaining_data) {
         strcat(data, task_data);
       } else {
-        LOGE(TAG, LOG_MODULE_SYSTEM, "Not enough data space to read all tasks data, sending what we have");
+        LOGE(LOG_MODULE_SYSTEM, "Not enough data space to read all tasks data, sending what we have");
         break;
       }
       remaining_data = DATA_SIZE - strlen(data) - 1;
@@ -94,9 +93,9 @@ void publish_ops_stack_data()
 
 void ops_pub_task(void* pvParameters)
 {
-  LOGI(TAG, LOG_MODULE_SYSTEM, "Starting ops task");
+  LOGI(LOG_MODULE_SYSTEM, "Starting ops task");
   while (1) {
-    LOGI(TAG, LOG_MODULE_SYSTEM, "Publishing ops data");
+    LOGI(LOG_MODULE_SYSTEM, "Publishing ops data");
     #ifdef CONFIG_MQTT_OPS_HEAP
     publish_ops_heap_data();
     #endif // CONFIG_MQTT_OPS_HEAP

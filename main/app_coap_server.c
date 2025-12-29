@@ -27,7 +27,6 @@
 extern EventGroupHandle_t wifi_event_group;
 extern const int WIFI_CONNECTED_BIT;
 
-static const char *TAG = "COAP_SERVER";
 static coap_async_state_t *async = NULL;
 
 static void
@@ -44,7 +43,7 @@ send_async_response(coap_context_t *ctx, const coap_endpoint_t *local_if)
     coap_add_option(response, COAP_OPTION_CONTENT_TYPE, coap_encode_var_bytes(buf, COAP_MEDIATYPE_TEXT_PLAIN), buf);
 
     if (coap_send(ctx, local_if, &async->peer, response) == COAP_INVALID_TID) {
-        LOGI(TAG, LOG_MODULE_WIFI, "sending response for message id: %d", response->hdr->id);
+        LOGI(LOG_MODULE_WIFI, "sending response for message id: %d", response->hdr->id);
     }
     coap_delete_pdu(response);
     coap_async_state_t *tmp;
@@ -73,15 +72,15 @@ async_handler_put(coap_context_t *ctx, struct coap_resource_t *resource,
         if (coap_data_size != 0) {
             memcpy(data, coap_data, coap_data_size);
             data[coap_data_size] = 0;
-            LOGI(TAG, LOG_MODULE_WIFI, "received data for %.*s: %s",
+            LOGI(LOG_MODULE_WIFI, "received data for %.*s: %s",
                 resource->uri.length, resource->uri.s, data);
             if (resource->uri.length >= COAP_MAX_RESOURCE_SIZE) {
-                LOGE(TAG, LOG_MODULE_WIFI, "coap message path longer than expected, it will be ignored");
+                LOGE(LOG_MODULE_WIFI, "coap message path longer than expected, it will be ignored");
                 return;
             }
             strncpy(uri, (const char *)resource->uri.s, resource->uri.length);
             uri[resource->uri.length] = 0;
-            LOGI(TAG, LOG_MODULE_WIFI, "hadling path: %s", uri);
+            LOGI(LOG_MODULE_WIFI, "hadling path: %s", uri);
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE
             if (strncmp(uri, CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE)) == 0) {
@@ -136,7 +135,7 @@ void coap_server_thread(void *p)
     fd_set           readfds;
     struct timeval tv;
     int flags = 0;
-    LOGI(TAG, LOG_MODULE_WIFI, "Starting thread");
+    LOGI(LOG_MODULE_WIFI, "Starting thread");
     bool resource_registered = false;
 
     while (1) {
@@ -145,7 +144,7 @@ void coap_server_thread(void *p)
         */
         xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT,
                             false, true, portMAX_DELAY);
-        LOGI(TAG, LOG_MODULE_WIFI, "Connected to AP");
+        LOGI(LOG_MODULE_WIFI, "Connected to AP");
 
         /* Prepare the CoAP server socket */
         coap_address_init(&serv_addr);
@@ -165,7 +164,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB0_COAP_SENSOR_RESOURCE);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -175,7 +174,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB1_COAP_SENSOR_RESOURCE);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -185,7 +184,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB2_COAP_SENSOR_RESOURCE);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -195,7 +194,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB3_COAP_SENSOR_RESOURCE);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -205,7 +204,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB4_COAP_SENSOR_RESOURCE);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -215,7 +214,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE,
                 strlen(CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_MQTT_THERMOSTATS_NB5_COAP_SENSOR_RESOURCE);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -226,7 +225,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_COAP_PROXY_PATH_NB0,
                 strlen(CONFIG_COAP_PROXY_PATH_NB0), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_COAP_PROXY_PATH_NB0);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_COAP_PROXY_PATH_NB0);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -236,7 +235,7 @@ void coap_server_thread(void *p)
             resource = coap_resource_init((unsigned char *)CONFIG_COAP_PROXY_PATH_NB1,
                 strlen(CONFIG_COAP_PROXY_PATH_NB1), 0);
             if (resource){
-                LOGI(TAG, LOG_MODULE_WIFI, "registering resource " CONFIG_COAP_PROXY_PATH_NB1);
+                LOGI(LOG_MODULE_WIFI, "registering resource " CONFIG_COAP_PROXY_PATH_NB1);
                 coap_register_handler(resource, COAP_REQUEST_PUT, async_handler_put);
                 coap_add_resource(ctx, resource);
                 if (resource_registered == false) { resource_registered = true;}
@@ -258,7 +257,7 @@ void coap_server_thread(void *p)
                     } else if (result < 0){
                         break;
                     } else {
-                        LOGD(TAG, LOG_MODULE_COAP, "select timeout");
+                        LOGD(LOG_MODULE_COAP, "select timeout");
                     }
                     if (async) {
                         send_async_response(ctx, ctx->endpoint);

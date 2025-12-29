@@ -135,8 +135,10 @@ Configuration: `LOG_OUTPUT_MODE` choice in menuconfig
 
 | Mode | Description | Example Usage |
 |------|-------------|---------------|
-| **legacy** | Console only (default, backward compatible) | `ESP_LOGE(TAG, "Error message")` |
-| **dual** | Both console and MQTT (recommended for production) | `LOGE(TAG, "module", "Error message")` |
+| **legacy** | Console only (default, backward compatible) | `ESP_LOGE("tag", "Error message")` |
+| **dual** | Both console and MQTT (recommended for production) | `LOGE("module", "Error message")` |
+
+**Note:** The dual logging API uses module names instead of tags, simplifying interface and eliminating redundant parameters.
 
 #### Logging Macros
 
@@ -144,13 +146,13 @@ Configuration: `LOG_OUTPUT_MODE` choice in menuconfig
 #include "app_logging.h"
 
 // Dual logging (console + MQTT) - always logs to console, optionally to MQTT
-LOGE(TAG, "module", "Error message: %d", error_code);
-LOGW(TAG, "module", "Warning: %s", warning_msg);
-LOGI(TAG, "module", "Info message");
-LOGD(TAG, "module", "Debug: value=%d", value);
+LOGE("module", "Error message: %d", error_code);
+LOGW("module", "Warning: %s", warning_msg);
+LOGI("module", "Info message");
+LOGD("module", "Debug: value=%d", value);
 
 // Console only (legacy mode)
-ESP_LOGE(TAG, "Error message");
+ESP_LOGE("tag", "Error message");
 ```
 
 #### Standardized Module Names
@@ -220,7 +222,7 @@ ESP_LOGE(TAG, "Sensor read failed: %d", error);
 
 **After (Dual Logging):**
 ```c
-LOGE(TAG, LOG_MODULE_SENSOR, "Sensor read failed: %d", error);
+LOGE(LOG_MODULE_SENSOR, "Sensor read failed: %d", error);
 ```
 
 #### Configuration Examples

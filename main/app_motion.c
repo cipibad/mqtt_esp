@@ -13,7 +13,6 @@
 #include "app_publish_data.h"
 
 #define portYIELD_FROM_ISR() taskYIELD()
-static const char *TAG = "MOTION";
 
 EventGroupHandle_t motionEventGroup;
 const int MOTION_GPIO_INTR_BIT = BIT0;
@@ -44,7 +43,7 @@ static void gpio_isr_handler(void *arg)
 
 void motion_detection_timer_callback( TimerHandle_t xTimer )
 {
-    LOGI(TAG, LOG_MODULE_ACTUATOR, "timer expired, should disable motion status now");
+    LOGI(LOG_MODULE_ACTUATOR, "timer expired, should disable motion status now");
     xEventGroupSetBits (motionEventGroup, MOTION_TIMER_BIT);
 }
 
@@ -71,15 +70,15 @@ void publish_motion_data()
 
 void app_motion_task(void* pvParameters)
 {
-    LOGI(TAG, LOG_MODULE_ACTUATOR, "app_motion task started");
+    LOGI(LOG_MODULE_ACTUATOR, "app_motion task started");
     motionEventGroup = xEventGroupCreate();
     /* Was the event group created successfully? */
     if( motionEventGroup == NULL )
     {
-        LOGE(TAG, LOG_MODULE_ACTUATOR, "The event group was not created because there was insufficient FreeRTOS heap available");
+        LOGE(LOG_MODULE_ACTUATOR, "The event group was not created because there was insufficient FreeRTOS heap available");
         return;
     }
-    LOGI(TAG, LOG_MODULE_ACTUATOR, "event group created, waiting sensor initialization");
+    LOGI(LOG_MODULE_ACTUATOR, "event group created, waiting sensor initialization");
 
     motion_detection_timer = xTimerCreate( "motion_detection_timer",           /* Text name. */
                     pdMS_TO_TICKS(CONFIG_MOTION_SENSOR_DISABLE_TIMER * 1000),  /* Period. */
@@ -87,7 +86,7 @@ void app_motion_task(void* pvParameters)
                     (void *)0,                  /* no ID. */
                     motion_detection_timer_callback );  /* Callback function. */
     if (motion_detection_timer == NULL) {
-        LOGE(TAG, LOG_MODULE_ACTUATOR, "No motion_detection_timer found");
+        LOGE(LOG_MODULE_ACTUATOR, "No motion_detection_timer found");
         return;
     }
 
@@ -112,7 +111,7 @@ void app_motion_task(void* pvParameters)
     gpio_install_isr_service(0);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(CONFIG_MOTION_SENSOR_GPIO, gpio_isr_handler, (void *) NULL);
-    LOGI(TAG, LOG_MODULE_ACTUATOR, "gpio %d configured", CONFIG_MOTION_SENSOR_GPIO);
+    LOGI(LOG_MODULE_ACTUATOR, "gpio %d configured", CONFIG_MOTION_SENSOR_GPIO);
 
     EventBits_t mBits;
     while(1) {
@@ -120,7 +119,7 @@ void app_motion_task(void* pvParameters)
                                     true, false, portMAX_DELAY);
         if (mBits & MOTION_GPIO_INTR_BIT) {
             bool new_motion_detected = gpio_get_level(CONFIG_MOTION_SENSOR_GPIO);
-            LOGI(TAG, LOG_MODULE_ACTUATOR, "new_motion_detected: %d", new_motion_detected);
+            LOGI(LOG_MODULE_ACTUATOR, "new_motion_detected: %d", new_motion_detected);
 
             if (new_motion_detected){
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
@@ -135,10 +134,10 @@ void app_motion_task(void* pvParameters)
                 } else {
                     if( xTimerStop(motion_detection_timer, 0 ) != pdPASS )
                     {
-                        LOGE(TAG, LOG_MODULE_ACTUATOR, "Cannot stop motion_detection_timer");
+                        LOGE(LOG_MODULE_ACTUATOR, "Cannot stop motion_detection_timer");
                         continue;
                     }
-                    LOGI(TAG, LOG_MODULE_ACTUATOR, "Stopped motion_detection_timer");
+                    LOGI(LOG_MODULE_ACTUATOR, "Stopped motion_detection_timer");
                 }
             } else {
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
@@ -150,10 +149,10 @@ void app_motion_task(void* pvParameters)
                 if (motion_detected) {
                     if( xTimerStart(motion_detection_timer, 0 ) != pdPASS )
                     {
-                        LOGE(TAG, LOG_MODULE_ACTUATOR, "Cannot start motion_detection_timer");
+                        LOGE(LOG_MODULE_ACTUATOR, "Cannot start motion_detection_timer");
                         continue;
                     }
-                    LOGI(TAG, LOG_MODULE_ACTUATOR, "Started motion_detection_timer");
+                    LOGI(LOG_MODULE_ACTUATOR, "Started motion_detection_timer");
                 }
             }
         } else if (mBits & MOTION_TIMER_BIT) {
