@@ -1,6 +1,8 @@
 #ifndef APP_SENSORS_H
 #define APP_SENSORS_H
 
+void publish_data_to_thermostat(const char * topic, int value);
+void publish_sensor_data(const char * topic, int value);
 void sensors_read(void* pvParameters);
 void publish_sensors_data();
 
