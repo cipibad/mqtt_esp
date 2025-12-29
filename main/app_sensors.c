@@ -124,8 +124,21 @@ void publish_data_to_thermostat(const char * topic, int value)
 
 }
 
+void publish_sensor_error(const char * sensor_type, const char * error_message)
+{
+  char log_topic[128];
+  sprintf(log_topic, "%s/%s/evt/log/%s", CONFIG_DEVICE_TYPE, CONFIG_CLIENT_ID, sensor_type);
+  publish_non_persistent_data(log_topic, error_message);
+}
+
 void publish_sensor_data(const char * topic, int value)
 {
+  if (value == SHRT_MIN) {
+    ESP_LOGE(TAG, "Invalid sensor value, skipping publish for topic: %s", topic);
+    publish_sensor_error("sensor", "Invalid sensor value detected");
+    return;
+  }
+
   publish_data_to_thermostat(topic, value);
 
   char data[16];
@@ -237,6 +250,12 @@ void publish_soil_moisture_th()
 #ifdef CONFIG_BH1750_SENSOR
 void publish_bh1750_data()
 {
+  if (illuminance == 0) {
+    ESP_LOGE(TAG, "Invalid illuminance value (0), skipping publish");
+    publish_sensor_error("bh1750", "Invalid illuminance value detected");
+    return;
+  }
+
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/illuminance/bh1750";
 
   char data[16];
