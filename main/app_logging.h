@@ -3,7 +3,6 @@
 
 #include <string.h>
 #include "esp_log.h"
-#include "app_sensors.h"
 
 // Standardized module names for logging
 #define LOG_MODULE_MQTT "mqtt"
@@ -81,6 +80,7 @@ void publish_debug_log(const char *module, const char *format, ...);
         } \
     } while(0)
 
+#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
 #define LOGD(tag, module, ...) \
     do { \
         ESP_LOGD(tag, __VA_ARGS__); \
@@ -88,5 +88,12 @@ void publish_debug_log(const char *module, const char *format, ...);
             publish_debug_log(module, __VA_ARGS__); \
         } \
     } while(0)
+
+#else // CONFIG_MQTT_LOG_LEVEL_DEBUG
+#define LOGD(tag, module, ...) \
+    do { \
+        ESP_LOGD(tag, __VA_ARGS__); \
+    } while(0)
+#endif // CONFIG_MQTT_LOG_LEVEL_DEBUG
 
 #endif // APP_LOGGING_H
