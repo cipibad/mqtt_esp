@@ -26,32 +26,7 @@ extern const int MQTT_CONNECTED_BIT;
 
 #include "esp_sleep.h"
 #include "esp_wifi.h"
-
-// Standardized module names for logging
-#define LOG_MODULE_MQTT "mqtt"
-#define LOG_MODULE_SENSOR "sensor"
-#define LOG_MODULE_SYSTEM "system"
-#define LOG_MODULE_BME280 "bme280"
-#define LOG_MODULE_DHT22 "dht22"
-#define LOG_MODULE_DS18X20 "ds18x20"
-#define LOG_MODULE_BH1750 "bh1750"
-#define LOG_MODULE_SOIL_MOISTURE "soil_moisture"
-#define LOG_MODULE_ACTUATOR "actuator"
-#define LOG_MODULE_RELAY "relay"
-#define LOG_MODULE_THERMOSTAT "thermostat"
-#define LOG_MODULE_VALVE "valve"
-#define LOG_MODULE_WATERPUMP "waterpump"
-#define LOG_MODULE_COAP "coap"
-#define LOG_MODULE_OTA "ota"
-#define LOG_MODULE_WIFI "wifi"
-
-// Log level constants
-#define LOG_LEVEL_ERROR "error"
-#define LOG_LEVEL_WARNING "warning"
-#define LOG_LEVEL_INFO "info"
-#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
-#define LOG_LEVEL_DEBUG "debug"
-#endif
+#include "app_logging.h"
 
 // Rate limiting
 static TickType_t last_log_tick = 0;
@@ -603,9 +578,9 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 	};
 	esp_err_t err = BME280_I2C_init(&bme280,
                                   CONFIG_I2C_SENSOR_SDA_GPIO,
-                                  CONFIG_I2C_SENSOR_SCL_GPIO);
+                                   CONFIG_I2C_SENSOR_SCL_GPIO);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Cannot init bme280 sensor");
+    LOGE(TAG, LOG_MODULE_BME280, "Cannot init bme280 sensor");
   }
 #endif //CONFIG_BME280_SENSOR
 
@@ -673,15 +648,15 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
         }
       else
         {
-          ESP_LOGE(TAG, "Error: Could not read data from DHT sensor");
+          LOGE(TAG, LOG_MODULE_DHT22, "Could not read data from DHT sensor");
           publish_sensor_log("dht22", "Error: Could not read data from DHT sensor");
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
-      sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
+       sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
-        ESP_LOGW(TAG, "No sensors detected!\n");
+        LOGW(TAG, LOG_MODULE_DS18X20, "No sensors detected");
       } else {
         ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
         for (int j = 0; j < sensor_count; j++)
@@ -694,7 +669,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
             short temp_c = (short)(temps[j] * 10);
-            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
+            LOGI(TAG, LOG_MODULE_DS18X20, "Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
           }
         publish_ds18x20_data();
 
@@ -710,22 +685,22 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
             bme280_humidity / 1000, bme280_humidity % 1000);
           publish_bme280_data();
         }
-      else
+       else
         {
-          ESP_LOGE(TAG, "Could not read data from BME sensor");
+          LOGE(TAG, LOG_MODULE_BME280, "Could not read data from BME sensor");
         }
 #endif //CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_BH1750_SENSOR
-      esp_err_t ret = i2c_master_BH1750_read(&illuminance);
-      if (ret == ESP_ERR_TIMEOUT) {
-          ESP_LOGE(TAG, "I2C Timeout");
-      } else if (ret == ESP_OK) {
-          ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
-          publish_bh1750_data();
-      } else {
-          ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
-  }
+       esp_err_t ret = i2c_master_BH1750_read(&illuminance);
+       if (ret == ESP_ERR_TIMEOUT) {
+           LOGE(TAG, LOG_MODULE_BH1750, "I2C Timeout");
+       } else if (ret == ESP_OK) {
+           LOGI(TAG, LOG_MODULE_BH1750, "Illuminance: %d.%02d lx", illuminance/100, illuminance%100);
+           publish_bh1750_data();
+       } else {
+           LOGW(TAG, LOG_MODULE_BH1750, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
+   }
 #endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
@@ -736,16 +711,16 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
     uint16_t soil_moisture_data = 0;
     if (ESP_OK == adc_read(&soil_moisture_data)) {
         soil_moisture = 1023 - soil_moisture_data;
-        ESP_LOGI(TAG, "adc read: %d", soil_moisture);
+        LOGI(TAG, LOG_MODULE_SOIL_MOISTURE, "adc read: %d", soil_moisture);
         publish_soil_moisture_adc();
     } else {
-      ESP_LOGE(TAG, "Could not read data from adc");
+      LOGE(TAG, LOG_MODULE_SOIL_MOISTURE, "Could not read data from adc");
     }
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-    soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
-    ESP_LOGI(TAG, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
+     soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
+    LOGI(TAG, LOG_MODULE_SOIL_MOISTURE, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
     publish_soil_moisture_th();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 

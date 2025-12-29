@@ -1,6 +1,7 @@
 #include "esp_system.h"
 #ifdef CONFIG_MQTT_OPS
 #include "esp_log.h"
+#include "app_logging.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -49,14 +50,14 @@ void publish_ops_stack_data()
   /* Take a snapshot of the number of tasks in case it changes while this
   function is executing. */
   uxArraySize = uxTaskGetNumberOfTasks();
-  ESP_LOGI(TAG, "Publishing tasks data for %lu tasks", uxArraySize);
+   LOGI(TAG, LOG_MODULE_SYSTEM, "Publishing tasks data for %lu tasks", uxArraySize);
 
   /* Allocate a TaskStatus_t structure for each task.  An array could be
   allocated statically at compile time. */
   pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
 
   if( pxTaskStatusArray == NULL ) {
-    ESP_LOGE(TAG, "Could not allocate tasks memory");
+      LOGE(TAG, LOG_MODULE_SYSTEM, "Could not allocate tasks memory");
   } else {
     /* Generate raw status information about each task. */
     uxArraySize = uxTaskGetSystemState( pxTaskStatusArray,
@@ -94,9 +95,9 @@ void publish_ops_stack_data()
 
 void ops_pub_task(void* pvParameters)
 {
-  ESP_LOGI(TAG, "Starting ops task");
+  LOGI(TAG, LOG_MODULE_SYSTEM, "Starting ops task");
   while (1) {
-    ESP_LOGI(TAG, "Publishing ops data");
+    LOGI(TAG, LOG_MODULE_SYSTEM, "Publishing ops data");
     #ifdef CONFIG_MQTT_OPS_HEAP
     publish_ops_heap_data();
     #endif // CONFIG_MQTT_OPS_HEAP

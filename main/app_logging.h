@@ -1,8 +1,35 @@
 #ifndef APP_LOGGING_H
 #define APP_LOGGING_H
 
+#include <string.h>
 #include "esp_log.h"
 #include "app_sensors.h"
+
+// Standardized module names for logging
+#define LOG_MODULE_MQTT "mqtt"
+#define LOG_MODULE_SENSOR "sensor"
+#define LOG_MODULE_SYSTEM "system"
+#define LOG_MODULE_BME280 "bme280"
+#define LOG_MODULE_DHT22 "dht22"
+#define LOG_MODULE_DS18X20 "ds18x20"
+#define LOG_MODULE_BH1750 "bh1750"
+#define LOG_MODULE_SOIL_MOISTURE "soil_moisture"
+#define LOG_MODULE_ACTUATOR "actuator"
+#define LOG_MODULE_RELAY "relay"
+#define LOG_MODULE_THERMOSTAT "thermostat"
+#define LOG_MODULE_VALVE "valve"
+#define LOG_MODULE_WATERPUMP "waterpump"
+#define LOG_MODULE_COAP "coap"
+#define LOG_MODULE_OTA "ota"
+#define LOG_MODULE_WIFI "wifi"
+
+// Log level constants
+#define LOG_LEVEL_ERROR "error"
+#define LOG_LEVEL_WARNING "warning"
+#define LOG_LEVEL_INFO "info"
+#ifdef CONFIG_MQTT_LOG_LEVEL_DEBUG
+#define LOG_LEVEL_DEBUG "debug"
+#endif
 
 // Define log level thresholds based on config
 #define LOG_LEVEL_ENABLED_DEBUG  (strcmp(CONFIG_LOG_OUTPUT_MODE, "mqtt") != 0 && \

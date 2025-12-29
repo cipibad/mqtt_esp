@@ -25,6 +25,7 @@
 #include "cJSON.h"
 
 #include "app_system.h"
+#include "app_logging.h"
 
 #ifdef CONFIG_MQTT_SCHEDULERS
 #include "app_scheduler.h"
@@ -756,13 +757,14 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     if (xQueueSend( mqttQueue
                     ,( void * )&unused
                     ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
-      ESP_LOGE(TAG, "Cannot send to mqttQueue");
+      LOGE(TAG, LOG_MODULE_MQTT, "Cannot send to mqttQueue");
     }
-    ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+    LOGI(TAG, LOG_MODULE_MQTT, "MQTT connected, reason=%d", connect_reason);
     mqtt_reconnect_counter=0;
     break;
   case MQTT_EVENT_DISCONNECTED:
-    ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+    LOGE(TAG, LOG_MODULE_MQTT, "MQTT disconnected, reason=%d, reconnects=%d",
+          connect_reason, mqtt_reconnect_counter);
     connect_reason=mqtt_disconnect;
     xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_SUBSCRIBED_BIT | MQTT_PUBLISHED_BIT | MQTT_INIT_FINISHED_BIT);
     mqtt_reconnect_counter += 1; //one reconnect each 10 seconds
@@ -794,7 +796,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     dispatch_mqtt_event(event);
     break;
   case MQTT_EVENT_ERROR:
-    ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+    LOGE(TAG, LOG_MODULE_MQTT, "MQTT connection failed");
     break;
   case MQTT_EVENT_BEFORE_CONNECT:
     ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
