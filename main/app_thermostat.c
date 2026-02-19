@@ -126,7 +126,7 @@ bool waterPumpOn[CONFIG_MQTT_THERMOSTATS_NB];
 
 short currentTemperatureFlag[CONFIG_MQTT_THERMOSTATS_NB];
 
-int inline temperatureSensorState(int id){
+static inline int temperatureSensorState(int id){
   if (currentTemperatureFlag[id] > (SENSOR_LIFETIME / 2)) {
     return TEMPERATURE_SENSOR_ONLINE;
   }

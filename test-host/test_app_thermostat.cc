@@ -18,11 +18,9 @@ extern "C" {
   void publish_thermostat_temperature_tolerance_evt(int id);
   void publish_thermostat_mode_evt(int id);
   void publish_thermostat_action_evt(int id);
-  void publish_normal_thermostat_notification(enum ThermostatState state,
-                                              unsigned int duration,
+  void publish_normal_thermostat_notification(unsigned int duration,
                                               const char *reason);
-  void publish_circuit_thermostat_notification(enum HeatingState state,
-                                               unsigned int duration);
+  void publish_circuit_thermostat_notification(unsigned int duration);
 }
 
 extern short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
@@ -208,7 +206,7 @@ TEST_CASE("publish_normal_thermostat_notification_on", "[tag]" ) {
   mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
   mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
-  publish_normal_thermostat_notification(thermostatState, 10, "some reason");
+  publish_normal_thermostat_notification(10, "some reason");
   publish_thermostat_action_evt(0);
 }
 
@@ -225,7 +223,7 @@ TEST_CASE("publish_normal_thermostat_notification_off", "[tag]" ) {
   mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
   mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
-  publish_normal_thermostat_notification(thermostatState, 10, "some reason");
+  publish_normal_thermostat_notification(10, "some reason");
   publish_thermostat_action_evt(0);
 }
 
@@ -243,7 +241,7 @@ TEST_CASE("publish_circuit_thermostat_notification_off", "[tag]" ) {
   mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
   mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
-  publish_circuit_thermostat_notification(heatingState, 10);
+  publish_circuit_thermostat_notification(10);
   publish_thermostat_action_evt(0);
 }
 TEST_CASE("publish_circuit_thermostat_notification_on", "[tag]" ) {
@@ -259,7 +257,7 @@ TEST_CASE("publish_circuit_thermostat_notification_on", "[tag]" ) {
   mocks.ExpectCallFunc(publish_non_persistent_data).With(CString(notification_topic), CString(notification_mqtt_data));
   mocks.ExpectCallFunc(publish_persistent_data).With(CString(action_topic), CString(action_mqtt_data));
 
-  publish_circuit_thermostat_notification(heatingState, 10);
+  publish_circuit_thermostat_notification(10);
   publish_thermostat_action_evt(0);
 }
 

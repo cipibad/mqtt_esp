@@ -92,3 +92,8 @@ void publish_persistent_data(const char * topic, const char * data)
 {}
 void publish_non_persistent_data(const char * topic, const char * data)
 {}
+void system_restart()
+{}
+void * schedulerCfgQueue;
+void publish_schedulers_data()
+{}
