@@ -21,6 +21,8 @@ extern "C" {
   void publish_normal_thermostat_notification(unsigned int duration,
                                               const char *reason);
   void publish_circuit_thermostat_notification(unsigned int duration);
+  bool tooHot(char* reason);
+  bool tooCold(char* reason);
 }
 
 extern short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
@@ -291,3 +293,129 @@ TEST_CASE("publish_circuit_thermostat_notification_on", "[tag]" ) {
 //   REQUIRE(room0Temperature == 110);
 //   REQUIRE(room0TemperatureFlag == 1);
 // }
+
+extern int circuitThermostatId;
+
+TEST_CASE("tooHot_returns_true_when_room_temp_above_target", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = SENSOR_LIFETIME;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    currentTemperature[0] = 210;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooHot(reason) == true);
+}
+
+TEST_CASE("tooHot_skips_obsolete_sensors", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = 0;
+    currentTemperature[0] = SHRT_MIN;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooHot(reason) == true);
+}
+
+TEST_CASE("tooHot_includes_offline_sensors", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = 1;
+    currentTemperature[0] = 210;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooHot(reason) == true);
+}
+
+TEST_CASE("tooHot_uses_online_sensors_only", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = 0;
+    currentTemperature[0] = SHRT_MIN;
+    targetTemperature[0] = 200;
+
+    thermostatType[1] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[1] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[1] = SENSOR_LIFETIME;
+    currentTemperature[1] = 220;
+    targetTemperature[1] = 200;
+    temperatureTolerance[1] = 5;
+
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooHot(reason) == true);
+}
+
+TEST_CASE("tooHot_returns_false_when_online_sensor_below_target", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = SENSOR_LIFETIME;
+    currentTemperature[0] = 190;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooHot(reason) == false);
+}
+
+TEST_CASE("tooCold_skips_obsolete_sensors", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = 0;
+    currentTemperature[0] = SHRT_MIN;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooCold(reason) == false);
+}
+
+TEST_CASE("tooCold_includes_offline_sensors", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = 1;
+    currentTemperature[0] = 190;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooCold(reason) == true);
+}
+
+TEST_CASE("tooCold_returns_true_when_online_sensor_below_target", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = SENSOR_LIFETIME;
+    currentTemperature[0] = 190;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooCold(reason) == true);
+}
+
+TEST_CASE("tooCold_returns_false_when_online_sensor_above_target", "[thermostat]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = SENSOR_LIFETIME;
+    currentTemperature[0] = 210;
+    targetTemperature[0] = 200;
+    temperatureTolerance[0] = 5;
+    circuitThermostatId = -1;
+
+    char reason[256] = "";
+    REQUIRE(tooCold(reason) == false);
+}

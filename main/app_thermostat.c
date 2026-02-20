@@ -602,7 +602,7 @@ void dump_data()
   }
 }
 
-bool sensor_is_reporting(char* reason)
+bool normal_sensors_are_reporting(char* reason)
 {
   bool sensorReporting = false;
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
@@ -686,7 +686,7 @@ bool tooHot(char* reason)
   bool reasonUpdated = false;
 
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OFFLINE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+    if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] > (targetTemperature[id] + temperatureTolerance[id])) {
           ESP_LOGI(TAG, "thermostat[%d] is hot enough", id);
@@ -714,7 +714,7 @@ bool tooCold(char* reason)
   bool tooCold = false;
   char tstr[64];
   for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-    if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OFFLINE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
+    if ((temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE) && thermostatMode[id] == THERMOSTAT_MODE_HEAT) {
       if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
         if (currentTemperature[id] < (targetTemperature[id] - temperatureTolerance[id])) {
           ESP_LOGI(TAG, "thermostat[%d] is too cold", id);
@@ -755,7 +755,7 @@ void update_thermostat()
   bool heatingToggledOff = update_heating(reason);
 
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
-    if ((!sensor_is_reporting(reason)) || circuitTooHot(reason) || heatingToggledOff) {
+    if ((!normal_sensors_are_reporting(reason)) || circuitTooHot(reason) || heatingToggledOff) {
       disableThermostat(reason);
       if (thermostat_was_bumped) {
         thermostat_was_bumped = false;
