@@ -183,6 +183,32 @@ menu "Sensors configuration"
         help
             Sensor reading period(in seconds)
 
+    menu "Sensor error handling"
+        depends on SENSOR_SUPPORT
+
+        config SENSOR_ERROR_LOG_INTERVAL
+            int "Error log interval (seconds)"
+            default 300
+            help
+                Minimum time between publishing sensor error logs to MQTT.
+                Prevents spamming when a sensor fails repeatedly.
+
+        config SENSOR_ERROR_THRESHOLD_FIRST
+            int "First error threshold"
+            default 1
+            help
+                Publish error log on the Nth consecutive error.
+                Default 1 means log the first error immediately.
+
+        config SENSOR_ERROR_THRESHOLD_REPEAT
+            int "Repeat error threshold"
+            default 10
+            help
+                After first error, publish error log every N errors.
+                Default 10 means log every 10th consecutive error.
+
+    endmenu # "Sensor error handling"
+
     config DHT22_SENSOR_SUPPORT
         boolean "enable DHT22 sensor"
         default n

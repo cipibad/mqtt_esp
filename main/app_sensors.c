@@ -84,6 +84,57 @@ short soil_moisture_threshold = SHRT_MIN;
 
 static const char *TAG = "APP_SENSOR";
 
+typedef struct {
+    int consecutive_errors;
+    TickType_t last_error_log;
+} sensor_error_state_t;
+
+#ifdef CONFIG_DHT22_SENSOR_SUPPORT
+static sensor_error_state_t dht22_error_state = {0};
+#endif
+
+#ifdef CONFIG_DS18X20_SENSOR
+static sensor_error_state_t ds18x20_error_state = {0};
+#endif
+
+#ifdef CONFIG_BME280_SENSOR
+static sensor_error_state_t bme280_error_state = {0};
+#endif
+
+#ifdef CONFIG_BH1750_SENSOR
+static sensor_error_state_t bh1750_error_state = {0};
+#endif
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+static sensor_error_state_t soil_adc_error_state = {0};
+#endif
+
+static bool sensor_should_publish_error(sensor_error_state_t *state) {
+    if (state->consecutive_errors == CONFIG_SENSOR_ERROR_THRESHOLD_FIRST) {
+        return true;
+    }
+    if (state->consecutive_errors % CONFIG_SENSOR_ERROR_THRESHOLD_REPEAT == 0) {
+        return true;
+    }
+    TickType_t now = xTaskGetTickCount();
+    if ((now - state->last_error_log) > pdMS_TO_TICKS(CONFIG_SENSOR_ERROR_LOG_INTERVAL * 1000)) {
+        return true;
+    }
+    return false;
+}
+
+static void sensor_record_error(sensor_error_state_t *state) {
+    state->consecutive_errors++;
+}
+
+static void sensor_record_success(sensor_error_state_t *state) {
+    state->consecutive_errors = 0;
+}
+
+static void sensor_record_error_logged(sensor_error_state_t *state) {
+    state->last_error_log = xTaskGetTickCount();
+}
+
 void publish_data_to_thermostat(const char * topic, int value)
 {
 #ifdef CONFIG_MQTT_THERMOSTATS_NB0_SENSOR_TYPE_LOCAL
@@ -375,33 +426,36 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
           ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
                    dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
                    dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
+          sensor_record_success(&dht22_error_state);
           publish_dht22_data();
         }
       else
         {
+          sensor_record_error(&dht22_error_state);
           ESP_LOGE(TAG, "Error: Could not read data from DHT sensor");
-          publish_dht22_log( "Error: Could not read data from DHT sensor");
+          if (sensor_should_publish_error(&dht22_error_state)) {
+            publish_dht22_log("Error: Could not read data from DHT sensor");
+            sensor_record_error_logged(&dht22_error_state);
+          }
         }
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
       sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
       if (sensor_count < 1) {
+        sensor_record_error(&ds18x20_error_state);
         ESP_LOGW(TAG, "No sensors detected!\n");
       } else {
         ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
         for (int j = 0; j < sensor_count; j++)
           {
-            // The ds18x20 address is a 64-bit integer, but newlib-nano
-            // printf does not support printing 64-bit values, so we
-            // split it up into two 32-bit integers and print them
-            // back-to-back to make it look like one big hex number.
             char addr[8+8+1];
             sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
             sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
             short temp_c = (short)(temps[j] * 10);
             ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
           }
+        sensor_record_success(&ds18x20_error_state);
         publish_ds18x20_data();
 
       }
@@ -414,10 +468,12 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
             bme280_temperature / 100, bme280_temperature % 100,
             bme280_pressure / 100, bme280_pressure % 100,
             bme280_humidity / 1000, bme280_humidity % 1000);
+          sensor_record_success(&bme280_error_state);
           publish_bme280_data();
         }
       else
         {
+          sensor_record_error(&bme280_error_state);
           ESP_LOGE(TAG, "Could not read data from BME sensor");
         }
 #endif //CONFIG_BME280_SENSOR
@@ -425,13 +481,16 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #ifdef CONFIG_BH1750_SENSOR
       esp_err_t ret = i2c_master_BH1750_read(&illuminance);
       if (ret == ESP_ERR_TIMEOUT) {
+          sensor_record_error(&bh1750_error_state);
           ESP_LOGE(TAG, "I2C Timeout");
       } else if (ret == ESP_OK) {
+          sensor_record_success(&bh1750_error_state);
           ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
           publish_bh1750_data();
       } else {
+          sensor_record_error(&bh1750_error_state);
           ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
-  }
+      }
 #endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
@@ -443,8 +502,10 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
     if (ESP_OK == adc_read(&soil_moisture_data)) {
         soil_moisture = 1023 - soil_moisture_data;
         ESP_LOGI(TAG, "adc read: %d", soil_moisture);
+        sensor_record_success(&soil_adc_error_state);
         publish_soil_moisture_adc();
     } else {
+      sensor_record_error(&soil_adc_error_state);
       ESP_LOGE(TAG, "Could not read data from adc");
     }
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
