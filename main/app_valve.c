@@ -168,9 +168,11 @@ void app_valve_task(void* pvParameters)
   ESP_LOGI(TAG, "app_valve_task started");
 
   if (is_relay_serial_type(CONFIG_VALVE_OPEN_RELAY_ID) || is_relay_serial_type(CONFIG_VALVE_CLOSE_RELAY_ID)) {
+#ifdef CONFIG_AT_SERVER
     while (!is_serial_interface_online()) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+#endif // CONFIG_AT_SERVER
   }
 
   init_valve();

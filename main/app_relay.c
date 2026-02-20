@@ -320,9 +320,11 @@ void update_relay_status(int id, char value)
 {
   ESP_LOGI(TAG, "update_relay_status: id: %d, value: %d", id, value);
   ESP_LOGI(TAG, "relayStatus[%d] = %d", id, relayStatus[id] == GPIO_HIGH);
+#ifdef CONFIG_AT_SERVER
   if (is_relay_serial_type(id) && !is_serial_interface_online()) {
     return;
   }
+#endif // CONFIG_AT_SERVER
 
   if (value != (relayStatus[id] == GPIO_HIGH)) {
     if (value == RELAY_STATUS_ON) {
