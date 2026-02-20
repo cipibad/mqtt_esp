@@ -457,6 +457,166 @@ void publish_sensors_data()
 #endif // CONFIG_DEEP_SLEEP_MODE
 }
 
+#ifdef CONFIG_DHT22_SENSOR_SUPPORT
+static void dht22_read_and_publish() {
+  dht22_temperature = SHRT_MIN;
+  dht22_humidity = SHRT_MIN;
+  if (dht_read_data(DHT_SENSOR_TYPE, CONFIG_DHT22_SENSOR_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
+    {
+      if (sensor_validate_value(dht22_temperature, &dht22_temp_range) &&
+          sensor_validate_value(dht22_humidity, &dht22_humidity_range)) {
+        if (dht22_mean_temperature == SHRT_MIN) {
+          dht22_mean_temperature = dht22_temperature;
+        } else {
+          dht22_mean_temperature = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_temperature)
+            + dht22_temperature) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
+        }
+
+        if (dht22_mean_humidity == SHRT_MIN) {
+          dht22_mean_humidity = dht22_humidity;
+        } else {
+          dht22_mean_humidity = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_humidity)
+            + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
+        }
+
+        ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
+                 dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
+                 dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
+        sensor_record_success(&dht22_error_state);
+        publish_dht22_data();
+      } else {
+        sensor_record_error(&dht22_error_state);
+        ESP_LOGW(TAG, "DHT22 values out of range, skipping");
+      }
+    }
+  else
+    {
+      sensor_record_error(&dht22_error_state);
+      ESP_LOGE(TAG, "Error: Could not read data from DHT sensor");
+      if (sensor_should_publish_error(&dht22_error_state)) {
+        publish_dht22_log("Error: Could not read data from DHT sensor");
+        sensor_record_error_logged(&dht22_error_state);
+      }
+    }
+  sensor_publish_health_if_changed(&dht22_error_state, "dht22");
+}
+#endif //CONFIG_DHT22_SENSOR_SUPPORT
+
+#ifdef CONFIG_DS18X20_SENSOR
+static void ds18x20_read_and_publish() {
+  if (ds18x20_ensure_scanned()) {
+    esp_err_t read_result = ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
+    if (read_result == ESP_OK) {
+      bool all_valid = true;
+      for (int j = 0; j < sensor_count; j++)
+        {
+          char addr[8+8+1];
+          sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
+          sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
+          short temp_c = (short)(temps[j] * 10);
+          if (sensor_validate_value(temp_c, &ds18x20_temp_range)) {
+            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
+          } else {
+            all_valid = false;
+          }
+        }
+      if (all_valid) {
+        sensor_record_success(&ds18x20_error_state);
+        publish_ds18x20_data();
+      } else {
+        sensor_record_error(&ds18x20_error_state);
+      }
+    } else {
+      sensor_record_error(&ds18x20_error_state);
+      ESP_LOGW(TAG, "DS18x20 read failed, invalidating cache");
+      ds18x20_invalidate_cache();
+    }
+  } else {
+    sensor_record_error(&ds18x20_error_state);
+    ESP_LOGW(TAG, "No sensors detected!\n");
+  }
+  if (ds18x20_error_state.health != ds18x20_error_state.last_published_health) {
+    ds18x20_publish_sensor_health(ds18x20_error_state.health);
+    ds18x20_error_state.last_published_health = ds18x20_error_state.health;
+  }
+}
+#endif // CONFIG_DS18X20_SENSOR
+
+#ifdef CONFIG_BME280_SENSOR
+static void bme280_read_and_publish() {
+  if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
+    {
+      short temp_c = bme280_temperature / 10;
+      short humidity_pct = bme280_humidity / 100;
+      if (sensor_validate_value(temp_c, &bme280_temp_range) &&
+          sensor_validate_value(humidity_pct, &bme280_humidity_range)) {
+        ESP_LOGI(TAG, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
+          bme280_temperature / 100, bme280_temperature % 100,
+          bme280_pressure / 100, bme280_pressure % 100,
+          bme280_humidity / 1000, bme280_humidity % 1000);
+        sensor_record_success(&bme280_error_state);
+        publish_bme280_data();
+      } else {
+        sensor_record_error(&bme280_error_state);
+        ESP_LOGW(TAG, "BME280 values out of range, skipping");
+      }
+    }
+  else
+    {
+      sensor_record_error(&bme280_error_state);
+      ESP_LOGE(TAG, "Could not read data from BME sensor");
+    }
+  sensor_publish_health_if_changed(&bme280_error_state, "bme280");
+}
+#endif //CONFIG_BME280_SENSOR
+
+#ifdef CONFIG_BH1750_SENSOR
+static void bh1750_read_and_publish() {
+  esp_err_t ret = i2c_master_BH1750_read(&illuminance);
+  if (ret == ESP_ERR_TIMEOUT) {
+      sensor_record_error(&bh1750_error_state);
+      ESP_LOGE(TAG, "I2C Timeout");
+  } else if (ret == ESP_OK) {
+      if (sensor_validate_value((short)illuminance, &bh1750_range)) {
+        sensor_record_success(&bh1750_error_state);
+        ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
+        publish_bh1750_data();
+      } else {
+        sensor_record_error(&bh1750_error_state);
+        ESP_LOGW(TAG, "BH1750 value out of range, skipping");
+      }
+  } else {
+      sensor_record_error(&bh1750_error_state);
+      ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
+  }
+  sensor_publish_health_if_changed(&bh1750_error_state, "bh1750");
+}
+#endif // CONFIG_BH1750_SENSOR
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
+static void soil_adc_read_and_publish() {
+  uint16_t soil_moisture_data = 0;
+  if (ESP_OK == adc_read(&soil_moisture_data)) {
+      soil_moisture = 1023 - soil_moisture_data;
+      ESP_LOGI(TAG, "adc read: %d", soil_moisture);
+      sensor_record_success(&soil_adc_error_state);
+      publish_soil_moisture_adc();
+  } else {
+    sensor_record_error(&soil_adc_error_state);
+    ESP_LOGE(TAG, "Could not read data from adc");
+  }
+  sensor_publish_health_if_changed(&soil_adc_error_state, "adc");
+}
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
+
+#ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+static void soil_digital_read_and_publish() {
+  soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
+  ESP_LOGI(TAG, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
+  publish_soil_moisture_th();
+}
+#endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
+
 void sensors_read(void* pvParameters)
 {
 
@@ -519,131 +679,19 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #endif // CONFIG_DEEP_SLEEP_MODE
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
-      dht22_temperature = SHRT_MIN;
-      dht22_humidity = SHRT_MIN;
-      if (dht_read_data(DHT_SENSOR_TYPE, CONFIG_DHT22_SENSOR_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
-        {
-          if (sensor_validate_value(dht22_temperature, &dht22_temp_range) &&
-              sensor_validate_value(dht22_humidity, &dht22_humidity_range)) {
-            if (dht22_mean_temperature == SHRT_MIN) {
-              dht22_mean_temperature = dht22_temperature;
-            } else {
-              dht22_mean_temperature = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_temperature)
-                + dht22_temperature) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
-            }
-
-            if (dht22_mean_humidity == SHRT_MIN) {
-              dht22_mean_humidity = dht22_humidity;
-            } else {
-              dht22_mean_humidity = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_humidity)
-                + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
-            }
-
-            ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
-                     dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
-                     dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
-            sensor_record_success(&dht22_error_state);
-            publish_dht22_data();
-          } else {
-            sensor_record_error(&dht22_error_state);
-            ESP_LOGW(TAG, "DHT22 values out of range, skipping");
-          }
-        }
-      else
-        {
-          sensor_record_error(&dht22_error_state);
-          ESP_LOGE(TAG, "Error: Could not read data from DHT sensor");
-          if (sensor_should_publish_error(&dht22_error_state)) {
-            publish_dht22_log("Error: Could not read data from DHT sensor");
-            sensor_record_error_logged(&dht22_error_state);
-          }
-        }
-      sensor_publish_health_if_changed(&dht22_error_state, "dht22");
+      dht22_read_and_publish();
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
-      if (ds18x20_ensure_scanned()) {
-        esp_err_t read_result = ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
-        if (read_result == ESP_OK) {
-          bool all_valid = true;
-          for (int j = 0; j < sensor_count; j++)
-            {
-              char addr[8+8+1];
-              sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
-              sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
-              short temp_c = (short)(temps[j] * 10);
-              if (sensor_validate_value(temp_c, &ds18x20_temp_range)) {
-                ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
-              } else {
-                all_valid = false;
-              }
-            }
-          if (all_valid) {
-            sensor_record_success(&ds18x20_error_state);
-            publish_ds18x20_data();
-          } else {
-            sensor_record_error(&ds18x20_error_state);
-          }
-        } else {
-          sensor_record_error(&ds18x20_error_state);
-          ESP_LOGW(TAG, "DS18x20 read failed, invalidating cache");
-          ds18x20_invalidate_cache();
-        }
-      } else {
-        sensor_record_error(&ds18x20_error_state);
-        ESP_LOGW(TAG, "No sensors detected!\n");
-      }
-      if (ds18x20_error_state.health != ds18x20_error_state.last_published_health) {
-        ds18x20_publish_sensor_health(ds18x20_error_state.health);
-        ds18x20_error_state.last_published_health = ds18x20_error_state.health;
-      }
+      ds18x20_read_and_publish();
 #endif // CONFIG_DS18X20_SENSOR
 
 #ifdef CONFIG_BME280_SENSOR
-      if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
-        {
-          short temp_c = bme280_temperature / 10;
-          short humidity_pct = bme280_humidity / 100;
-          if (sensor_validate_value(temp_c, &bme280_temp_range) &&
-              sensor_validate_value(humidity_pct, &bme280_humidity_range)) {
-            ESP_LOGI(TAG, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
-              bme280_temperature / 100, bme280_temperature % 100,
-              bme280_pressure / 100, bme280_pressure % 100,
-              bme280_humidity / 1000, bme280_humidity % 1000);
-            sensor_record_success(&bme280_error_state);
-            publish_bme280_data();
-          } else {
-            sensor_record_error(&bme280_error_state);
-            ESP_LOGW(TAG, "BME280 values out of range, skipping");
-          }
-        }
-      else
-        {
-          sensor_record_error(&bme280_error_state);
-          ESP_LOGE(TAG, "Could not read data from BME sensor");
-        }
-      sensor_publish_health_if_changed(&bme280_error_state, "bme280");
+      bme280_read_and_publish();
 #endif //CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_BH1750_SENSOR
-      esp_err_t ret = i2c_master_BH1750_read(&illuminance);
-      if (ret == ESP_ERR_TIMEOUT) {
-          sensor_record_error(&bh1750_error_state);
-          ESP_LOGE(TAG, "I2C Timeout");
-      } else if (ret == ESP_OK) {
-          if (sensor_validate_value((short)illuminance, &bh1750_range)) {
-            sensor_record_success(&bh1750_error_state);
-            ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
-            publish_bh1750_data();
-          } else {
-            sensor_record_error(&bh1750_error_state);
-            ESP_LOGW(TAG, "BH1750 value out of range, skipping");
-          }
-      } else {
-          sensor_record_error(&bh1750_error_state);
-          ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
-      }
-      sensor_publish_health_if_changed(&bh1750_error_state, "bh1750");
+      bh1750_read_and_publish();
 #endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
@@ -651,23 +699,11 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
-    uint16_t soil_moisture_data = 0;
-    if (ESP_OK == adc_read(&soil_moisture_data)) {
-        soil_moisture = 1023 - soil_moisture_data;
-        ESP_LOGI(TAG, "adc read: %d", soil_moisture);
-        sensor_record_success(&soil_adc_error_state);
-        publish_soil_moisture_adc();
-    } else {
-      sensor_record_error(&soil_adc_error_state);
-      ESP_LOGE(TAG, "Could not read data from adc");
-    }
-    sensor_publish_health_if_changed(&soil_adc_error_state, "adc");
+    soil_adc_read_and_publish();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
-    soil_moisture_threshold = 1 - gpio_get_level(CONFIG_SOIL_MOISTURE_SENSOR_GPIO);
-    ESP_LOGI(TAG, "Soil moisture threshold %s", soil_moisture_threshold ? "high" : "low");
-    publish_soil_moisture_th();
+    soil_digital_read_and_publish();
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
