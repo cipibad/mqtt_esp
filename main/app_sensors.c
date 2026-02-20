@@ -53,6 +53,7 @@ static const gpio_num_t SENSOR_GPIO = CONFIG_DS18X20_SENSOR_GPIO;
 ds18x20_addr_t addrs[MAX_SENSORS];
 float temps[MAX_SENSORS];
 int sensor_count = 0;
+static bool ds18x20_addresses_cached = false;
 #endif // CONFIG_DS18X20_SENSOR
 
 #ifdef CONFIG_I2C_SENSOR_SUPPORT
@@ -134,6 +135,28 @@ static void sensor_record_success(sensor_error_state_t *state) {
 static void sensor_record_error_logged(sensor_error_state_t *state) {
     state->last_error_log = xTaskGetTickCount();
 }
+
+#ifdef CONFIG_DS18X20_SENSOR
+static bool ds18x20_ensure_scanned() {
+    if (ds18x20_addresses_cached && sensor_count > 0) {
+        return true;
+    }
+    
+    sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
+    if (sensor_count > 0) {
+        ds18x20_addresses_cached = true;
+        ESP_LOGI(TAG, "DS18x20: cached %d sensor address(es)", sensor_count);
+        return true;
+    }
+    
+    return false;
+}
+
+static void ds18x20_invalidate_cache() {
+    ds18x20_addresses_cached = false;
+    ESP_LOGI(TAG, "DS18x20: address cache invalidated");
+}
+#endif // CONFIG_DS18X20_SENSOR
 
 void publish_data_to_thermostat(const char * topic, int value)
 {
@@ -441,23 +464,27 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
-      sensor_count = ds18x20_scan_devices(SENSOR_GPIO, addrs, MAX_SENSORS);
-      if (sensor_count < 1) {
+      if (ds18x20_ensure_scanned()) {
+        esp_err_t read_result = ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
+        if (read_result == ESP_OK) {
+          for (int j = 0; j < sensor_count; j++)
+            {
+              char addr[8+8+1];
+              sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
+              sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
+              short temp_c = (short)(temps[j] * 10);
+              ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
+            }
+          sensor_record_success(&ds18x20_error_state);
+          publish_ds18x20_data();
+        } else {
+          sensor_record_error(&ds18x20_error_state);
+          ESP_LOGW(TAG, "DS18x20 read failed, invalidating cache");
+          ds18x20_invalidate_cache();
+        }
+      } else {
         sensor_record_error(&ds18x20_error_state);
         ESP_LOGW(TAG, "No sensors detected!\n");
-      } else {
-        ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
-        for (int j = 0; j < sensor_count; j++)
-          {
-            char addr[8+8+1];
-            sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
-            sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
-            short temp_c = (short)(temps[j] * 10);
-            ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
-          }
-        sensor_record_success(&ds18x20_error_state);
-        publish_ds18x20_data();
-
       }
 #endif // CONFIG_DS18X20_SENSOR
 
