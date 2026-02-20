@@ -85,30 +85,79 @@ short soil_moisture_threshold = SHRT_MIN;
 
 static const char *TAG = "APP_SENSOR";
 
+typedef enum {
+    SENSOR_HEALTH_UNKNOWN,
+    SENSOR_HEALTH_ONLINE,
+    SENSOR_HEALTH_DEGRADED,
+    SENSOR_HEALTH_OFFLINE
+} sensor_health_t;
+
 typedef struct {
     int consecutive_errors;
     TickType_t last_error_log;
+    sensor_health_t health;
+    sensor_health_t last_published_health;
 } sensor_error_state_t;
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
-static sensor_error_state_t dht22_error_state = {0};
+static sensor_error_state_t dht22_error_state = {.health = SENSOR_HEALTH_UNKNOWN, .last_published_health = SENSOR_HEALTH_UNKNOWN};
 #endif
 
 #ifdef CONFIG_DS18X20_SENSOR
-static sensor_error_state_t ds18x20_error_state = {0};
+static sensor_error_state_t ds18x20_error_state = {.health = SENSOR_HEALTH_UNKNOWN, .last_published_health = SENSOR_HEALTH_UNKNOWN};
 #endif
 
 #ifdef CONFIG_BME280_SENSOR
-static sensor_error_state_t bme280_error_state = {0};
+static sensor_error_state_t bme280_error_state = {.health = SENSOR_HEALTH_UNKNOWN, .last_published_health = SENSOR_HEALTH_UNKNOWN};
 #endif
 
 #ifdef CONFIG_BH1750_SENSOR
-static sensor_error_state_t bh1750_error_state = {0};
+static sensor_error_state_t bh1750_error_state = {.health = SENSOR_HEALTH_UNKNOWN, .last_published_health = SENSOR_HEALTH_UNKNOWN};
 #endif
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_ADC
-static sensor_error_state_t soil_adc_error_state = {0};
+static sensor_error_state_t soil_adc_error_state = {.health = SENSOR_HEALTH_UNKNOWN, .last_published_health = SENSOR_HEALTH_UNKNOWN};
 #endif
+
+static const char* sensor_health_to_string(sensor_health_t health) {
+    switch (health) {
+        case SENSOR_HEALTH_ONLINE: return "online";
+        case SENSOR_HEALTH_DEGRADED: return "degraded";
+        case SENSOR_HEALTH_OFFLINE: return "offline";
+        default: return "unknown";
+    }
+}
+
+static void sensor_publish_health(const char *sensor_name, sensor_health_t health) {
+    char topic[64];
+    sprintf(topic, CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/status/%s", sensor_name);
+    publish_persistent_data(topic, sensor_health_to_string(health));
+}
+
+static void sensor_update_health(sensor_error_state_t *state) {
+    sensor_health_t old_health = state->health;
+    
+    if (state->consecutive_errors == 0) {
+        state->health = SENSOR_HEALTH_ONLINE;
+    } else if (state->consecutive_errors < 3) {
+        state->health = SENSOR_HEALTH_DEGRADED;
+    } else {
+        state->health = SENSOR_HEALTH_OFFLINE;
+    }
+    
+    if (state->health != old_health) {
+        ESP_LOGI(TAG, "Sensor health changed: %s -> %s", 
+                 sensor_health_to_string(old_health), 
+                 sensor_health_to_string(state->health));
+    }
+}
+
+static void sensor_publish_health_if_changed(sensor_error_state_t *state, const char *sensor_name) {
+    if (state->health != state->last_published_health) {
+        sensor_publish_health(sensor_name, state->health);
+        state->last_published_health = state->health;
+    }
+}
 
 static bool sensor_should_publish_error(sensor_error_state_t *state) {
     if (state->consecutive_errors == CONFIG_SENSOR_ERROR_THRESHOLD_FIRST) {
@@ -126,10 +175,12 @@ static bool sensor_should_publish_error(sensor_error_state_t *state) {
 
 static void sensor_record_error(sensor_error_state_t *state) {
     state->consecutive_errors++;
+    sensor_update_health(state);
 }
 
 static void sensor_record_success(sensor_error_state_t *state) {
     state->consecutive_errors = 0;
+    sensor_update_health(state);
 }
 
 static void sensor_record_error_logged(sensor_error_state_t *state) {
@@ -155,6 +206,15 @@ static bool ds18x20_ensure_scanned() {
 static void ds18x20_invalidate_cache() {
     ds18x20_addresses_cached = false;
     ESP_LOGI(TAG, "DS18x20: address cache invalidated");
+}
+
+static void ds18x20_publish_sensor_health(sensor_health_t health) {
+    for (int i = 0; i < sensor_count; i++) {
+        char topic[64];
+        sprintf(topic, CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/status/%08x%08x",
+                (uint32_t)(addrs[i] >> 32), (uint32_t)addrs[i]);
+        publish_persistent_data(topic, sensor_health_to_string(health));
+    }
 }
 #endif // CONFIG_DS18X20_SENSOR
 
@@ -461,6 +521,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
             sensor_record_error_logged(&dht22_error_state);
           }
         }
+      sensor_publish_health_if_changed(&dht22_error_state, "dht22");
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
 
 #ifdef CONFIG_DS18X20_SENSOR
@@ -486,6 +547,10 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
         sensor_record_error(&ds18x20_error_state);
         ESP_LOGW(TAG, "No sensors detected!\n");
       }
+      if (ds18x20_error_state.health != ds18x20_error_state.last_published_health) {
+        ds18x20_publish_sensor_health(ds18x20_error_state.health);
+        ds18x20_error_state.last_published_health = ds18x20_error_state.health;
+      }
 #endif // CONFIG_DS18X20_SENSOR
 
 #ifdef CONFIG_BME280_SENSOR
@@ -503,6 +568,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
           sensor_record_error(&bme280_error_state);
           ESP_LOGE(TAG, "Could not read data from BME sensor");
         }
+      sensor_publish_health_if_changed(&bme280_error_state, "bme280");
 #endif //CONFIG_BME280_SENSOR
 
 #ifdef CONFIG_BH1750_SENSOR
@@ -518,6 +584,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
           sensor_record_error(&bh1750_error_state);
           ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
       }
+      sensor_publish_health_if_changed(&bh1750_error_state, "bh1750");
 #endif // CONFIG_BH1750_SENSOR
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_SWITCH
@@ -535,6 +602,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       sensor_record_error(&soil_adc_error_state);
       ESP_LOGE(TAG, "Could not read data from adc");
     }
+    sensor_publish_health_if_changed(&soil_adc_error_state, "adc");
 #endif // CONFIG_SOIL_MOISTURE_SENSOR_ADC
 
 #ifdef CONFIG_SOIL_MOISTURE_SENSOR_DIGITAL
