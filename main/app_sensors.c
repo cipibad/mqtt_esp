@@ -159,6 +159,37 @@ static void sensor_publish_health_if_changed(sensor_error_state_t *state, const 
     }
 }
 
+typedef struct {
+    short min;
+    short max;
+} sensor_value_range_t;
+
+#ifdef CONFIG_DHT22_SENSOR_SUPPORT
+static const sensor_value_range_t dht22_temp_range = {-400, 800};    // -40.0°C to 80.0°C
+static const sensor_value_range_t dht22_humidity_range = {0, 1000}; // 0% to 100%
+#endif
+
+#ifdef CONFIG_DS18X20_SENSOR
+static const sensor_value_range_t ds18x20_temp_range = {-550, 1250}; // -55.0°C to 125.0°C
+#endif
+
+#ifdef CONFIG_BME280_SENSOR
+static const sensor_value_range_t bme280_temp_range = {-400, 850};     // -40.0°C to 85.0°C
+static const sensor_value_range_t bme280_humidity_range = {0, 1000};   // 0% to 100%
+#endif
+
+#ifdef CONFIG_BH1750_SENSOR
+static const sensor_value_range_t bh1750_range = {0, 65535};           // 0 to 65535 lux
+#endif
+
+static bool sensor_validate_value(short value, const sensor_value_range_t *range) {
+    if (value < range->min || value > range->max) {
+        ESP_LOGW(TAG, "Value %d out of range [%d, %d]", value, range->min, range->max);
+        return false;
+    }
+    return true;
+}
+
 static bool sensor_should_publish_error(sensor_error_state_t *state) {
     if (state->consecutive_errors == CONFIG_SENSOR_ERROR_THRESHOLD_FIRST) {
         return true;
@@ -492,25 +523,31 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       dht22_humidity = SHRT_MIN;
       if (dht_read_data(DHT_SENSOR_TYPE, CONFIG_DHT22_SENSOR_GPIO, &dht22_humidity, &dht22_temperature) == ESP_OK)
         {
-          if (dht22_mean_temperature == SHRT_MIN) {
-            dht22_mean_temperature = dht22_temperature;
-          } else {
-            dht22_mean_temperature = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_temperature)
-              + dht22_temperature) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
-          }
+          if (sensor_validate_value(dht22_temperature, &dht22_temp_range) &&
+              sensor_validate_value(dht22_humidity, &dht22_humidity_range)) {
+            if (dht22_mean_temperature == SHRT_MIN) {
+              dht22_mean_temperature = dht22_temperature;
+            } else {
+              dht22_mean_temperature = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_temperature)
+                + dht22_temperature) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
+            }
 
-          if (dht22_mean_humidity == SHRT_MIN) {
-            dht22_mean_humidity = dht22_humidity;
-          } else {
-            dht22_mean_humidity = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_humidity)
-              + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
-          }
+            if (dht22_mean_humidity == SHRT_MIN) {
+              dht22_mean_humidity = dht22_humidity;
+            } else {
+              dht22_mean_humidity = (((CONFIG_DHT22_SENSOR_SMA_FACTOR - 1) * dht22_mean_humidity)
+                + dht22_humidity) / CONFIG_DHT22_SENSOR_SMA_FACTOR;
+            }
 
-          ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
-                   dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
-                   dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
-          sensor_record_success(&dht22_error_state);
-          publish_dht22_data();
+            ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
+                     dht22_mean_humidity/10, abs(dht22_mean_humidity%10) ,
+                     dht22_mean_temperature/10, abs(dht22_mean_temperature%10));
+            sensor_record_success(&dht22_error_state);
+            publish_dht22_data();
+          } else {
+            sensor_record_error(&dht22_error_state);
+            ESP_LOGW(TAG, "DHT22 values out of range, skipping");
+          }
         }
       else
         {
@@ -528,16 +565,25 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
       if (ds18x20_ensure_scanned()) {
         esp_err_t read_result = ds18x20_measure_and_read_multi(SENSOR_GPIO, addrs, sensor_count, temps);
         if (read_result == ESP_OK) {
+          bool all_valid = true;
           for (int j = 0; j < sensor_count; j++)
             {
               char addr[8+8+1];
               sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
               sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
               short temp_c = (short)(temps[j] * 10);
-              ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
+              if (sensor_validate_value(temp_c, &ds18x20_temp_range)) {
+                ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
+              } else {
+                all_valid = false;
+              }
             }
-          sensor_record_success(&ds18x20_error_state);
-          publish_ds18x20_data();
+          if (all_valid) {
+            sensor_record_success(&ds18x20_error_state);
+            publish_ds18x20_data();
+          } else {
+            sensor_record_error(&ds18x20_error_state);
+          }
         } else {
           sensor_record_error(&ds18x20_error_state);
           ESP_LOGW(TAG, "DS18x20 read failed, invalidating cache");
@@ -556,12 +602,20 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #ifdef CONFIG_BME280_SENSOR
       if (bme_read_data(&bme280_temperature, &bme280_pressure, &bme280_humidity) == ESP_OK)
         {
-          ESP_LOGI(TAG, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
-            bme280_temperature / 100, bme280_temperature % 100,
-            bme280_pressure / 100, bme280_pressure % 100,
-            bme280_humidity / 1000, bme280_humidity % 1000);
-          sensor_record_success(&bme280_error_state);
-          publish_bme280_data();
+          short temp_c = bme280_temperature / 10;
+          short humidity_pct = bme280_humidity / 100;
+          if (sensor_validate_value(temp_c, &bme280_temp_range) &&
+              sensor_validate_value(humidity_pct, &bme280_humidity_range)) {
+            ESP_LOGI(TAG, "Temp: %d.%02d degC, Pressure: %d.%02d mmHg , Humidity: %d.%03d %%rH, ",
+              bme280_temperature / 100, bme280_temperature % 100,
+              bme280_pressure / 100, bme280_pressure % 100,
+              bme280_humidity / 1000, bme280_humidity % 1000);
+            sensor_record_success(&bme280_error_state);
+            publish_bme280_data();
+          } else {
+            sensor_record_error(&bme280_error_state);
+            ESP_LOGW(TAG, "BME280 values out of range, skipping");
+          }
         }
       else
         {
@@ -577,9 +631,14 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
           sensor_record_error(&bh1750_error_state);
           ESP_LOGE(TAG, "I2C Timeout");
       } else if (ret == ESP_OK) {
-          sensor_record_success(&bh1750_error_state);
-          ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
-          publish_bh1750_data();
+          if (sensor_validate_value((short)illuminance, &bh1750_range)) {
+            sensor_record_success(&bh1750_error_state);
+            ESP_LOGI(TAG, "data: %d.%02d\n", illuminance/100, illuminance%100 );
+            publish_bh1750_data();
+          } else {
+            sensor_record_error(&bh1750_error_state);
+            ESP_LOGW(TAG, "BH1750 value out of range, skipping");
+          }
       } else {
           sensor_record_error(&bh1750_error_state);
           ESP_LOGW(TAG, "%s: No ack, bh1750 sensor not connected...skip...", esp_err_to_name(ret));
