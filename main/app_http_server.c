@@ -5,9 +5,15 @@
 
 #include "app_actuator.h"
 #include "app_http_server.h"
+#include "app_relay.h"
+#include "app_ota.h"
+#include "version.h"
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
+
+extern QueueHandle_t otaQueue;
 
 static const char *TAG = "http_server";
 httpd_handle_t server = NULL;
@@ -190,10 +196,164 @@ esp_err_t actuator_level_get_handler(httpd_req_t *req) {
   return ESP_OK;
 }
 httpd_uri_t get_level_actuator = {.uri = CONFIG_HTTP_BASE_URL "/level/actuator",
-                                  .method = HTTP_GET,
-                                  .handler = actuator_level_get_handler};
+                                   .method = HTTP_GET,
+                                   .handler = actuator_level_get_handler};
 
 #endif  // CONFIG_ACTUATOR_SUPPORT
+
+#if CONFIG_MQTT_RELAYS_NB
+
+esp_err_t relay_get_handler(httpd_req_t *req) {
+  char uri[64];
+  strlcpy(uri, req->uri, sizeof(uri));
+  
+  char *id_str = strrchr(uri, '/');
+  if (id_str == NULL) {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  id_str++;
+  
+  int relay_id = atoi(id_str);
+  if (relay_id < 0 || relay_id >= CONFIG_MQTT_RELAYS_NB) {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  
+  const char *status = get_relay_status(relay_id) == RELAY_STATUS_ON ? "ON" : "OFF";
+  httpd_resp_set_type(req, "text/plain");
+  httpd_resp_send(req, status, strlen(status));
+  return ESP_OK;
+}
+
+esp_err_t relay_post_handler(httpd_req_t *req) {
+  char uri[64];
+  strlcpy(uri, req->uri, sizeof(uri));
+  
+  char *id_str = strrchr(uri, '/');
+  if (id_str == NULL) {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  id_str++;
+  
+  int relay_id = atoi(id_str);
+  if (relay_id < 0 || relay_id >= CONFIG_MQTT_RELAYS_NB) {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  
+  char buf[16];
+  int remaining = req->content_len;
+  if (remaining > 15) {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  
+  int ret;
+  int total = 0;
+  while (remaining > 0) {
+    ret = httpd_req_recv(req, buf + total, remaining);
+    if (ret <= 0) {
+      if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+        continue;
+      }
+      httpd_resp_send(req, "ERROR", 5);
+      return ESP_OK;
+    }
+    remaining -= ret;
+    total += ret;
+  }
+  buf[total] = 0;
+  
+  ESP_LOGI(TAG, "Relay %d command: %s", relay_id, buf);
+  
+  if (strcmp(buf, "ON") == 0) {
+    update_relay_status(relay_id, RELAY_STATUS_ON);
+  } else if (strcmp(buf, "OFF") == 0) {
+    update_relay_status(relay_id, RELAY_STATUS_OFF);
+  } else {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  
+  httpd_resp_set_type(req, "text/plain");
+  httpd_resp_send(req, "OK", 2);
+  return ESP_OK;
+}
+
+static httpd_uri_t relay_get_handlers[CONFIG_MQTT_RELAYS_NB];
+static httpd_uri_t relay_post_handlers[CONFIG_MQTT_RELAYS_NB];
+static char relay_uris[CONFIG_MQTT_RELAYS_NB][64];
+
+static void register_relay_handlers(httpd_handle_t server) {
+  for (int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
+    snprintf(relay_uris[i], sizeof(relay_uris[i]), CONFIG_HTTP_BASE_URL "/relay/%d", i);
+    
+    relay_get_handlers[i].uri = relay_uris[i];
+    relay_get_handlers[i].method = HTTP_GET;
+    relay_get_handlers[i].handler = relay_get_handler;
+    relay_get_handlers[i].user_ctx = NULL;
+    httpd_register_uri_handler(server, &relay_get_handlers[i]);
+    
+    relay_post_handlers[i].uri = relay_uris[i];
+    relay_post_handlers[i].method = HTTP_POST;
+    relay_post_handlers[i].handler = relay_post_handler;
+    relay_post_handlers[i].user_ctx = NULL;
+    httpd_register_uri_handler(server, &relay_post_handlers[i]);
+  }
+}
+
+#endif  // CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_MQTT_OTA
+
+esp_err_t version_get_handler(httpd_req_t *req) {
+  char data[64];
+  memset(data, 0, 64);
+  sprintf(data, "{\"version\":\"" FW_VERSION "\"}");
+  httpd_resp_set_type(req, HTTPD_TYPE_JSON);
+  httpd_resp_send(req, data, strlen(data));
+  return ESP_OK;
+}
+
+esp_err_t ota_status_get_handler(httpd_req_t *req) {
+  const char *status;
+  int s = get_ota_status();
+  switch(s) {
+    case OTA_ONGOING: status = "ongoing"; break;
+    case OTA_SUCCESFULL: status = "success"; break;
+    case OTA_FAILED: status = "failed"; break;
+    default: status = "ready"; break;
+  }
+  httpd_resp_set_type(req, "text/plain");
+  httpd_resp_send(req, status, strlen(status));
+  return ESP_OK;
+}
+
+esp_err_t ota_trigger_post_handler(httpd_req_t *req) {
+  struct OtaMessage o = {"https://sw.iot.cipex.ro:8911/" CONFIG_CLIENT_ID ".bin"};
+  if (xQueueSend(otaQueue, &o, OTA_QUEUE_TIMEOUT) != pdPASS) {
+    httpd_resp_send(req, "ERROR", 5);
+    return ESP_OK;
+  }
+  httpd_resp_send(req, "OK", 2);
+  return ESP_OK;
+}
+
+httpd_uri_t http_get_version = {.uri = CONFIG_HTTP_BASE_URL "/status/version",
+                                 .method = HTTP_GET,
+                                 .handler = version_get_handler};
+
+httpd_uri_t http_get_ota_status = {.uri = CONFIG_HTTP_BASE_URL "/status/ota",
+                                   .method = HTTP_GET,
+                                   .handler = ota_status_get_handler};
+
+httpd_uri_t http_post_ota_trigger = {.uri = CONFIG_HTTP_BASE_URL "/action/ota",
+                                     .method = HTTP_POST,
+                                     .handler = ota_trigger_post_handler};
+
+#endif  // CONFIG_MQTT_OTA
 
 httpd_handle_t start_webserver(void) {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -215,6 +375,16 @@ httpd_handle_t start_webserver(void) {
     httpd_register_uri_handler(server, &get_status_actuator);
     httpd_register_uri_handler(server, &get_level_actuator);
 #endif  // CONFIG_ACTUATOR_SUPPORT
+
+#if CONFIG_MQTT_RELAYS_NB
+    register_relay_handlers(server);
+#endif  // CONFIG_MQTT_RELAYS_NB
+
+#ifdef CONFIG_MQTT_OTA
+    httpd_register_uri_handler(server, &http_get_version);
+    httpd_register_uri_handler(server, &http_get_ota_status);
+    httpd_register_uri_handler(server, &http_post_ota_trigger);
+#endif  // CONFIG_MQTT_OTA
 
     return server;
   }

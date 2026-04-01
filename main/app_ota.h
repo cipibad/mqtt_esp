@@ -15,7 +15,6 @@ struct OtaMessage
 
 void handle_ota_update_task(void *pvParameters);
 void publish_ota_data(int status);
-
-
+int get_ota_status(void);
 
 #endif /* APP_OTA_H */
