@@ -71,6 +71,11 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
   case SYSTEM_EVENT_STA_GOT_IP:
     ESP_LOGW(TAG, "SYSTEM_EVENT_STA_GOT_IP");
     xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+#ifdef CONFIG_NORTH_INTERFACE_HTTP
+    if (server == NULL) {
+        server = start_webserver();
+    }
+#endif // CONFIG_NORTH_INTERFACE_HTTP
     break;
   case SYSTEM_EVENT_STA_DISCONNECTED:
     ESP_LOGW(TAG, "SYSTEM_EVENT_STA_DISCONNECTED");

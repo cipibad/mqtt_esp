@@ -66,6 +66,7 @@ typedef struct esp_ota_firm {
 } esp_ota_firm_t;
 
 static const char *TAG = "ota";
+static int current_ota_status = OTA_READY;
 /*an ota data write buffer ready to write to the flash*/
 static char ota_write_data[BUFFSIZE + 1] = { 0 };
 /*an packet receive buffer*/
@@ -453,8 +454,13 @@ void handle_ota_update_task(void *pvParameters)
 }
 
 
+int get_ota_status(void) {
+  return current_ota_status;
+}
+
 void publish_ota_data(int status)
 {
+  current_ota_status = status;
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ota";
   char data[256];
   memset(data,0,256);

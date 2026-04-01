@@ -393,6 +393,12 @@ config MQTT_RELAYS_NB
 menu "Relay Config"
     depends on MQTT_RELAYS_NB > 0
 
+    config RELAY_DEFAULT_STATE_ON
+        boolean "Relay default state ON at startup"
+        default n
+        help
+            If enabled, relay(s) will be ON at startup. Otherwise OFF.
+
     menu "Relay 0 Config"
         depends on MQTT_RELAYS_NB > 0
 

@@ -8,28 +8,43 @@
 </head>
 <body>
     <div class="container">
-        <h2 class="window-data-header">Informatii Fereastra</h2>
-        <div class="windows-data">
-            <table>
-                <tr>
-                    <td>Activitate:</td>
-                    <td><span id="activitate">--</span></td>
-                </tr>
-                <tr>
-                    <td>Pozitie:</td>
-                    <td><span id="pozitie">--</span></td>
-                </tr>
-            </table>
+        <div id="relays-section">
+            <h2 class="section-header">Relee</h2>
+            <div id="relays-container" class="relays-container">
+            </div>
         </div>
-        <div class="gate-control">
-            <button class="gate-button" onclick="openActuator('full')">Deschide complet</button>
-            <button class="gate-button" onclick="openActuator('half')">Deschide jumatate</button>
-            <button class="gate-button" onclick="openActuator('quarter')">Deschide un sfert</button>
-            <button class="gate-button" onclick="closeActuator('full')">Inchide complet</button>
-            <button class="gate-button" onclick="closeActuator('half')">Inchide jumatate</button>
-            <button class="gate-button" onclick="closeActuator('quarter')">Inchide un sfert</button>
+        <div id="actuator-section">
+            <h2 class="window-data-header">Informatii Fereastra</h2>
+            <div class="windows-data">
+                <table>
+                    <tr>
+                        <td>Activitate:</td>
+                        <td><span id="activitate">--</span></td>
+                    </tr>
+                    <tr>
+                        <td>Pozitie:</td>
+                        <td><span id="pozitie">--</span></td>
+                    </tr>
+                </table>
+            </div>
+            <div class="gate-control">
+                <button class="gate-button" onclick="openActuator('full')">Deschide complet</button>
+                <button class="gate-button" onclick="openActuator('half')">Deschide jumatate</button>
+                <button class="gate-button" onclick="openActuator('quarter')">Deschide un sfert</button>
+                <button class="gate-button" onclick="closeActuator('full')">Inchide complet</button>
+                <button class="gate-button" onclick="closeActuator('half')">Inchide jumatate</button>
+                <button class="gate-button" onclick="closeActuator('quarter')">Inchide un sfert</button>
+            </div>
+        </div>
+        <div id="ota-section">
+            <h2 class="section-header">Actualizare Firmware</h2>
+            <div class="ota-info">
+                <div class="ota-version">Versiune: <span id="ota-version">--</span></div>
+                <div class="ota-status">Status: <span id="ota-status">--</span></div>
+                <button class="ota-button" onclick="triggerOta()">Actualizeaza</button>
+            </div>
         </div>
     </div>
-          <script src="index.js"></script>
+    <script src="index.js"></script>
 </body>
 </html>

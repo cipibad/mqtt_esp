@@ -134,6 +134,14 @@ bool is_relay_serial_type(int id)
   }
 }
 
+int get_relay_status(int id)
+{
+  if (id < 0 || id >= CONFIG_MQTT_RELAYS_NB) {
+    return -1;
+  }
+  return relayStatus[id] == GPIO_HIGH ? RELAY_STATUS_ON : RELAY_STATUS_OFF;
+}
+
 #ifdef CONFIG_AT_SERVER
 
 inline int get_relay_serial_on_cmd(const char * tag, int id)
@@ -202,7 +210,11 @@ void vTimerCallback( TimerHandle_t xTimer )
 void relays_init()
 {
   for(int i = 0; i < CONFIG_MQTT_RELAYS_NB; i++) {
+#ifdef CONFIG_RELAY_DEFAULT_STATE_ON
+    relayStatus[i] = GPIO_HIGH;
+#else
     relayStatus[i] = GPIO_LOW;
+#endif
     if (is_relay_gpio_type(i)) {
       gpio_pad_select_gpio(get_relay_gpio(TAG, i));
       gpio_set_direction(get_relay_gpio(TAG, i), GPIO_MODE_OUTPUT);
