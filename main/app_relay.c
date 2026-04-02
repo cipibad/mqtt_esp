@@ -373,8 +373,8 @@ void update_relay_status(int id, char value)
     #endif // CONFIG_AT_SERVER
 
     update_timer(id);
+    publish_relay_status(id);
   }
-  publish_relay_status(id);
 }
 
 void update_relay_sleep(int id, int onTimeout)
