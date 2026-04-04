@@ -14,10 +14,12 @@ config DEVICE_TYPE_ESP32
 	bool "esp32"
 config DEVICE_TYPE_ESP8266
 	bool "esp8266"
-config DEVICE_TYPE_sonoffb
+config DEVICE_TYPE_SONOFFB
 	bool "sonoffb"
-config DEVICE_TYPE_sonoffp
+config DEVICE_TYPE_SONOFFP
 	bool "sonoffp"
+config DEVICE_TYPE_SONOFFT
+	bool "sonofft"
 endchoice
 
 config DEVICE_TYPE
@@ -26,8 +28,9 @@ config DEVICE_TYPE
     default "esp12f" if DEVICE_TYPE_ESP12F
     default "esp32" if DEVICE_TYPE_ESP32
     default "esp8266" if DEVICE_TYPE_ESP8266
-    default "sonoffb" if DEVICE_TYPE_sonoffb
-    default "sonoffp" if DEVICE_TYPE_sonoffp
+    default "sonoffb" if DEVICE_TYPE_SONOFFB
+    default "sonoffp" if DEVICE_TYPE_SONOFFP
+    default "sonofft" if DEVICE_TYPE_SONOFFT
 
 config TARGET_DEVICE_ESP32
     bool
@@ -38,8 +41,10 @@ config TARGET_DEVICE_ESP8266
     default y if DEVICE_TYPE_ESP01
     default y if DEVICE_TYPE_ESP12F
     default y if DEVICE_TYPE_ESP8266
-    default y if DEVICE_TYPE_sonoffb
-    default y if DEVICE_TYPE_sonoffp
+    default y if DEVICE_TYPE_SONOFFB
+    default y if DEVICE_TYPE_SONOFFP
+    default y if DEVICE_TYPE_SONOFFT
+
 
 config CLIENT_ID
     string "Client id"
