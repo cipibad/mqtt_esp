@@ -822,90 +822,192 @@ void handle_thermostat_cmd_task(void* pvParameters)
   }
   struct ThermostatMessage t;
   while(1) {
-    if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) )
-      {
-        if (t.msgType == THERMOSTAT_LIFE_TICK) {
-          thermostatDuration += 1;
-          heatingDuration += 1; //fixme heatingControlStillNotClear4Me
+    if( xQueueReceive( thermostatQueue, &t , portMAX_DELAY) ) {
+      if (t.msgType == THERMOSTAT_LIFE_TICK) {
+        thermostatDuration += 1;
+        heatingDuration += 1; //fixme heatingControlStillNotClear4Me
 
-          for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
-            const int prevTempSensorState = temperatureSensorState(id);
-            if (prevTempSensorState != TEMPERATURE_SENSOR_OBSOLETE) {
-              currentTemperatureFlag[id] -= 1;
-            }
-            if (temperatureSensorState(id) != prevTempSensorState) {
-              publish_thermostat_status_evt(id);
-            }
-
+        for(int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          const int prevTempSensorState = temperatureSensorState(id);
+          if (prevTempSensorState != TEMPERATURE_SENSOR_OBSOLETE) {
+            currentTemperatureFlag[id] -= 1;
           }
-          update_thermostat();
+          if (temperatureSensorState(id) != prevTempSensorState) {
+            publish_thermostat_status_evt(id);
+          }
+
         }
+        update_thermostat();
+      }
 
-        if (t.msgType == THERMOSTAT_CMD_BUMP) {
-          thermostat_bump = true;
-        }
+      else if (t.msgType == THERMOSTAT_CMD_BUMP) {
+        thermostat_bump = true;
+      }
 
-        if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
-          ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
-          if (t.data.currentTemperature != SHRT_MIN) {
-            const int prevTempSensorState = temperatureSensorState(t.thermostatId);
-            currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
-            if (temperatureSensorState(t.thermostatId) != prevTempSensorState) {
-              publish_thermostat_status_evt(t.thermostatId);
-            }
-          }
-
-          if (circuitThermostatId == t.thermostatId) {
-            if (currentTemperature_4 != currentTemperature_3) {
-              currentTemperature_4 = currentTemperature_3;
-            }
-            if (currentTemperature_3 != currentTemperature_2) {
-              currentTemperature_3 = currentTemperature_2;
-            }
-            if (currentTemperature_2 != currentTemperature_1) {
-              currentTemperature_2 = currentTemperature_1;
-            }
-            if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
-              currentTemperature_1 = currentTemperature[t.thermostatId];
-            }
-          }
-          if (currentTemperature[t.thermostatId] != t.data.currentTemperature) {
-            currentTemperature[t.thermostatId] = t.data.currentTemperature;
-            publish_thermostat_current_temperature_evt(t.thermostatId);
+      else if (t.msgType == THERMOSTAT_CURRENT_TEMPERATURE) {
+        ESP_LOGI(TAG, "Update temperature for thermostat %d", t.thermostatId);
+        if (t.data.currentTemperature != SHRT_MIN) {
+          const int prevTempSensorState = temperatureSensorState(t.thermostatId);
+          currentTemperatureFlag[t.thermostatId] = SENSOR_LIFETIME;
+          if (temperatureSensorState(t.thermostatId) != prevTempSensorState) {
+            publish_thermostat_status_evt(t.thermostatId);
           }
         }
 
-        if (t.msgType == THERMOSTAT_CMD_MODE) {
-          if (thermostatMode[t.thermostatId] != t.data.thermostatMode) {
-            thermostatMode[t.thermostatId] = t.data.thermostatMode;
-            esp_err_t err = write_nvs_short(thermostatModeTAG[t.thermostatId],
-                                            thermostatMode[t.thermostatId]);
-            ESP_ERROR_CHECK( err );
+        if (circuitThermostatId == t.thermostatId) {
+          if (currentTemperature_4 != currentTemperature_3) {
+            currentTemperature_4 = currentTemperature_3;
           }
-          publish_thermostat_mode_evt(t.thermostatId);
-          publish_thermostat_action_evt(t.thermostatId);
+          if (currentTemperature_3 != currentTemperature_2) {
+            currentTemperature_3 = currentTemperature_2;
+          }
+          if (currentTemperature_2 != currentTemperature_1) {
+            currentTemperature_2 = currentTemperature_1;
+          }
+          if (currentTemperature_1 != currentTemperature[t.thermostatId]) {
+            currentTemperature_1 = currentTemperature[t.thermostatId];
+          }
         }
-
-        if (t.msgType == THERMOSTAT_CMD_TARGET_TEMPERATURE) {
-          if (targetTemperature[t.thermostatId] != t.data.targetTemperature) {
-            targetTemperature[t.thermostatId] = t.data.thermostatMode;
-            esp_err_t err = write_nvs_short(targetTemperatureTAG[t.thermostatId],
-                                            targetTemperature[t.thermostatId]);
-            ESP_ERROR_CHECK( err );
-          }
-          publish_thermostat_target_temperature_evt(t.thermostatId);
-        }
-
-        if (t.msgType == THERMOSTAT_CMD_TOLERANCE) {
-          if (temperatureTolerance[t.thermostatId] != t.data.tolerance) {
-            temperatureTolerance[t.thermostatId]=t.data.tolerance;
-            esp_err_t err = write_nvs_short(temperatureToleranceTAG[t.thermostatId],
-                                            temperatureTolerance[t.thermostatId]);
-            ESP_ERROR_CHECK( err );
-          }
-          publish_thermostat_temperature_tolerance_evt(t.thermostatId);
+        if (currentTemperature[t.thermostatId] != t.data.currentTemperature) {
+          currentTemperature[t.thermostatId] = t.data.currentTemperature;
+          publish_thermostat_current_temperature_evt(t.thermostatId);
         }
       }
+
+      else if (t.msgType == THERMOSTAT_CMD_MODE) {
+        if (thermostatMode[t.thermostatId] != t.data.thermostatMode) {
+          thermostatMode[t.thermostatId] = t.data.thermostatMode;
+          esp_err_t err = write_nvs_short(thermostatModeTAG[t.thermostatId],
+                                          thermostatMode[t.thermostatId]);
+          ESP_ERROR_CHECK( err );
+        }
+        publish_thermostat_mode_evt(t.thermostatId);
+        publish_thermostat_action_evt(t.thermostatId);
+      }
+
+      else if (t.msgType == THERMOSTAT_CMD_TARGET_TEMPERATURE) {
+        if (targetTemperature[t.thermostatId] != t.data.targetTemperature) {
+          targetTemperature[t.thermostatId] = t.data.thermostatMode;
+          esp_err_t err = write_nvs_short(targetTemperatureTAG[t.thermostatId],
+                                          targetTemperature[t.thermostatId]);
+          ESP_ERROR_CHECK( err );
+        }
+        publish_thermostat_target_temperature_evt(t.thermostatId);
+      }
+
+      else if (t.msgType == THERMOSTAT_CMD_TOLERANCE) {
+        if (temperatureTolerance[t.thermostatId] != t.data.tolerance) {
+          temperatureTolerance[t.thermostatId]=t.data.tolerance;
+          esp_err_t err = write_nvs_short(temperatureToleranceTAG[t.thermostatId],
+                                          temperatureTolerance[t.thermostatId]);
+          ESP_ERROR_CHECK( err );
+        }
+        publish_thermostat_temperature_tolerance_evt(t.thermostatId);
+      } else if (t.msgType == THERMOSTAT_CMD_WATER_TEMP_LOW) {
+        // set water thermostat temperature to low
+        // start room thermostats
+        for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          // if a normal circuit (room/water but not circuit)
+          if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+            // if waterpump is needed, it's room
+            // enable heating
+            if (waterPumpOn[id]) {
+              if (thermostatMode[id] != THERMOSTAT_MODE_HEAT) {
+                thermostatMode[id] = THERMOSTAT_MODE_HEAT;
+                publish_thermostat_mode_evt(t.thermostatId);
+                publish_thermostat_action_evt(t.thermostatId);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+              }
+            } else {
+              // it's water
+              // decrease temp to low
+              if (targetTemperature[id] != 290) {
+                targetTemperature[id] = 290;
+                publish_thermostat_target_temperature_evt(id);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+              }
+            }
+          }
+        }
+      } else if (t.msgType == THERMOSTAT_CMD_WATER_TEMP_HIGH) {
+        // set water thermostat temperature to low
+        // start room thermostats
+        for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          // if a normal circuit (room/water but not circuit)
+          if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+            // if waterpump is needed, it's room
+            // disable heating
+            if (waterPumpOn[id]) {
+              if (thermostatMode[id] != THERMOSTAT_MODE_OFF) {
+                thermostatMode[id] = THERMOSTAT_MODE_OFF;
+                publish_thermostat_mode_evt(t.thermostatId);
+                publish_thermostat_action_evt(t.thermostatId);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+              }
+            } else {
+              // it's water
+              // decrease temp to high and start
+              if (targetTemperature[id] != 330) {
+                targetTemperature[id] = 330;
+                publish_thermostat_target_temperature_evt(id);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+              }
+              if (thermostatMode[id] != THERMOSTAT_MODE_HEAT) {
+                thermostatMode[id] = THERMOSTAT_MODE_HEAT;
+                publish_thermostat_mode_evt(t.thermostatId);
+                publish_thermostat_action_evt(t.thermostatId);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+              }
+            }
+          }
+        }
+      } else if (t.msgType == THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_INC) {
+        const int room_temp_change = 20; //0.2
+        for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          // if a normal circuit (room/water but not circuit)
+          if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+            // if waterpump is needed, it's room
+            if (waterPumpOn[id]) {
+              targetTemperature[id] += room_temp_change;
+            }
+          }
+        }
+      } else if (t.msgType == THERMOSTAT_CMD_ROOM_TEMP_MODERATE_INC) {
+        const int room_temp_change = 40; //0.4
+        for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          // if a normal circuit (room/water but not circuit)
+          if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+            // if waterpump is needed, it's room
+            if (waterPumpOn[id]) {
+              targetTemperature[id] += room_temp_change;
+            }
+          }
+        }
+      } else if (t.msgType == THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_DEC) {
+        const int room_temp_change = -20; //-0.2
+        for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          // if a normal circuit (room/water but not circuit)
+          if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+            // if waterpump is needed, it's room
+            if (waterPumpOn[id]) {
+              targetTemperature[id] += room_temp_change;
+            }
+          }
+        }
+      } else if (t.msgType == THERMOSTAT_CMD_ROOM_TEMP_MODERATE_DEC) {
+        const int room_temp_change = -40; //-0.4
+        for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+          // if a normal circuit (room/water but not circuit)
+
+          if (thermostatType[id] == THERMOSTAT_TYPE_NORMAL) {
+            // if waterpump is needed, it's room
+            if (waterPumpOn[id]) {
+              targetTemperature[id] += room_temp_change;
+            }
+          }
+        }
+      }
+    }
   }
 }
 

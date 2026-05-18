@@ -4,8 +4,6 @@
 void start_scheduler_timer(void);
 void handle_scheduler(void* pvParameters);
 
-#define MAX_SCHEDULER_NB 2
-
 //FIXME basic structure only
 
 enum SchedulerCfgMessageType {
@@ -22,8 +20,10 @@ enum SchedulerAction {
   SCHEDULER_ACTION_RELAY_OFF,
   SCHEDULER_ACTION_WATER_TEMP_LOW,
   SCHEDULER_ACTION_WATER_TEMP_HIGH,
-  SCHEDULER_ACTION_OW_ON,
-  SCHEDULER_ACTION_OW_OFF,
+  SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_INC,
+  SCHEDULER_ACTION_ROOM_TEMP_MODERATE_INC,
+  SCHEDULER_ACTION_ROOM_TEMP_SLIGHT_DEC,
+  SCHEDULER_ACTION_ROOM_TEMP_MODERATE_DEC,
 };
 
 #define SCHEDULER_TIME_DOW_SUNDAY     1
@@ -57,6 +57,13 @@ struct SchedulerCfgMessage {
   enum SchedulerCfgMessageType msgType;
   unsigned char schedulerId;
   union SchedulerCfgData data;
+};
+
+struct SchedulerData {
+  enum SchedulerAction schedulerAction;
+  short schedulerDow;
+  struct SchedulerTime schedulerTime;
+  enum SchedulerStatus schedulerStatus;
 };
 
 #define SCHEDULE_TIMEOUT 30

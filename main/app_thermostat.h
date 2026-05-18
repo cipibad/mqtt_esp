@@ -57,22 +57,27 @@ union ThermostatData {
   short currentTemperature;
 };
 
-#define THERMOSTAT_SENSORS_MSG 2
-#define THERMOSTAT_ROOM_0_MSG 3
-#define THERMOSTAT_LIFE_TICK 4
-
-
-//new modes
-//FIXME: translate this to enum values
-#define THERMOSTAT_CMD_MODE 6
-#define THERMOSTAT_CMD_TARGET_TEMPERATURE 7
-#define THERMOSTAT_CMD_TOLERANCE 8
-#define THERMOSTAT_CMD_BUMP 9
-#define THERMOSTAT_CURRENT_TEMPERATURE 10
-
+enum ThermostatMsgType {
+  THERMOSTAT_SENSORS_MSG = 2,
+  THERMOSTAT_ROOM_0_MSG = 3,
+  THERMOSTAT_LIFE_TICK = 4,
+  //new modes
+  THERMOSTAT_CMD_MODE = 6,
+  THERMOSTAT_CMD_TARGET_TEMPERATURE = 7,
+  THERMOSTAT_CMD_TOLERANCE = 8,
+  THERMOSTAT_CMD_BUMP = 9,
+  THERMOSTAT_CURRENT_TEMPERATURE = 10,
+  // from scheduler
+  THERMOSTAT_CMD_WATER_TEMP_LOW = 11,
+  THERMOSTAT_CMD_WATER_TEMP_HIGH = 12,
+  THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_INC,
+  THERMOSTAT_CMD_ROOM_TEMP_MODERATE_INC,
+  THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_DEC,
+  THERMOSTAT_CMD_ROOM_TEMP_MODERATE_DEC,
+};
 
 struct ThermostatMessage {
-  unsigned char msgType;
+  enum ThermostatMsgType msgType;
   unsigned char thermostatId;
   union ThermostatData data;
 };
