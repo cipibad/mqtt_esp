@@ -49,8 +49,7 @@ void publish_ops_stack_data()
   /* Take a snapshot of the number of tasks in case it changes while this
   function is executing. */
   uxArraySize = uxTaskGetNumberOfTasks();
-  ESP_LOGI(TAG, "Publishing tasks data for %u tasks", uxArraySize);
-
+  ESP_LOGI(TAG, "Publishing tasks data for %lu tasks", (unsigned long)uxArraySize);
   /* Allocate a TaskStatus_t structure for each task.  An array could be
   allocated statically at compile time. */
   pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
@@ -63,9 +62,8 @@ void publish_ops_stack_data()
                                         uxArraySize,
                                         &ulTotalRunTime );
 
-  ESP_LOGI(TAG, "Got informations for %u tasks, total runtime: %u",
-          uxArraySize, ulTotalRunTime);
-
+  ESP_LOGI(TAG, "Got informations for %lu tasks, total runtime: %lu",
+          (unsigned long)uxArraySize, (unsigned long)ulTotalRunTime);
     /* For each populated position in the pxTaskStatusArray array,
     format the raw data as human readable ASCII data. */
     for( x = 0; x < uxArraySize; x++ )

@@ -2,8 +2,14 @@
 #define APP_MAIN_H
 
 #if defined(CONFIG_DEVICE_TYPE_ESP32)
-    #define GPIO_HIGH 0
-    #define GPIO_LOW 1
+    #ifdef CONFIG_RELAY_ACTIVE_LOW
+        #define GPIO_HIGH 0
+        #define GPIO_LOW 1
+    #else
+        /* Sonoff MINIR4: onboard relay driver is active-high */
+        #define GPIO_HIGH 1
+        #define GPIO_LOW 0
+    #endif
 #elif defined(CONFIG_DEVICE_TYPE_ESP12F)
     #define GPIO_HIGH 1
     #define GPIO_LOW 0
