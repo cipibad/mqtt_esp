@@ -19,6 +19,10 @@
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
 #include "app_mqtt.h"
 
+#ifdef CONFIG_MQTT_BELL
+#include "app_bell.h"
+#endif // CONFIG_MQTT_BELL
+
 extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_CONNECTED_BIT;
 
@@ -314,6 +318,10 @@ xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, N
 #ifdef CONFIG_MQTT_SCHEDULERS
     xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
 #endif // CONFIG_MQTT_SCHEDULERS
+
+#ifdef CONFIG_MQTT_BELL
+    bell_init();
+#endif // CONFIG_MQTT_BELL
 
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
     xTaskCreate(app_presence_task, "app_presence", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);

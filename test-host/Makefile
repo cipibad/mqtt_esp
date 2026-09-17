@@ -5,6 +5,7 @@ SOURCE_FILES = \
 	$(addprefix ../main/, \
 		app_thermostat.c \
 		app_mqtt.c \
+		app_bell_engine.c \
 	) \
 	stub.c \
   esp_log.c \
@@ -13,7 +14,8 @@ SOURCE_FILES = \
 TEST_SOURCE_FILES = \
 	main.cc \
 	test_app_thermostat.cc \
-	test_app_mqtt.cc
+	test_app_mqtt.cc \
+	test_app_bell_engine.cc
 
 CPPFLAGS += -g -fprofile-arcs -ftest-coverage -I. -I../main
 CFLAGS += -g -fprofile-arcs -ftest-coverage -I. -I../main

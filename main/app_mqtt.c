@@ -18,6 +18,9 @@
 
 #include "app_main.h"
 
+#ifdef CONFIG_MQTT_BELL
+#include "app_bell.h"
+#endif // CONFIG_MQTT_BELL
 #include "app_sensors.h"
 #include "app_publish_data.h"
 #include "app_mqtt.h"
@@ -643,6 +646,11 @@ bool handleThermostatMqttSensor(esp_mqtt_event_handle_t event)
 
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
+#ifdef CONFIG_MQTT_BELL
+  if (bell_handle_mqtt_event(event)) {
+    return;
+  }
+#endif // CONFIG_MQTT_BELL
   //FIXME this check should be generic and 16 should get a define
   if (event->data_len > 16 - 1) { //including '\0'
     ESP_LOGE(TAG, "payload to big");
@@ -844,7 +852,11 @@ void mqtt_init_and_start()
   const char * lwtmsg = "offline";
 #endif // CONFIG_DEEP_SLEEP_MODE
   const esp_mqtt_client_config_t mqtt_cfg = {
-    .uri = "mqtts://" CONFIG_MQTT_USERNAME ":" CONFIG_MQTT_PASSWORD "@" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
+    /* credentials go as explicit fields: the uri parser rejects
+       passwords containing uri-special chars (e.g. '>' or '^') */
+    .uri = "mqtts://" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
+    .username = CONFIG_MQTT_USERNAME,
+    .password = CONFIG_MQTT_PASSWORD,
     .event_handle = mqtt_event_handler,
     .cert_pem = (const char *)cert_bundle_pem_start,
     .client_id = CONFIG_CLIENT_ID,
@@ -883,6 +895,9 @@ void handle_mqtt_sub_pub(void* pvParameters)
         publish_config_msg();
 #endif // CONFIG_DEEP_SLEEP_MODE
         xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
+#ifdef CONFIG_MQTT_BELL
+        bell_on_mqtt_connected();
+#endif // CONFIG_MQTT_BELL
 #if CONFIG_MQTT_RELAYS_NB
         publish_all_relays_status();
         publish_all_relays_availability();

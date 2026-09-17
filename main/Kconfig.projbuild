@@ -399,6 +399,16 @@ menu "Relay Config"
         help
             If enabled, relay(s) will be ON at startup. Otherwise OFF.
 
+    config RELAY_ACTIVE_LOW
+        boolean "Relay driver is active-low (relay ON = 0 V on GPIO)"
+        default y if TARGET_DEVICE_ESP32
+        default n
+        help
+            Electrical polarity of the relay driver. GPIO_HIGH (relay ON
+            semantic) maps to 0 V when enabled, 3.3 V when disabled.
+            Family ESP32 boards (ground0/ground4) use active-low drivers;
+            Sonoff MINIR4's onboard relay is active-high — disable there.
+
     menu "Relay 0 Config"
         depends on MQTT_RELAYS_NB > 0
 
@@ -1225,6 +1235,45 @@ menu "Contact sensor configuration"
     endchoice
 
 endmenu # "Contact sensor configuration"
+
+menu "Bell"
+config MQTT_BELL
+    bool "School bell support"
+    default n
+    depends on MQTT_RELAYS_NB > 0 && TARGET_DEVICE_ESP32
+    help
+        School bell scheduler: weekly program + exception calendar,
+        MQTT config API and relay-driven ring executor.
+        ESP32 only: the ESP8266 builds cannot afford the bell task
+        next to WiFi+TLS (heap), so the module is gated out there.
+
+config MQTT_BELL_RELAY_ID
+    int "Relay channel driving the bell"
+    range 0 7
+    default 0
+    depends on MQTT_BELL
+    help
+        Index of the relay channel the bell executor energizes.
+
+config MQTT_BELL_MUTE_BUTTON
+    bool "Mute-today physical button/switch"
+    depends on MQTT_BELL
+    help
+        Button or wall switch (GPIO to GND, internal pull-up, any edge
+        triggered) that adds a whole-day off exception for the current
+        date when pressed. Idempotent: if today is already covered by
+        an exception nothing happens. Removal is done from the web
+        calendar.
+
+config MQTT_BELL_MUTE_BUTTON_GPIO
+    int "GPIO of the mute button/switch"
+    range 0 39
+    default 27
+    depends on MQTT_BELL_MUTE_BUTTON
+    help
+        27 = Sonoff MINIR4 S1/S2 wall-switch terminal, 0 = onboard button.
+
+endmenu # "Bell"
 
 endmenu
 
