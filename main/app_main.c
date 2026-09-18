@@ -117,8 +117,8 @@ static const char *TAG = "MQTT(S?)_MAIN";
 
 void restart_in_3_minutes_task(void *pvParameter)
 {
-  ESP_LOGI(TAG, "Prepare to esp board in 3 minutes!");
-  vTaskDelay((3 * 60 * 1000 - 10 * 1000) / portTICK_PERIOD_MS);
+  ESP_LOGI(TAG, "Prepare to esp board in 5 minutes!");
+  vTaskDelay((5 * 60 * 1000 - 10 * 1000) / portTICK_PERIOD_MS);
   ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
   vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
   esp_restart();
