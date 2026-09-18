@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panou sonerie</title>
+<meta name="theme-color" content="#0f5aa8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<!-- Service worker omis intentionat: nu se poate incadra intr-un singur fisier. -->
+<link rel="manifest" href='data:application/manifest+json,{"name":"Panou%20sonerie","short_name":"Sonerie","display":"standalone","background_color":"%23eef1f4","theme_color":"%230f5aa8"}'>
+<style>
+:root{
+  --bg:#eef1f4; --card:#fff; --line:#d7dde4; --ink:#1b2430; --mut:#5b6672;
+  --acc:#0f5aa8; --acc-bg:#e7f0fa;
+  --ok:#1a7f4b; --ok-bg:#e3f3e9;
+  --wrn:#8a5a00; --wrn-bg:#fdf0d3;
+  --err:#b3261e; --err-bg:#fce8e6;
+  --exc-bg:#fbe4de; --exc-ink:#8a3524;
+  --sel-bg:#cfe3fa; --sel-end:#3f7fd1;
+}
+*{box-sizing:border-box}
+[v-cloak]{display:none}
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+#app{max-width:980px;margin:0 auto;padding:10px 10px 90px}
+.top{display:flex;align-items:center;gap:10px;padding:6px 2px 10px}
+.top h1{font-size:18px;margin:0;letter-spacing:.2px}
+.top .sub{font-size:12px;color:var(--mut)}
+.grow{flex:1}
+.badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:14px;border:1px solid var(--line);background:#fff;white-space:nowrap}
+.badge.ok{background:var(--ok-bg);color:var(--ok);border-color:#bfe2cf}
+.badge.wrn{background:var(--wrn-bg);color:var(--wrn);border-color:#ecd9a8}
+.badge.off{background:#eceff2;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0 0 12px}
+.cardhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.cardhead h2{font-size:15px;margin:0}
+h3{font-size:13px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+fieldset:disabled{opacity:.55}
+.fgrp{margin:0 0 10px}
+.fgrp label{display:block;font-size:12px;color:var(--mut);margin:0 0 3px}
+input[type=text],input[type=password],input[type=number],input[type=time],select{
+  width:100%;height:38px;padding:0 8px;font-size:16px;font-family:inherit;color:var(--ink);
+  background:#fff;border:1px solid var(--line);border-radius:7px;
+}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+input.bad,select.bad{border-color:var(--err);background:#fff6f5}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  min-height:36px;padding:6px 12px;font-size:14px;font-family:inherit;font-weight:600;
+  color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:7px;cursor:pointer;
+}
+.btn:hover:not(:disabled){border-color:#b9c2cc}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.dng{color:var(--err);border-color:#e3b6b2}
+.btn.sm{min-height:30px;padding:3px 9px;font-size:13px}
+.btn.ghost{border-color:transparent;color:var(--mut)}
+.hint{font-size:12px;color:var(--mut);margin:6px 0 0}
+.modal-back{position:fixed;inset:0;background:rgba(15,25,40,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:60}
+.modal{max-width:420px;width:100%;margin:0}
+.qr-box{display:flex;justify-content:center;margin:10px 0}
+.qr-box svg{width:240px;height:240px;background:#fff;padding:8px;border-radius:8px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.small{font-size:11.5px}
+.rowend{display:flex;justify-content:flex-end;margin-top:10px}
+.copyrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px}
+.btn.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.warnline{font-size:13px;color:var(--wrn);background:var(--wrn-bg);border:1px solid #ecd9a8;border-radius:7px;padding:7px 9px;margin:8px 0 0}
+.errline{font-size:12px;color:var(--err);margin:5px 0 0}
+.errbox{font-size:13px;color:var(--err);background:var(--err-bg);border:1px solid #ecc8c5;border-radius:7px;padding:8px 10px;margin:10px 0}
+.banner{display:flex;align-items:center;gap:10px;border-radius:9px;padding:9px 12px;font-size:14px;font-weight:600;margin:0 0 12px}
+.banner.warn{background:var(--wrn-bg);color:var(--wrn);border:1px solid #ecd9a8}
+.banner.info{background:var(--acc-bg);color:var(--acc);border:1px solid #bcd3ec}
+.chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.chip.dim{background:#eceff2;color:var(--mut)}
+.chip.wrn{background:var(--wrn-bg);color:var(--wrn)}
+.chip.new{background:#e07b00;color:#fff}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:11px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.bad{background:var(--err-bg);color:var(--err)}
+.pill.wrn{background:var(--wrn-bg);color:var(--wrn)}
+/* dispozitive */
+.dtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
+.dtab{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:18px;padding:6px 13px;cursor:pointer;white-space:nowrap}
+.dtab .nm{font-size:14px;font-weight:600}
+.dtab .cid{font-size:10px;color:var(--mut)}
+.dtab .dot{width:8px;height:8px;border-radius:50%;background:#e07b00}
+.dtab .adot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.adot.online{background:var(--ok)}
+.adot.offline{background:var(--err)}
+.adot.unk{background:var(--mut)}
+.dtab.on{background:var(--acc);border-color:var(--acc)}
+.dtab.on .nm{color:#fff}
+.dtab.on .cid{color:#cfe0f4}
+.aliasrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.aliasrow input{max-width:220px}
+/* stare */
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
+.stat .lbl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+.stat .val{display:block;font-size:14px;font-weight:600;margin-top:2px;overflow-wrap:anywhere}
+/* tipuri de sunet */
+.pat{border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin:0 0 8px}
+.pat.bad{border-color:var(--err);background:#fffafa}
+.pat-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pat-top strong{font-size:14px}
+.tot{font-size:12.5px;font-weight:700;color:var(--mut)}
+.tot.bad{color:var(--err)}
+.pat-f{display:flex;gap:8px;margin-top:7px;flex-wrap:wrap}
+.pat-f label{flex:1;min-width:88px;font-size:11px;color:var(--mut)}
+.pat-f label.chk{flex:0 0 auto;display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink);padding-top:16px}
+.pat-f input[type=number]{margin-top:2px}
+.cnt{font-size:11px;color:var(--mut);font-weight:600}
+.switch-row{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin:2px 0 2px}
+.switch-row input{width:18px;height:18px;accent-color:var(--acc)}
+/* orar saptamanal */
+.day{border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin:0 0 8px}
+.day-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.day-h strong{font-size:13.5px}
+.ev{display:grid;grid-template-columns:6.6rem 1fr 2.2rem;gap:6px;align-items:center;margin-top:6px}
+/* calendar */
+.ynav{display:flex;align-items:center;gap:8px}
+.ynav strong{font-size:15px;min-width:48px;text-align:center}
+.hintsel{font-size:12.5px;color:var(--acc);font-weight:600}
+.months{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:8px;user-select:none;-webkit-user-select:none}
+.months.lock{pointer-events:none;opacity:.55}
+.month{border:1px solid var(--line);border-radius:9px;padding:7px}
+.mname{text-align:center;font-size:12.5px;font-weight:700;margin:0 0 5px}
+.dgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dgrid .wd{font-size:10px;color:var(--mut);text-align:center;padding:2px 0}
+.dgrid .wd.we{color:var(--err)}
+.cell{
+  aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  font-size:12.5px;border-radius:5px;cursor:pointer;background:#f6f8fa;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+.cell.wknd{color:#a65b52}
+.cell.nil{visibility:hidden;cursor:default}
+.cell.off{background:var(--exc-bg);color:var(--exc-ink);font-weight:700}
+.cell.sel{background:var(--sel-bg);color:#123a63}
+.cell.selend{background:var(--sel-end);color:#fff;font-weight:700}
+.cell.today{box-shadow:inset 0 0 0 2px var(--acc)}
+.cal-actions{margin:10px 0 0}
+.xlist{margin-top:10px}
+.xrow{display:flex;align-items:center;gap:8px;border-bottom:1px solid #e9edf1;padding:6px 2px;font-size:13.5px}
+.saverow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.saverow .hint{flex:1;min-width:160px;margin:0}
+/* jurnal */
+.feed{list-style:none;margin:4px 0 0;padding:0;max-height:220px;overflow-y:auto;font-size:12.5px;color:var(--mut)}
+.feed li{padding:3px 0;border-bottom:1px solid #eef1f4}
+.feed .tm{color:#9aa4af;margin-right:6px;font-variant-numeric:tabular-nums}
+.feed b{color:var(--ink);font-weight:600}
+/* toasts */
+.toasts{position:fixed;left:12px;right:12px;bottom:12px;margin:0 auto;max-width:440px;z-index:50;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.22);cursor:pointer}
+.toast.ok{background:var(--ok)}
+.toast.warn{background:var(--wrn)}
+.toast.err{background:var(--err)}
+@media (min-width:720px){
+  .statgrid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+}
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+
+  <header class="top">
+    <div>
+      <h1>Panou sonerie</h1>
+      <span class="sub">configurare sonerii scolare</span>
+    </div>
+    <span class="grow"></span>
+    <span class="badge" :class="badgeCls">{{ badgeTxt }}</span>
+    <button v-if="form.username" class="btn sm" @click="makeQr">Cod QR</button>
+    <button v-if="opened" class="btn sm" @click="disconnect">Deconectare</button>
+  </header>
+
+  <!-- ecran de conectare -->
+  <section class="card" v-if="!opened">
+    <div class="cardhead"><h2>Conectare la broker</h2></div>
+    <div class="fgrp">
+      <label>Adresa broker (WSS)</label>
+      <input type="text" v-model.trim="form.url" spellcheck="false" autocomplete="url">
+    </div>
+    <div class="fgrp">
+      <label>Utilizator</label>
+      <input type="text" v-model.trim="form.username" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="fgrp">
+      <label>Parola</label>
+      <input type="password" v-model="form.password" autocomplete="current-password">
+    </div>
+    <div class="row">
+      <button class="btn pri" :disabled="!form.url" @click="connect">Conectare</button>
+      <button v-if="hasSaved" class="btn ghost" @click="forgetSettings">Uită setările</button>
+    </div>
+    <p class="hint">Datele de conectare se salvează doar local, pe acest aparat. Dispozitivele se descoperă automat de la broker.</p>
+  </section>
+
+  <template v-if="opened">
+    <div v-if="connState!=='online'" class="banner" :class="connState==='reconnecting' ? 'warn' : 'info'">
+      <span>{{ connState==='connecting' ? 'Se conectează la broker…' : 'Conexiune pierdută — se reîncearcă automat…' }}</span>
+      <span class="grow"></span>
+      <button class="btn sm" @click="disconnect">Renunță</button>
+    </div>
+
+    <!-- selector dispozitive + alias -->
+    <section class="card">
+      <div class="cardhead">
+        <h2>Dispozitive</h2>
+        <span class="cnt">{{ deviceList.length }} descoperite</span>
+      </div>
+      <p v-if="!deviceList.length" class="hint">
+        Niciun dispozitiv descoperit încă. Soneriile apar automat din stările reținute de broker.
+      </p>
+      <div class="dtabs" v-else>
+        <button v-for="d in deviceList" :key="d" class="dtab" :class="{on: d===sel}" @click="selectDevice(d)">
+          <span class="adot" :class="devices[d].avail || 'unk'"
+                :title="devices[d].avail==='online' ? 'dispozitiv online' : (devices[d].avail==='offline' ? 'dispozitiv offline (LWT)' : 'stare necunoscută')"></span>
+          <span class="nm">{{ aliasOf(d) }}</span>
+          <span class="cid">{{ clientIdOf(d) }}</span>
+          <span v-if="devices[d].isNew" class="dot" title="dispozitiv nou"></span>
+        </button>
+      </div>
+      <div class="aliasrow" v-if="sel">
+        <input type="text" v-model.trim="aliasDraft" maxlength="24" placeholder="Nume familiar (ex: Parter)">
+        <button class="btn sm" @click="setAlias">Salvează numele</button>
+        <button v-if="aliases[sel]" class="btn sm ghost" @click="clearAlias">Renunță la nume</button>
+      </div>
+    </section>
+
+    <!-- stare dispozitiv selectat -->
+    <section class="card">
+      <div class="cardhead">
+        <h2>Stare — {{ aliasOf(sel||'') }}</h2>
+        <span class="grow"></span>
+        <button class="btn sm" :disabled="!online || !sel" @click="refresh">Reîmprospătare</button>
+        <button class="btn sm dng" :disabled="!online || !sel" @click="retireDevice"
+                title="Șterge starea reținută de broker pentru acest dispozitiv — tab-ul dispare din aplicație">Retrage</button>
+        <button class="btn sm" :disabled="!online || devAvail!=='online'" @click="startOta"
+                title="Descarcă și instalează ultima versiune de firmware — dispozitivul repornește">OTA</button>
+      </div>
+      <p v-if="!status" class="hint">se așteaptă starea de la dispozitiv…</p>
+      <template v-else-if="devStale">
+        <div class="statgrid">
+          <div class="stat"><span class="lbl">Conexiune</span><span class="val"><span class="pill" :class="connPillCls">{{ connPillTxt }}</span></span></div>
+        </div>
+        <p v-if="lastSeenTxt" class="hint">Ultima activitate: {{ lastSeenTxt }}</p>
+        <p class="warnline">
+          Dispozitivul e offline — starea reținută de broker poate fi învechită, așa că restul informațiilor sunt ascunse.
+        </p>
+      </template>
+      <template v-else>
+        <div class="statgrid">
+          <div class="stat"><span class="lbl">Conexiune</span><span class="val"><span class="pill" :class="connPillCls">{{ connPillTxt }}</span></span></div>
+          <div class="stat"><span class="lbl">Data dispozitivului</span><span class="val">{{ status.date || '—' }}</span></div>
+          <div class="stat"><span class="lbl">Mod</span><span class="val"><span class="pill" :class="status.mode==='off' ? 'bad' : 'ok'">{{ status.mode==='off' ? 'Zi liberă' : 'Normal' }}</span></span></div>
+          <div class="stat"><span class="lbl">Următorul sunet</span><span class="val">{{ status.next ? fmtNext(status.next) + ' · ' + patName(status.pattern) : 'niciunul' }}</span></div>
+          <div class="stat"><span class="lbl">Ultimul sunet</span><span class="val">{{ status.last ? status.last.replace('T',' ') : '—' }}</span></div>
+          <div class="stat"><span class="lbl">Versiune program</span><span class="val">v{{ status.pv }}</span></div>
+          <div class="stat"><span class="lbl">Versiune calendar</span><span class="val">v{{ status.xv }}</span></div>
+          <div class="stat"><span class="lbl">Ceas</span><span class="val"><span class="pill" :class="status.sync==='stale' ? 'wrn' : 'ok'">{{ status.sync==='stale' ? 'nesincronizat' : 'sincronizat' }}</span></span></div>
+          <div class="stat"><span class="lbl">Firmware</span><span class="val">{{ (dev && dev.fw) || '—' }}<span v-if="dev && dev.ota && dev.ota.status < 0" class="pill bad" title="ultima încercare OTA a eșuat">!</span></span></div>
+        </div>
+        <p v-if="lastSeenTxt" class="hint">Ultima activitate: {{ lastSeenTxt }} <span v-if="devAvail==='online'">(LWT poate întârzia ~1 min la căderea alimentării)</span></p>
+        <p v-if="!devStale && status.sync==='stale'" class="warnline">
+          Ora dispozitivului nu e sincronizată — sunetele programate sunt suprimate până la sincronizare.
+        </p>
+      </template>
+    </section>
+
+    <!-- editor program -->
+    <section class="card">
+      <div class="cardhead">
+        <h2>Program săptămânal</h2>
+        <span v-if="!devStale && progDirty" class="chip wrn">nesalvat</span>
+        <span v-else-if="!devStale && progGood" class="chip dim">v{{ progGood.v }} · salvat</span>
+      </div>
+      <p v-if="devStale" class="warnline">Program ascuns — dispozitiv offline, datele reținute pot fi învechite.</p>
+      <p v-else-if="online && !prog" class="hint">se așteaptă programul de la dispozitiv…</p>
+      <fieldset v-else-if="prog" :disabled="!online || !!pendProg">
+        <label class="switch-row">
+          <input type="checkbox" v-model="prog.enabled">
+          <span>Program activ (soneria răspunde la orar)</span>
+        </label>
+
+        <h3>Tipuri de sunet <span class="cnt">{{ prog.patterns.length }}/8</span></h3>
+        <div class="pat" v-for="(p,i) in prog.patterns" :key="i" :class="{bad: patErrors(i).length}">
+          <div class="pat-top">
+            <strong>Tip {{ i+1 }}</strong>
+            <span class="tot" :class="{bad: patTotal(p) !== null && patTotal(p) > 30}">total {{ patTotal(p) === null ? '—' : patTotal(p) + ' s' }}</span>
+            <span class="grow"></span>
+            <button class="btn sm" :disabled="connState!=='online'" @click="ring(i)">Test</button>
+            <button class="btn sm dng" :disabled="prog.patterns.length <= 1" @click="delPattern(i)">Șterge</button>
+          </div>
+          <div class="pat-f">
+            <label class="grow">Nume<input type="text" class="pname" maxlength="24" v-model="dev.names[i]" :placeholder="'Tip ' + (i+1)"></label>
+            <label>Bătăi<input type="number" min="1" max="10" step="1" v-model.number="p.count"></label>
+            <label>Durată (s)<input type="number" min="1" max="30" step="1" v-model.number="p.dur_s"></label>
+            <label>Pauză (s)<input type="number" min="0" max="60" step="1" v-model.number="p.gap_s"></label>
+            <label class="chk"><input type="checkbox" v-model="p.enabled"><span>Activ</span></label>
+          </div>
+          <p v-if="patErrors(i).length" class="errline">{{ patErrors(i).join(' · ') }}</p>
+        </div>
+        <button class="btn" :disabled="prog.patterns.length >= 8" @click="addPattern">Adaugă tip de sunet</button>
+
+        <div class="saverow">
+          <span class="hint">Numele sunt etichete pentru tipurile de sunet.</span>
+          <button class="btn sm" :disabled="!online || !dev || dev.aliasDoc === null" @click="saveAliasDoc">Doar acest dispozitiv</button>
+          <button class="btn sm pri" :disabled="!online || !dev || dev.aliasDoc === null || !onlineDevices.length" @click="broadcastNames"
+                  title="Trimite numele tipurilor de sunet către toate dispozitivele online (numele soneriei rămâne individual)">Aplică numele pe toate</button>
+        </div>
+
+        <h3>Orar săptămânal</h3>
+        <div class="day" v-for="d in DAYS" :key="d">
+          <div class="day-h">
+            <strong>{{ DAY_RO[d] }}</strong>
+            <span class="cnt">{{ prog.weekly[d].length }}{{ prog.weekly[d].length ? ' · ' + prog.weekly[d].map(e => e.t).join(', ') : '' }}</span>
+            <span class="grow"></span>
+            <button class="btn sm" :class="{ on: copyFrom === d }" :disabled="!prog.weekly[d].length" @click="copyFrom = (copyFrom === d ? null : d)">Copiază</button>
+            <button class="btn sm" :disabled="prog.weekly[d].length >= 32" @click="addEvent(d)">+ oră</button>
+          </div>
+          <div class="copyrow" v-if="copyFrom === d">
+            <span class="hint">Copiază orarul din {{ DAY_RO[d] }} spre:</span>
+            <template v-for="t in DAYS" :key="t">
+              <button class="btn sm" v-if="t !== d" @click="copyDay(t)">{{ DAY_RO[t] }}</button>
+            </template>
+          </div>
+          <div class="ev" v-for="(e,ix) in prog.weekly[d]" :key="ix">
+            <input type="time" v-model="e.t" :class="{bad: evTimeBad(d, e)}">
+            <select v-model.number="e.p" :class="{bad: evPatBad(e)}">
+              <option v-if="e.p < 0 || e.p >= prog.patterns.length" :value="e.p">incorect ({{ e.p+1 }})</option>
+              <option v-for="(pp,pi) in prog.patterns" :key="pi" :value="pi" :disabled="!pp.enabled">
+                {{ patName(pi) }}{{ pp.enabled ? '' : ' (oprit)' }} · {{ patTotal(pp) }} s
+              </option>
+            </select>
+            <button class="btn sm dng" @click="delEvent(d, ix)">×</button>
+          </div>
+          <p v-if="dayErrors(d).length" class="errline">{{ dayErrors(d).join(' · ') }}</p>
+        </div>
+
+        <p v-if="progErrors.length" class="errbox">
+          Nu se poate salva:<br>
+          <template v-for="(m,mi) in progErrors" :key="mi">– {{ m }}<br></template>
+        </p>
+        <div class="saverow">
+          <span class="hint">Salvarea nu declanșează niciun sunet — clopoțelul sună doar la butoanele „Test”.</span>
+          <button class="btn" :disabled="!canSaveProg" @click="saveProgram">
+            {{ pendProg ? 'Se salvează…' : 'Doar acest dispozitiv (v' + nextProgV + ')' }}
+          </button>
+          <button class="btn pri" :disabled="!canSaveProg || !onlineDevices.length" @click="broadcastProg"
+                  title="Trimite programul curent către toate dispozitivele online (aceeași versiune)">Aplică pe toate (v{{ maxProgV + 1 }})</button>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- editor calendar -->
+    <section class="card">
+      <div class="cardhead">
+        <h2>Calendar zile libere</h2>
+        <span v-if="!devStale && excDirty" class="chip wrn">nesalvat</span>
+        <span v-else-if="!devStale && excGood" class="chip dim">v{{ excGood.v }} · salvat</span>
+        <span class="grow"></span>
+        <span class="ynav">
+          <button class="btn sm" @click="calShift(-1)">‹</button>
+          <strong>{{ calYear }} · {{ pageLabel }}</strong>
+          <button class="btn sm" @click="calShift(1)">›</button>
+          <button class="btn sm" :disabled="onTodayPage" @click="goToday">Azi</button>
+        </span>
+      </div>
+      <p v-if="devStale" class="warnline">Calendar ascuns — dispozitiv offline, datele reținute pot fi învechite.</p>
+      <p v-else-if="online && !exc" class="hint">se așteaptă calendarul de la dispozitiv…</p>
+      <fieldset v-else-if="exc" :disabled="!online || !!pendExc">
+        <p class="hint">
+          Trage cu mouse-ul sau atinge două zile pentru a selecta un interval;
+          apasă pe o zi marcată pentru a șterge excepția care o conține.
+        </p>
+        <div class="months" :class="{lock: !online || !!pendExc}">
+          <div class="month" v-for="m in visibleMonths" :key="m.m">
+            <div class="mname">{{ m.name }}</div>
+            <div class="dgrid">
+              <span class="wd" v-for="(w,wi) in WD" :key="wi" :class="{we: wi>=5}">{{ w }}</span>
+              <template v-for="(c,ci) in m.cells" :key="ci">
+                <span v-if="!c" class="cell nil"></span>
+                <span v-else class="cell"
+                      :class="{off: !!excAt(c.ymd), sel: inSel(c.ymd), selend: isEnd(c.ymd), today: c.ymd===todayYmd, wknd: c.wknd}"
+                      :data-d="c.ymd"
+                      @pointerdown="cellDown($event, c.ymd)"
+                      @pointerenter="cellEnter(c.ymd)"
+                      @click="cellClick(c.ymd)">{{ c.d }}</span>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="row cal-actions">
+          <button class="btn pri" :disabled="!selReady" @click="addException">
+            Adaugă excepție{{ selReady ? ' ' + fmtRange(calSelA, calSelB) : '' }}
+          </button>
+          <button class="btn" @click="prefill">Prefill sărbători RO {{ calYear }}</button>
+          <button class="btn" :disabled="!vacKnown" @click="prefillVac">Prefill vacanțe {{ schoolYearLabel }}</button>
+        </div>
+        <p v-if="excErrors.length" class="errbox">
+          Nu se poate salva:<br>
+          <template v-for="(m,mi) in excErrors" :key="mi">– {{ m }}<br></template>
+        </p>
+        <div class="xlist">
+          <div class="xrow" v-for="(x,xi) in excSorted" :key="xi">
+            <span>{{ fmtRange(x.from, x.to) }}</span>
+            <span class="grow"></span>
+            <button class="btn sm dng" @click="delExceptionAt(exc.exceptions.indexOf(x))">Șterge</button>
+          </div>
+          <p v-if="!exc.exceptions.length" class="hint">Nicio zi liberă definită.</p>
+        </div>
+        <div class="saverow">
+          <span class="hint">Salvarea nu declanșează niciun sunet.</span>
+          <button class="btn" :disabled="!canSaveExc" @click="saveExc">
+            {{ pendExc ? 'Se salvează…' : 'Doar acest dispozitiv (xv' + nextExcV + ')' }}
+          </button>
+          <button class="btn pri" :disabled="!canSaveExc || !onlineDevices.length" @click="broadcastExc"
+                  title="Trimite calendarul curent către toate dispozitivele online (aceeași versiune)">Aplică pe toate (xv{{ maxExcV + 1 }})</button>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- jurnal -->
+    <section class="card">
+      <div class="cardhead"><h2>Jurnal evenimente</h2></div>
+      <p v-if="!feed.length" class="hint">Niciun eveniment încă.</p>
+      <ul class="feed">
+        <li v-for="(f,fi) in feed" :key="fi">
+          <span class="tm">{{ f.tm }}</span><template v-if="f.dev && f.dev !== sel"><b>{{ aliasOf(f.dev) }}</b> — </template>{{ f.txt }}
+        </li>
+      </ul>
+    </section>
+  </template>
+
+  <div v-if="qrOpen" class="modal-back" @click="qrOpen = false">
+    <div class="card modal" @click.stop>
+      <div class="cardhead"><h2>Cod QR — conectare automată</h2></div>
+      <div class="qr-box" v-html="qrSvg"></div>
+      <p class="mono small">{{ qrUrl }}</p>
+      <p class="hint">Scanează cu telefonul: panoul se deschide deja autentificat. Tratează codul ca pe o parolă — arată-l doar persoanelor autorizate.</p>
+      <div class="rowend">
+        <button class="btn" @click="qrOpen = false">Închide</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts">
+    <div class="toast" v-for="t in toasts" :key="t.id" :class="t.type" @click="dismiss(t.id)">{{ t.msg }}</div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+(function () {
+'use strict';
+
+var DEFAULT_URL = 'wss://r2af5151.ala.eu-central-1.emqxsl.com:8084/mqtt';
+var LS_KEY = 'bellui.settings.v1';
+var ALIAS_TOPIC = 'bellapp/aliases';
+var DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+var DAY_RO = { mon: 'Luni', tue: 'Marți', wed: 'Miercuri', thu: 'Joi', fri: 'Vineri', sat: 'Sâmbătă', sun: 'Duminică' };
+var MONTHS_RO = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'];
+
+/* vacanțe școlare oficiale — actualizează acest bloc la fiecare an școlar (ordinul MEC);
+ * săptămâna intersemestrială e la decizia ISJ și nu e inclusă */
+var VAC_SY = {
+  label: '2026–2027',
+  breaks: [
+    { name: 'de toamnă', from: '2026-10-24', to: '2026-11-01' },
+    { name: 'de iarnă', from: '2026-12-23', to: '2027-01-10' },
+    { name: 'de primăvară', from: '2027-04-24', to: '2027-05-04' },
+    { name: 'de vară', from: '2027-06-19', to: '2027-09-05' }
+  ]
+};
+var WD = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
+var REASONS = {
+  json: 'JSON invalid',
+  caps: 'limită numerică depășită',
+  time: 'oră invalidă',
+  dup_time: 'oră duplicată în aceeași zi',
+  pattern_ref: 'sunetul programat indică un tip inexistent sau dezactivat',
+  date: 'dată inexistentă în calendar',
+  date_order: 'începutul intervalului este după sfârșit',
+  type: 'tip de excepție neacceptat',
+  corrupt: 'document corupt',
+  cooldown: 'răcire activă'
+};
+var TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+var DEV_RE = /^([^/]+\/[^/]+)\/evt\/(.+)$/;
+
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function dToYmd(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function parseYmd(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+  if (!m) return null;
+  var d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return (d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3]) ? d : null;
+}
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+/* Pasti ortodox: algoritm Meeus pe calendarul iulian, apoi corecție +13 zile (gregorian). */
+function orthodoxEaster(y) {
+  var a = y % 4, b = y % 7, c = y % 19;
+  var d = (19 * c + 15) % 30;
+  var e = (2 * a + 4 * b - d + 34) % 7;
+  var mo = Math.floor((d + e + 114) / 31);
+  var da = ((d + e + 114) % 31) + 1;
+  return new Date(y, mo - 1, da + 13);
+}
+function roHolidays(y) {
+  var out = ['01-01', '01-02', '01-24', '05-01', '08-15', '11-30', '12-01', '12-25', '12-26']
+    .map(function (md) { return y + '-' + md; });
+  var ea = orthodoxEaster(y);
+  out.push(dToYmd(ea), dToYmd(addDays(ea, 1)), dToYmd(addDays(ea, 49)), dToYmd(addDays(ea, 50)));
+  return Array.from(new Set(out));
+}
+
+var client = null;
+var ending = false;
+var toastSeq = 0;
+var lastConnErrToast = 0;
+
+var app = Vue.createApp({
+  data: function () {
+    return {
+      form: { url: DEFAULT_URL, username: '', password: '' },
+      hasSaved: false,
+      qrOpen: false,
+      qrSvg: '',
+      qrUrl: '',
+      copyFrom: null,
+      opened: false,
+      connState: 'off',
+      aliases: {},
+      aliasDraft: '',
+      devices: {},
+      sel: null,
+      feed: [],
+      toasts: [],
+      now: Date.now(),
+      curYear: new Date().getFullYear(),
+      curPage: Math.floor(new Date().getMonth() / 3),
+      calYear: new Date().getFullYear(),
+      calPage: Math.floor(new Date().getMonth() / 3),
+      todayYmd: dToYmd(new Date()),
+      calSelA: null, calSelB: null, calPrev: null,
+      dragging: false, suppressClick: false,
+      DAYS: DAYS, DAY_RO: DAY_RO, WD: WD
+    };
+  },
+
+  computed: {
+    online: function () { return this.connState === 'online'; },
+    badgeTxt: function () {
+      return { off: 'Deconectat', connecting: 'Se conectează…', online: 'Conectat', reconnecting: 'Reconectare…' }[this.connState] || this.connState;
+    },
+    badgeCls: function () {
+      return { online: 'ok', reconnecting: 'wrn', connecting: 'wrn', off: 'off' }[this.connState] || 'off';
+    },
+    devAvail: function () { var d = this.dev; return (d && d.avail) || 'unk'; },
+    devStale: function () { return this.devAvail === 'offline'; },
+    connPillCls: function () {
+      return { online: 'ok', offline: 'bad', unk: 'wrn' }[this.devAvail] || 'wrn';
+    },
+    connPillTxt: function () {
+      return { online: 'online', offline: 'offline', unk: 'necunoscut' }[this.devAvail] || 'necunoscut';
+    },
+    lastSeenTxt: function () {
+      var d = this.dev;
+      if (!d || !d.lastSeen) return '';
+      var s = Math.max(0, Math.round((this.now - d.lastSeen) / 1000));
+      if (s < 90) return 'acum ' + s + ' s';
+      var m = Math.round(s / 60);
+      if (m < 90) return 'acum ' + m + ' min';
+      return 'acum ' + Math.round(m / 60) + ' h';
+    },
+    deviceList: function () {
+      var self = this;
+      return Object.keys(this.devices).sort(function (a, b) {
+        return self.aliasOf(a).localeCompare(self.aliasOf(b), 'ro');
+      });
+    },
+    dev: function () { return this.sel ? this.devices[this.sel] : null; },
+    status: function () { return this.dev && this.dev.status; },
+    prog: function () { return this.dev && this.dev.prog; },
+    progGood: function () { return this.dev && this.dev.progGood; },
+    pendProg: function () { return this.dev ? this.dev.pendProg : null; },
+    exc: function () { return this.dev && this.dev.exc; },
+    excGood: function () { return this.dev && this.dev.excGood; },
+    pendExc: function () { return this.dev ? this.dev.pendExc : null; },
+
+    progV: function () { return this.progGood ? this.progGood.v : (this.status ? this.status.pv : null); },
+    nextProgV: function () { return this.progV === null ? '' : this.progV + 1; },
+    excV: function () { return this.excGood ? this.excGood.v : (this.status ? this.status.xv : null); },
+    nextExcV: function () { return this.excV === null ? '' : this.excV + 1; },
+    maxProgV: function () {
+      var mx = 0, self = this;
+      Object.keys(this.devices).forEach(function (k) {
+        var d = self.devices[k];
+        var v = (d.progGood && d.progGood.v) || (d.status && +d.status.pv) || 0;
+        if (v > mx) mx = v;
+      });
+      return mx;
+    },
+    maxExcV: function () {
+      var mx = 0, self = this;
+      Object.keys(this.devices).forEach(function (k) {
+        var d = self.devices[k];
+        var v = (d.excGood && d.excGood.v) || (d.status && +d.status.xv) || 0;
+        if (v > mx) mx = v;
+      });
+      return mx;
+    },
+    onlineDevices: function () {
+      var self = this;
+      return Object.keys(this.devices).filter(function (k) { return self.devices[k].avail === 'online'; });
+    },
+
+    progDirty: function () {
+      return !!(this.prog && this.progGood &&
+        JSON.stringify(this.canonProgram(this.prog)) !== JSON.stringify(this.canonProgram(this.progGood)));
+    },
+    excDirty: function () {
+      return !!(this.exc && this.excGood &&
+        JSON.stringify(this.canonExc(this.exc)) !== JSON.stringify(this.canonExc(this.excGood)));
+    },
+
+    progErrors: function () {
+      if (!this.prog) return [];
+      var errs = [];
+      if (this.prog.patterns.length > 8) errs.push('maxim 8 tipuri de sunet');
+      var self = this;
+      this.prog.patterns.forEach(function (_, i) {
+        self.patErrors(i).forEach(function (m) { errs.push('tip ' + (i + 1) + ': ' + m); });
+      });
+      DAYS.forEach(function (d) { self.dayErrors(d).forEach(function (m) { errs.push(m); }); });
+      return Array.from(new Set(errs));
+    },
+    progValid: function () { return this.progErrors.length === 0; },
+    canSaveProg: function () {
+      return this.online && !!this.prog && this.progValid && this.progV !== null && !this.pendProg;
+    },
+
+    excErrors: function () {
+      if (!this.exc) return [];
+      var errs = [];
+      var xs = this.exc.exceptions;
+      if (xs.length > 32) errs.push('maxim 32 de excepții');
+      xs.forEach(function (x, i) {
+        if (!parseYmd(x.from) || !parseYmd(x.to)) errs.push('excepția ' + (i + 1) + ': dată inexistentă în calendar');
+        else if (x.from > x.to) errs.push('excepția ' + (i + 1) + ': începutul după sfârșit');
+      });
+      return errs;
+    },
+    excValid: function () { return this.excErrors.length === 0; },
+    canSaveExc: function () {
+      return this.online && !!this.exc && this.excValid && this.excV !== null && !this.pendExc;
+    },
+    excSorted: function () {
+      if (!this.exc) return [];
+      return this.exc.exceptions.slice().sort(function (a, b) {
+        return a.from < b.from ? -1 : (a.from > b.from ? 1 : (a.to < b.to ? -1 : 1));
+      });
+    },
+
+    months: function () {
+      var y = this.calYear, out = [];
+      for (var mi = 0; mi < 12; mi++) {
+        var lead = (new Date(y, mi, 1).getDay() + 6) % 7;
+        var dim = new Date(y, mi + 1, 0).getDate();
+        var cells = [], pre = y + '-' + pad2(mi + 1) + '-', dow = lead;
+        for (var i = 0; i < lead; i++) cells.push(null);
+        for (var d = 1; d <= dim; d++) {
+          cells.push({ d: d, ymd: pre + pad2(d), wknd: dow % 7 >= 5 });
+          dow++;
+        }
+        out.push({ m: mi, name: MONTHS_RO[mi], cells: cells });
+      }
+      return out;
+    },
+    visibleMonths: function () {
+      return this.months.slice(this.calPage * 3, this.calPage * 3 + 3);
+    },
+    pageLabel: function () {
+      var a = MONTHS_RO[this.calPage * 3].slice(0, 3).toLowerCase();
+      var b = MONTHS_RO[this.calPage * 3 + 2].slice(0, 3).toLowerCase();
+      return a + '–' + b;
+    },
+    schoolYearLabel: function () {
+      var y1 = this.calPage >= 2 ? this.calYear : this.calYear - 1;
+      return y1 + '–' + (y1 + 1);
+    },
+    vacKnown: function () { return this.schoolYearLabel === VAC_SY.label; },
+    onTodayPage: function () { return this.calYear === this.curYear && this.calPage === this.curPage; },
+    selReady: function () { return !!(this.calSelA && this.calSelB); }
+  },
+
+  watch: {
+    sel: function () {
+      this.calSelA = this.calSelB = this.calPrev = null;
+      this.dragging = false;
+      this.aliasDraft = (this.sel && this.devices[this.sel] &&
+        this.devices[this.sel].aliasDoc && this.devices[this.sel].aliasDoc.bell) ||
+        (this.sel && this.aliases[this.sel]) || '';
+    }
+  },
+
+  methods: {
+    /* ---- conectare ---- */
+    makeQr: function () {
+      if (!this.form.url || !this.form.username || !this.form.password) {
+        this.toast('wrn', 'Completează adresa broker, utilizatorul și parola înainte de a genera codul QR');
+        return;
+      }
+      var url = location.origin + location.pathname +
+        '#h=' + encodeURIComponent(this.form.url) +
+        '&u=' + encodeURIComponent(this.form.username) +
+        '&p=' + encodeURIComponent(this.form.password);
+      try {
+        var qr = window.qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        this.qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+        this.qrUrl = url;
+        this.qrOpen = true;
+      } catch (e) {
+        this.toast('err', 'Nu am putut genera codul QR');
+      }
+    },
+
+    loadSettings: function () {
+      try {
+        var s = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+        if (s && typeof s === 'object') {
+          if (s.url) this.form.url = s.url;
+          if (typeof s.username === 'string') this.form.username = s.username;
+          if (typeof s.password === 'string') this.form.password = s.password;
+          this.hasSaved = true;
+        }
+      } catch (e) { /* ignore */ }
+    },
+    connect: function () {
+      if (this.opened || !this.form.url) return;
+      var self = this;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(this.form)); this.hasSaved = true; } catch (e) { /* ignore */ }
+      this.opened = true;
+      this.connState = 'connecting';
+      var opts = {
+        clientId: 'bellui_' + Math.random().toString(16).slice(2, 10),
+        reconnectPeriod: 2000,
+        connectTimeout: 8000,
+        keepalive: 30,
+        clean: true
+      };
+      if (this.form.username) { opts.username = this.form.username; opts.password = this.form.password; }
+      client = mqtt.connect(this.form.url.trim(), opts);
+      var firstConnect = true;
+      client.on('connect', function () {
+        self.connState = 'online';
+        client.subscribe(['+/+/evt/#', ALIAS_TOPIC], function (err) {
+          if (err) self.pushFeed('Eroare abonare: ' + err.message);
+        });
+        if (firstConnect) { firstConnect = false; self.toast('ok', 'Conectat la broker'); }
+        self.pushFeed('Conectat la broker');
+        // dispozitivele deja cunoscute: cerem o actualizare proaspata
+        Object.keys(self.devices).forEach(function (p) { self.devices[p].got = false; });
+        Object.keys(self.devices).forEach(function (p) { self.requestDocs(p); });
+      });
+      client.on('reconnect', function () { self.connState = 'reconnecting'; });
+      client.on('close', function () { if (!ending) self.connState = 'reconnecting'; });
+      client.on('error', function (e) {
+        self.pushFeed('Eroare conexiune: ' + (e && e.message ? e.message : '?'));
+        var now = Date.now();
+        if (now - lastConnErrToast > 30000) {
+          lastConnErrToast = now;
+          self.toast('err', 'Eroare de conexiune: ' + (e && e.message ? e.message : 'necunoscută'));
+        }
+      });
+      client.on('message', function (t, p, pk) { self.onMessage(String(t), p, pk); });
+    },
+    disconnect: function () {
+      ending = true;
+      if (client) { try { client.end(true); } catch (e) { /* ignore */ } }
+      client = null; ending = false;
+      this.opened = false;
+      this.connState = 'off';
+      this.feed = []; this.toasts = [];
+      this.devices = {}; this.sel = null; this.aliases = {}; this.aliasDraft = '';
+      this.calSelA = this.calSelB = this.calPrev = null;
+    },
+    forgetSettings: function () {
+      try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ }
+      this.hasSaved = false;
+      this.form = { url: DEFAULT_URL, username: '', password: '' };
+      this.toast('ok', 'Setările de conectare au fost uitate');
+    },
+    publishCmd: function (prefix, suffix, payload, opts) {
+      if (client && this.connState === 'online') client.publish(prefix + '/' + suffix, payload, opts || {});
+    },
+
+    /* ---- dispozitive si alias ---- */
+    aliasOf: function (prefix) {
+      var d = this.devices[prefix];
+      if (d && d.aliasDoc && d.aliasDoc.bell) return d.aliasDoc.bell;
+      return this.aliases[prefix] || this.clientIdOf(prefix);
+    },
+    devHasDeviceAlias: function (prefix) {
+      var d = this.devices[prefix];
+      return !!(d && d.aliasDoc);
+    },
+    patName: function (i) {
+      var d = this.dev;
+      var n = d && d.names && d.names[i];
+      return (n && n.trim()) ? n.trim() : ('tip ' + (i + 1));
+    },
+    clientIdOf: function (prefix) { return prefix.indexOf('/') >= 0 ? prefix.split('/')[1] : prefix; },
+    getDevice: function (prefix) {
+      if (!this.devices[prefix]) {
+        this.devices[prefix] = {
+          prefix: prefix, isNew: true, got: false,
+          status: null, avail: null, availAt: null, lastSeen: null,
+          ota: null, fw: null,
+          prog: null, progGood: null, pendProg: null,
+          exc: null, excGood: null, pendExc: null,
+          aliasDoc: null, aliasPend: null, names: []
+        };
+        if (!this.sel) {
+          this.sel = prefix;
+          this.devices[prefix].isNew = false;
+        }
+        this.pushFeed('Dispozitiv descoperit: ' + this.aliasOf(prefix), prefix);
+      }
+      return this.devices[prefix];
+    },
+    selectDevice: function (prefix) {
+      if (!this.devices[prefix]) return;
+      this.devices[prefix].isNew = false;
+      this.sel = prefix;
+      /* la fiecare comutare: cerere proaspata de documente */
+      if (this.online) this.publishCmd(prefix, 'cmd/get/bell/0', '1');
+    },
+    requestDocs: function (prefix) {
+      var d = this.devices[prefix];
+      if (!d || d.got || !this.online) return;
+      d.got = true;
+      this.publishCmd(prefix, 'cmd/get/bell/0', '1');
+    },
+    refresh: function () {
+      if (!this.sel || !this.online) return;
+      this.publishCmd(this.sel, 'cmd/get/bell/0', '1');
+      this.pushFeed('Cerere de reîmprospătare trimisă', this.sel);
+    },
+    startOta: function () {
+      if (!this.sel || !this.online || this.devAvail !== 'online') return;
+      if (!window.confirm('Pornesc actualizarea firmware pentru ' + this.aliasOf(this.sel) + '?\nDispozitivul va descărca imaginea și va reporni.')) return;
+      this.publishCmd(this.sel, 'cmd/ota', '1');
+      this.toast('wrn', 'Comandă OTA trimisă către ' + this.aliasOf(this.sel));
+      this.pushFeed('Comandă OTA trimisă', this.sel);
+    },
+    retireDevice: function () {
+      if (!this.sel || !this.online) return;
+      var prefix = this.sel;
+      var self = this;
+      var warn = this.devices[prefix] && this.devices[prefix].avail === 'online'
+        ? 'AVERTISMENT: dispozitivul e ONLINE — va república starea la următoarea conectare.\n\n'
+        : '';
+      if (!window.confirm(warn + 'Retragi "' + this.aliasOf(prefix) + '"?\nSe șterge starea reținută de broker; tab-ul dispare din aplicație.\nReconectarea dispozitivului îl face să reapară.')) return;
+      var suffixes = ['status/bell/0', 'config/bell/0', 'exc/bell/0', 'alias/bell/0',
+                      'status/available', 'config/available',
+                      'status/relay/0', 'available/relay/0', 'sleep/relay/0',
+                      'ring/bell/0', 'error/bell/0', 'ota'];
+      var cleared = 0;
+      suffixes.forEach(function (s) {
+        if (client) { client.publish(prefix + '/evt/' + s, '', { retain: true, qos: 0 }); cleared++; }
+      });
+      var m = {};
+      Object.keys(this.aliases).forEach(function (k) { if (k !== prefix) m[k] = self.aliases[k]; });
+      this.publishAliases(m);
+      delete this.devices[prefix];
+      if (this.sel === prefix) this.sel = Object.keys(this.devices)[0] || null;
+      this.aliasDraft = this.sel ? (this.aliases[this.sel] || '') : '';
+      this.toast('ok', 'Dispozitiv retras: ' + this.aliasOf(prefix) + ' (' + cleared + ' subiecte curățate)');
+      this.pushFeed('Dispozitiv retras: ' + prefix, prefix);
+    },
+    setAlias: function () {
+      if (!this.sel) return;
+      var name = (this.aliasDraft || '').trim();
+      if (!name) { this.clearAlias(); return; }
+      if (this.devHasDeviceAlias(this.sel)) { this.saveAliasDoc(); return; }
+      var m = Object.assign({}, this.aliases);
+      m[this.sel] = name;
+      this.publishAliases(m);
+      this.toast('ok', 'Nume salvat: ' + name);
+    },
+    clearAlias: function () {
+      if (!this.sel) return;
+      if (this.devHasDeviceAlias(this.sel)) {
+        this.aliasDraft = '';
+        this.saveAliasDoc();
+        return;
+      }
+      if (this.aliases[this.sel] === undefined) return;
+      var m = Object.assign({}, this.aliases);
+      delete m[this.sel];
+      this.publishAliases(m);
+      this.aliasDraft = '';
+      this.toast('ok', 'Nume îndepărtat — se folosește ' + this.clientIdOf(this.sel));
+    },
+    saveAliasDoc: function () {
+      var d = this.dev;
+      if (!d || d.aliasDoc === null || this.connState !== 'online') return;
+      var names = (d.names || []).slice(0, d.prog ? d.prog.patterns.length : 8).map(function (n) {
+        return String(n == null ? '' : n).slice(0, 24);
+      });
+      for (var i = 0; i < names.length; i++) {
+        if (names[i].length >= 24 && String(d.names[i]).length > 24) {
+          this.toast('wrn', 'Numele tipului ' + (i + 1) + ' e prea lung (max 24)');
+          return;
+        }
+      }
+      var doc = { bell: (this.aliasDraft || '').trim().slice(0, 24), patterns: names };
+      d.aliasPend = setTimeout(function () {
+        if (d.aliasPend) { d.aliasPend = null; }
+      }, 5000);
+      this.publishCmd(d.prefix, 'cmd/alias/bell/0', JSON.stringify(doc));
+    },
+    publishAliases: function (map) {
+      this.aliases = map;
+      if (client && this.connState === 'online') {
+        client.publish(ALIAS_TOPIC, JSON.stringify(map), { retain: true });
+      }
+    },
+
+    /* ---- rutare mesaje ---- */
+    onMessage: function (topic, payload, packet) {
+      var txt = new TextDecoder('utf-8').decode(payload);
+      if (!txt) return; /* empty retained = cleared topic (retire), never re-discover */
+      if (topic === ALIAS_TOPIC) { this.onAliases(txt); return; }
+      var m = DEV_RE.exec(topic);
+      if (!m) return;
+      var prefix = m[1], suffix = m[2];
+      var live = packet && !packet.retain;
+      if (suffix === 'status/bell/0') {
+        var d = this.getDevice(prefix);
+        try { d.status = JSON.parse(txt); } catch (e) { return; }
+        if (live) d.lastSeen = Date.now();
+        this.requestDocs(prefix);
+      } else if (suffix === 'status/available') {
+        var av = txt === 'online' ? 'online' : 'offline';
+        var da = this.getDevice(prefix);
+        var was = da.avail;
+        da.avail = av; da.availAt = Date.now();
+        if (live) da.lastSeen = Date.now();
+        if (was && was !== av && live)
+          this.pushFeed(this.aliasOf(prefix) + (av === 'online' ? ' e din nou online' : ' s-a deconectat (offline)'), prefix);
+      } else if (suffix === 'config/bell/0') {
+        this.recvProgram(this.getDevice(prefix), txt);
+      } else if (suffix === 'exc/bell/0') {
+        this.recvExc(this.getDevice(prefix), txt);
+      } else if (suffix === 'alias/bell/0') {
+        this.recvAlias(this.getDevice(prefix), txt);
+      } else if (suffix === 'error/bell/0') {
+        this.recvError(prefix, txt);
+      } else if (suffix === 'ring/bell/0') {
+        this.recvRing(prefix, txt);
+      } else if (suffix === 'ota') {
+        var dota = this.getDevice(prefix);
+        try { dota.ota = JSON.parse(txt); } catch (e) { return; }
+        if (live) {
+          var st = dota.ota && dota.ota.status;
+          var nm2 = this.aliasOf(prefix);
+          if (st === 1) { this.toast('wrn', nm2 + ': actualizare firmware în curs…'); this.pushFeed(nm2 + ' — OTA în curs', prefix); }
+          else if (st === 2) { this.toast('ok', nm2 + ': firmware actualizat'); this.pushFeed(nm2 + ' — firmware actualizat, dispozitivul a repornit', prefix); }
+          else if (st < 0) { this.toast('err', nm2 + ': actualizarea firmware a eșuat'); this.pushFeed(nm2 + ' — OTA eșuat (imagine identică sau descărcare întreruptă)', prefix); }
+        }
+      } else if (suffix === 'config/available') {
+        var dfw = this.getDevice(prefix);
+        try { var avdoc = JSON.parse(txt); if (avdoc && avdoc.fw_version) dfw.fw = avdoc.fw_version; } catch (e) { /* not json */ }
+      }
+    },
+    onAliases: function (txt) {
+      var doc;
+      try { doc = JSON.parse(txt); } catch (e) { return; }
+      if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return;
+      var clean = {};
+      var self = this;
+      Object.keys(doc).forEach(function (k) {
+        if (DEV_RE.test(k + '/evt/x') && typeof doc[k] === 'string' && doc[k]) clean[k] = doc[k];
+      });
+      this.aliases = clean;
+      if (this.sel) this.aliasDraft = this.aliases[this.sel] || '';
+    },
+    tagFor: function (prefix) {
+      return prefix === this.sel ? '' : this.aliasOf(prefix) + ' — ';
+    },
+
+    calShift: function (dir) {
+      var p = this.calPage + dir;
+      if (p < 0) { p = 3; this.calYear--; }
+      else if (p > 3) { p = 0; this.calYear++; }
+      this.calPage = p;
+    },
+    goToday: function () {
+      this.calYear = this.curYear;
+      this.calPage = this.curPage;
+    },
+
+    /* ---- documente ---- */
+    canonProgram: function (src) {
+      var patterns = (src.patterns || []).map(function (p) {
+        return {
+          count: Math.round(+p.count || 0),
+          dur_s: Math.round(+p.dur_s || 0),
+          gap_s: Math.round(+p.gap_s || 0),
+          enabled: !!p.enabled
+        };
+      });
+      var weekly = {};
+      DAYS.forEach(function (d) {
+        weekly[d] = (src.weekly && src.weekly[d] ? src.weekly[d] : []).slice()
+          .sort(function (a, b) { return a.t < b.t ? -1 : (a.t > b.t ? 1 : 0); })
+          .map(function (e) { return { t: String(e.t), p: Math.round(+e.p || 0) }; });
+      });
+      return { enabled: !!src.enabled, patterns: patterns, weekly: weekly };
+    },
+    canonExc: function (src) {
+      return {
+        exceptions: (src.exceptions || []).map(function (x) {
+          return { from: String(x.from), to: String(x.to) };
+        }).sort(function (a, b) { return a.from < b.from ? -1 : (a.from > b.from ? 1 : 0); })
+      };
+    },
+    recvProgram: function (d, txt) {
+      var doc;
+      try { doc = JSON.parse(txt); } catch (e) { this.pushFeed('program primit cu JSON invalid', d.prefix); return; }
+      if (!doc || typeof doc.v !== 'number' || !Array.isArray(doc.patterns) || !doc.weekly) {
+        this.pushFeed('program primit în formă necunoscută', d.prefix); return;
+      }
+      while ((d.names || []).length < doc.patterns.length) d.names.push('');
+      d.names.length = doc.patterns.length;
+      var wasDirty = !!(d.prog && d.progGood &&
+        JSON.stringify(this.canonProgram(d.prog)) !== JSON.stringify(this.canonProgram(d.progGood)));
+      var pend = d.pendProg;
+      d.progGood = {
+        v: doc.v, enabled: !!doc.enabled,
+        patterns: doc.patterns.map(function (p) {
+          return { count: +p.count, dur_s: +p.dur_s, gap_s: +p.gap_s, enabled: !!p.enabled };
+        }),
+        weekly: (function () {
+          var w = {};
+          DAYS.forEach(function (dd) {
+            w[dd] = (doc.weekly[dd] || []).map(function (e) { return { t: String(e.t), p: +e.p }; });
+          });
+          return w;
+        })()
+      };
+      if (pend && doc.v >= pend.v) {
+        clearTimeout(pend.timer);
+        d.pendProg = null;
+        d.prog = clone(d.progGood);
+        this.toast('ok', this.tagFor(d.prefix) + 'Program salvat — v' + doc.v);
+        this.pushFeed('Program confirmat v' + doc.v, d.prefix);
+      } else if (!wasDirty) {
+        d.prog = clone(d.progGood);
+      } else {
+        this.toast('warn', this.tagFor(d.prefix) + 'Program nou primit de la dispozitiv (v' + doc.v + ') — ai modificări nesalvate în editor');
+        this.pushFeed('Program nou v' + doc.v + ' (editorul are modificări nesalvate)', d.prefix);
+      }
+    },
+    recvExc: function (d, txt) {
+      var doc;
+      try { doc = JSON.parse(txt); } catch (e) { this.pushFeed('calendar primit cu JSON invalid', d.prefix); return; }
+      if (!doc || typeof doc.v !== 'number' || !Array.isArray(doc.exceptions)) {
+        this.pushFeed('calendar primit în formă necunoscută', d.prefix); return;
+      }
+      var wasDirty = !!(d.exc && d.excGood &&
+        JSON.stringify(this.canonExc(d.exc)) !== JSON.stringify(this.canonExc(d.excGood)));
+      var pend = d.pendExc;
+      d.excGood = {
+        v: doc.v,
+        exceptions: doc.exceptions
+          .filter(function (x) { return x && typeof x.from === 'string' && typeof x.to === 'string'; })
+          .map(function (x) { return { from: x.from, to: x.to }; })
+      };
+      if (pend && doc.v >= pend.v) {
+        clearTimeout(pend.timer);
+        d.pendExc = null;
+        d.exc = clone(d.excGood);
+        this.toast('ok', this.tagFor(d.prefix) + 'Calendar salvat — v' + doc.v);
+        this.pushFeed('Calendar confirmat v' + doc.v, d.prefix);
+      } else if (!wasDirty) {
+        d.exc = clone(d.excGood);
+      } else {
+        this.toast('warn', this.tagFor(d.prefix) + 'Calendar nou primit de la dispozitiv (v' + doc.v + ') — ai modificări nesalvate în editor');
+        this.pushFeed('Calendar nou v' + doc.v + ' (editorul are modificări nesalvate)', d.prefix);
+      }
+    },
+    recvAlias: function (d, txt) {
+      var doc;
+      try { doc = JSON.parse(txt); } catch (e) { return; }
+      if (!doc || typeof doc !== 'object' || typeof doc.bell !== 'string' || !Array.isArray(doc.patterns)) return;
+      d.aliasDoc = { bell: doc.bell, patterns: doc.patterns.map(function (n) { return String(n == null ? '' : n); }) };
+      var count = d.prog ? d.prog.patterns.length : d.aliasDoc.patterns.length;
+      while (d.names.length < count) d.names.push('');
+      for (var i = 0; i < Math.min(count, d.aliasDoc.patterns.length); i++) d.names[i] = d.aliasDoc.patterns[i];
+      d.names.length = count;
+      if (d.aliasPend) {
+        clearTimeout(d.aliasPend);
+        d.aliasPend = null;
+        this.toast('ok', this.tagFor(d.prefix) + 'Nume salvate pe dispozitiv');
+        this.pushFeed('Alias confirmat de dispozitiv', d.prefix);
+      }
+      if (d.prefix === this.sel) this.aliasDraft = d.aliasDoc.bell || (this.aliases[this.sel] || '');
+    },
+    recvError: function (prefix, txt) {
+      var e;
+      try { e = JSON.parse(txt); } catch (err) { e = { err: 'corrupt' }; }
+      this.pushFeed('Eroare dispozitiv: ' + (e.err || '?') + (e.detail ? ' — ' + e.detail : '') + (e.v !== undefined ? ' (v' + e.v + ')' : ''), prefix);
+      if (e.err === 'cooldown') {
+        this.toast('warn', this.tagFor(prefix) + 'Prea curând — clopoțelul e în răcire, așteaptă vreo 11 secunde între sunetele de test');
+        return;
+      }
+      var why = REASONS[e.err] || ('motiv necunoscut (' + (e.err || '?') + ')');      this.toast('err', this.tagFor(prefix) + 'Document respins: ' + why);
+      var d = this.devices[prefix];
+      if (!d) return;
+      if (d.pendProg && typeof e.v === 'number' && e.v === d.pendProg.v) {
+        clearTimeout(d.pendProg.timer);
+        d.pendProg = null;
+        if (d.progGood) d.prog = clone(d.progGood);
+        this.pushFeed('Editorul programului a fost restaurat la v' + (d.progGood ? d.progGood.v : '?'), prefix);
+      }
+      if (d.pendExc && typeof e.v === 'number' && e.v === d.pendExc.v) {
+        clearTimeout(d.pendExc.timer);
+        d.pendExc = null;
+        if (d.excGood) d.exc = clone(d.excGood);
+        this.pushFeed('Editorul calendarului a fost restaurat la v' + (d.excGood ? d.excGood.v : '?'), prefix);
+      }
+    },
+    recvRing: function (prefix, txt) {
+      var e;
+      try { e = JSON.parse(txt); } catch (err) { return; }
+      var p = +e.p;
+      if (e && +e.manual === 1) {
+        this.toast('ok', this.tagFor(prefix) + 'Sunet test executat (tip ' + (p + 1) + ')');
+      }
+      this.pushFeed((+e.manual === 1 ? 'Sunet test' : 'Sunet programat') + ' — tip ' + (p + 1) + (e.t ? ' la ' + e.t : ''), prefix);
+    },
+
+    /* ---- salvare (flux versionat) ---- */
+    saveProgram: function () {
+      if (!this.canSaveProg || !this.dev) return;
+      var d = this.dev, self = this;
+      var v = this.progV + 1;
+      var c = this.canonProgram(d.prog);
+      var doc = { v: v, enabled: c.enabled, patterns: c.patterns, weekly: c.weekly };
+      d.pendProg = {
+        v: v,
+        timer: setTimeout(function () {
+          if (d.pendProg && d.pendProg.v === v) {
+            d.pendProg = null;
+            self.toast('warn', self.tagFor(d.prefix) + 'Confirmare net primită de la dispozitiv (5 s) — modificările rămân nesalvate');
+            self.pushFeed('Timeout confirmare program v' + v, d.prefix);
+          }
+        }, 5000)
+      };
+      this.publishCmd(d.prefix, 'cmd/config/bell/0', JSON.stringify(doc));
+      this.pushFeed('Program trimis (v' + v + ')', d.prefix);
+    },
+    saveExc: function () {
+      if (!this.canSaveExc || !this.dev) return;
+      var d = this.dev, self = this;
+      var v = this.excV + 1;
+      var c = this.canonExc(d.exc);
+      var doc = { v: v, exceptions: c.exceptions };
+      d.pendExc = {
+        v: v,
+        timer: setTimeout(function () {
+          if (d.pendExc && d.pendExc.v === v) {
+            d.pendExc = null;
+            self.toast('warn', self.tagFor(d.prefix) + 'Confirmare net primită de la dispozitiv (5 s) — modificările rămân nesalvate');
+            self.pushFeed('Timeout confirmare calendar v' + v, d.prefix);
+          }
+        }, 5000)
+      };
+      this.publishCmd(d.prefix, 'cmd/exc/bell/0', JSON.stringify(doc));
+      this.pushFeed('Calendar trimis (v' + v + ')', d.prefix);
+    },
+
+    /* ---- salvare pe toate dispozitivele (program comun) ---- */
+    broadcastProg: function () {
+      if (!this.canSaveProg || !this.dev) return;
+      var targets = this.onlineDevices;
+      if (!targets.length) { this.toast('err', 'Niciun dispozitiv online'); return; }
+      var v = this.maxProgV + 1;
+      var c = this.canonProgram(this.dev.prog);
+      var doc = { v: v, enabled: c.enabled, patterns: c.patterns, weekly: c.weekly };
+      var self = this;
+      var skipped = Object.keys(this.devices).length - targets.length;
+      targets.forEach(function (k) {
+        var d = self.devices[k];
+        d.pendProg = {
+          v: v,
+          timer: setTimeout(function () {
+            if (d.pendProg && d.pendProg.v === v) {
+              d.pendProg = null;
+              self.toast('warn', self.tagFor(k) + 'Confirmare net primită (5 s) — posibil nesalvat');
+              self.pushFeed('Timeout confirmare program v' + v, k);
+            }
+          }, 5000)
+        };
+        self.publishCmd(k, 'cmd/config/bell/0', JSON.stringify(doc));
+      });
+      this.pushFeed('Program comun trimis (v' + v + ') către ' + targets.length +
+                    ' dispozitiv(e)' + (skipped ? ' — ' + skipped + ' offline sărite' : ''));
+      this.toast('ok', 'Program comun v' + v + ' → ' + targets.length +
+                 ' dispozitiv(e)' + (skipped ? ' (' + skipped + ' offline sărite)' : ''));
+    },
+    broadcastExc: function () {
+      if (!this.canSaveExc || !this.dev) return;
+      var targets = this.onlineDevices;
+      if (!targets.length) { this.toast('err', 'Niciun dispozitiv online'); return; }
+      var v = this.maxExcV + 1;
+      var c = this.canonExc(this.dev.exc);
+      var doc = { v: v, exceptions: c.exceptions };
+      var self = this;
+      var skipped = Object.keys(this.devices).length - targets.length;
+      targets.forEach(function (k) {
+        var d = self.devices[k];
+        d.pendExc = {
+          v: v,
+          timer: setTimeout(function () {
+            if (d.pendExc && d.pendExc.v === v) {
+              d.pendExc = null;
+              self.toast('warn', self.tagFor(k) + 'Confirmare net primită (5 s) — posibil nesalvat');
+              self.pushFeed('Timeout confirmare calendar v' + v, k);
+            }
+          }, 5000)
+        };
+        self.publishCmd(k, 'cmd/exc/bell/0', JSON.stringify(doc));
+      });
+      this.pushFeed('Calendar comun trimis (v' + v + ') către ' + targets.length +
+                    ' dispozitiv(e)' + (skipped ? ' — ' + skipped + ' offline sărite' : ''));
+      this.toast('ok', 'Calendar comun v' + v + ' → ' + targets.length +
+                 ' dispozitiv(e)' + (skipped ? ' (' + skipped + ' offline sărite)' : ''));
+    },
+    broadcastNames: function () {
+      var d = this.dev;
+      if (!d || d.aliasDoc === null || !this.online) return;
+      var targets = this.onlineDevices;
+      if (!targets.length) { this.toast('err', 'Niciun dispozitiv online'); return; }
+      var names = (d.names || []).slice(0, d.prog ? d.prog.patterns.length : 8).map(function (n) {
+        return String(n == null ? '' : n).slice(0, 24);
+      });
+      for (var i = 0; i < names.length; i++) {
+        if (names[i].length >= 24 && String(d.names[i]).length > 24) {
+          this.toast('wrn', 'Numele tipului ' + (i + 1) + ' e prea lung (max 24)');
+          return;
+        }
+      }
+      var self = this;
+      var skipped = Object.keys(this.devices).length - targets.length;
+      targets.forEach(function (k) {
+        self.publishCmd(k, 'cmd/alias/bell/0', JSON.stringify({ patterns: names }));
+      });
+      this.pushFeed('Nume tipuri trimise către ' + targets.length +
+                    ' dispozitiv(e)' + (skipped ? ' — ' + skipped + ' offline sărite' : ''));
+      this.toast('ok', 'Nume tipuri → ' + targets.length +
+                 ' dispozitiv(e)' + (skipped ? ' (' + skipped + ' offline sărite)' : ''));
+    },
+    ring: function (i) {
+      if (!this.sel || !this.online) return;
+      this.publishCmd(this.sel, 'cmd/ring/bell/0', JSON.stringify({ p: i }));
+      this.pushFeed('Cerere sunet test, tip ' + (i + 1), this.sel);
+    },
+
+    /* ---- editor program ---- */
+    addPattern: function () {
+      if (this.prog.patterns.length >= 8) return;
+      this.prog.patterns.push({ count: 2, dur_s: 2, gap_s: 2, enabled: true });
+    },
+    delPattern: function (i) { this.prog.patterns.splice(i, 1); },
+    patTotal: function (p) {
+      var c = +p.count, d = +p.dur_s, g = +p.gap_s;
+      if (![c, d, g].every(Number.isInteger)) return null;
+      return c * d + (c - 1) * g;
+    },
+    patErrors: function (i) {
+      var p = this.prog.patterns[i], e = [];
+      var c = +p.count, d = +p.dur_s, g = +p.gap_s;
+      if (!Number.isInteger(c) || c < 1 || c > 10) e.push('bătăi: 1–10');
+      if (!Number.isInteger(d) || d < 1 || d > 30) e.push('durata: 1–30 s');
+      if (!Number.isInteger(g) || g < 0 || g > 60) e.push('pauza: 0–60 s');
+      if (Number.isInteger(c) && Number.isInteger(d) && Number.isInteger(g)) {
+        var t = c * d + (c - 1) * g;
+        if (t > 30) e.push('total ' + t + ' s > 30 s');
+      }
+      return e;
+    },
+    addEvent: function (day) {
+      if (this.prog.weekly[day].length >= 32) return;
+      var p = 0, pats = this.prog.patterns;
+      for (var i = 0; i < pats.length; i++) { if (pats[i].enabled) { p = i; break; } }
+      this.prog.weekly[day].push({ t: '08:00', p: p });
+    },
+    delEvent: function (day, i) { this.prog.weekly[day].splice(i, 1); },
+    copyDay: function (dst) {
+      var src = this.copyFrom;
+      if (!src || src === dst) return;
+      var evs = this.prog.weekly[src];
+      if (!evs.length) { this.copyFrom = null; return; }
+      if (evs.length > 32) return;
+      this.prog.weekly[dst] = evs.map(function (e) { return { t: e.t, p: e.p }; });
+      this.toast('ok', 'Orar din ' + DAY_RO[src].toLowerCase() + ' copiat în ' + DAY_RO[dst].toLowerCase() + ' — nu uita să salvezi programul');
+      this.copyFrom = null;
+    },
+    dups: function (day) {
+      var seen = {}, twice = {};
+      this.prog.weekly[day].forEach(function (e) { if (TIME_RE.test(e.t)) (seen[e.t] ? twice[e.t] = 1 : seen[e.t] = 1); });
+      return Object.keys(twice);
+    },
+    evTimeBad: function (day, e) { return !TIME_RE.test(e.t) || this.dups(day).indexOf(e.t) >= 0; },
+    evPatBad: function (e) {
+      var p = +e.p;
+      return !Number.isInteger(p) || p < 0 || p >= this.prog.patterns.length || !this.prog.patterns[p].enabled;
+    },
+    dayErrors: function (day) {
+      var self = this, errs = [];
+      var evs = this.prog.weekly[day];
+      if (evs.length > 32) errs.push(DAY_RO[day] + ': maxim 32 de intrări pe zi');
+      var seen = {};
+      evs.forEach(function (e) {
+        var t = TIME_RE.test(e.t) ? e.t : (e.t || 'gol');
+        if (!TIME_RE.test(e.t)) errs.push(DAY_RO[day] + ': oră invalidă (' + t + ')');
+        else if (seen[e.t]) errs.push(DAY_RO[day] + ' ' + e.t + ': oră duplicată');
+        seen[e.t] = 1;
+        var p = +e.p;
+        if (!Number.isInteger(p) || p < 0 || p >= self.prog.patterns.length) errs.push(DAY_RO[day] + ' ' + t + ': tip de sunet inexistent');
+        else if (!self.prog.patterns[p].enabled) errs.push(DAY_RO[day] + ' ' + t + ': tipul ' + (p + 1) + ' e oprit');
+      });
+      return errs;
+    },
+
+    /* ---- editor calendar ---- */
+    excAt: function (ymd) {
+      if (!this.exc) return null;
+      var xs = this.exc.exceptions;
+      for (var i = 0; i < xs.length; i++) {
+        if (xs[i].from <= ymd && ymd <= xs[i].to) return xs[i];
+      }
+      return null;
+    },
+    inSel: function (ymd) {
+      var a = this.calSelA;
+      var b = this.calSelB || ((this.dragging && this.calPrev && this.calPrev !== this.calSelA) ? this.calPrev : null);
+      if (!a || !b) return false;
+      var lo = a <= b ? a : b, hi = a <= b ? b : a;
+      return ymd >= lo && ymd <= hi;
+    },
+    isEnd: function (ymd) {
+      if (!this.calSelA) return false;
+      if (ymd === this.calSelA) return true;
+      if (this.calSelB) return ymd === this.calSelB;
+      return this.dragging && ymd === this.calPrev && this.calPrev !== this.calSelA;
+    },
+    cellDown: function (e, ymd) {
+      if (e.pointerType !== 'mouse' || e.button > 0) return;
+      if (this.excAt(ymd)) return;
+      var pending = this.calSelA && !this.calSelB;
+      var singleDay = this.calSelA && this.calSelA === this.calSelB;
+      if (!pending && !singleDay) { this.calSelA = ymd; this.calSelB = null; }
+      this.dragging = true;
+      this.calPrev = ymd;
+    },
+    cellEnter: function (ymd) { if (this.dragging) this.calPrev = ymd; },
+    cellClick: function (ymd) {
+      if (this.suppressClick) { this.suppressClick = false; return; }
+      var x = this.excAt(ymd);
+      if (x) {
+        var i = this.exc.exceptions.indexOf(x);
+        if (i >= 0) this.delExceptionAt(i);
+        this.calSelA = this.calSelB = null;
+        return;
+      }
+      if (!this.calSelA) { this.calSelA = ymd; this.calSelB = null; }
+      else if (!this.calSelB) this.setSel(this.calSelA, ymd);
+      else if (this.calSelA === this.calSelB && ymd !== this.calSelA) this.setSel(this.calSelA, ymd);
+      else { this.calSelA = ymd; this.calSelB = null; }
+    },
+    setSel: function (a, b) { this.calSelA = a <= b ? a : b; this.calSelB = a <= b ? b : a; },
+    addException: function () {
+      if (!this.selReady || !this.exc) return;
+      this.exc.exceptions.push({ from: this.calSelA, to: this.calSelB });
+      this.calSelA = this.calSelB = null;
+    },
+    delExceptionAt: function (i) {
+      if (!this.exc || i < 0 || i >= this.exc.exceptions.length) return;
+      this.exc.exceptions.splice(i, 1);
+    },
+    prefill: function () {
+      if (!this.exc) return;
+      var self = this, added = 0;
+      roHolidays(this.calYear).forEach(function (h) {
+        if (!self.excAt(h)) { self.exc.exceptions.push({ from: h, to: h }); added++; }
+      });
+      this.toast(added ? 'ok' : 'warn',
+        added ? 'Adăugate ' + added + ' sărbători legale ' + this.calYear + ' (verifică și salvează)'
+              : 'Toate sărbătorile legale ' + this.calYear + ' sunt deja acoperite');
+      this.pushFeed('Prefill sărbători ' + this.calYear + ': ' + added + ' adăugate', this.sel);
+    },
+    prefillVac: function () {
+      if (!this.exc || !this.vacKnown) return;
+      var self = this, added = 0;
+      VAC_SY.breaks.forEach(function (r) {
+        if (!self.excAt(r.from)) { self.exc.exceptions.push({ from: r.from, to: r.to }); added++; }
+      });
+      this.toast(added ? 'ok' : 'warn',
+        added ? 'Adăugate ' + added + ' vacanțe ' + VAC_SY.label + ' (ordin MEC) — săptămâna ISJ nu e inclusă; salvează când e gata'
+              : 'Vacanțele ' + VAC_SY.label + ' par deja acoperite');
+      this.pushFeed('Prefill vacanțe ' + VAC_SY.label + ': ' + added + ' adăugate', this.sel);
+    },
+
+    /* ---- format ---- */
+    fmtDay: function (s) {
+      var d = parseYmd(s);
+      return d ? d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' }) : s;
+    },
+    fmtRange: function (a, b) {
+      return a === b ? this.fmtDay(a) : this.fmtDay(a) + ' – ' + this.fmtDay(b);
+    },
+    fmtNext: function (ts) {
+      var d = parseYmd(ts.slice(0, 10));
+      var day = d ? d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' }) : ts.slice(0, 10);
+      return day + ', ' + ts.slice(11, 16);
+    },
+
+    /* ---- jurnal / notificari ---- */
+    pushFeed: function (txt, devPrefix) {
+      this.feed.unshift({
+        tm: new Date().toLocaleTimeString('ro-RO').slice(0, 5),
+        txt: txt,
+        dev: devPrefix || null
+      });
+      if (this.feed.length > 40) this.feed.length = 40;
+    },
+    toast: function (type, msg) {
+      var self = this, id = ++toastSeq;
+      this.toasts.push({ id: id, type: type, msg: msg });
+      setTimeout(function () { self.dismiss(id); }, type === 'ok' ? 5000 : 8000);
+    },
+    dismiss: function (id) {
+      var i = this.toasts.findIndex(function (t) { return t.id === id; });
+      if (i >= 0) this.toasts.splice(i, 1);
+    }
+  },
+
+  mounted: function () {
+    this.loadSettings();
+
+    var frag = location.hash && location.hash.charAt(0) === '#' ? location.hash.slice(1) : '';
+    var q = {};
+    frag.split('&').forEach(function (kv) {
+      var i = kv.indexOf('=');
+      if (i > 0) q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1));
+    });
+    if (q.u && q.p) {
+      if (q.h) this.form.url = q.h;
+      this.form.username = q.u;
+      this.form.password = q.p;
+      history.replaceState(null, '', location.pathname + location.search);
+      this.connect();
+    } else if (this.hasSaved && this.form.url && this.form.username && this.form.password) {
+      this.connect();
+    }
+
+    var self = this;
+    var up = function () {
+      if (!self.dragging) return;
+      self.dragging = false;
+      if (self.calPrev && self.calPrev !== self.calSelA) {
+        self.setSel(self.calSelA, self.calPrev);
+        self.suppressClick = true;
+        setTimeout(function () { self.suppressClick = false; }, 50);
+      }
+      self.calPrev = null;
+    };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', function (e) { self.dragging = false; self.calPrev = null; });
+    setInterval(function () { self.now = Date.now(); }, 30000);
+    this.pushFeed('Panou pornit');
+  }
+});
+
+app.mount('#app');
+window.__bellTest = { orthodoxEaster: orthodoxEaster, roHolidays: roHolidays };
+})();
+</script>
+</body>
+</html>
