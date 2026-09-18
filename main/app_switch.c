@@ -54,6 +54,10 @@ if (CONFIG_MQTT_SWITCHES_NB0_GPIO == GPIO_NUM_1) {
 #endif
   //set as input mode
   io_conf.mode = GPIO_MODE_INPUT;
+  /* active-low switch inputs: internal pull-up, otherwise a floating
+     pin generates interrupt storms (mains hum, wifi tx coupling) */
+  io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+  io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
   gpio_config(&io_conf);
 
   //install gpio isr service

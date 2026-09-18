@@ -14,6 +14,7 @@
 #include "app_wifi.h"
 #include "app_nvs.h"
 #include "app_smart_config.h"
+#include "app_wifi_portal.h"
 
 #include "app_main.h"
 #include "app_relay.h"
@@ -122,6 +123,10 @@ void smartconfig_cmd_task(void* pvParameters)
   ESP_LOGI(TAG, "smartconfig_cmd_task started");
   struct SmartConfigMessage scm;;
   if (smartconfigFlag) {
+#ifdef CONFIG_WIFI_PROVISIONING_PORTAL
+    ESP_LOGI(TAG, "starting provisioning portal");
+    wifi_portal_start();
+#else
     ESP_LOGI(TAG, "starting smartconfig");
     initialise_wifi();
 
@@ -150,6 +155,7 @@ void smartconfig_cmd_task(void* pvParameters)
       }
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
+#endif // CONFIG_WIFI_PROVISIONING_PORTAL
   } else {
     ESP_LOGI(TAG, "smartconfig not enabled, waiting request");
     TickType_t pushTick = 0;

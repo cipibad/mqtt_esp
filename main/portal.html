@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Configurare WiFi</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:420px;margin:24px auto;padding:0 14px;background:#f4f6f8;color:#1d2733}
+h1{font-size:20px} .card{background:#fff;border:1px solid #d9e0e6;border-radius:12px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:13px;color:#5a6b7b;margin:10px 0 4px}
+input{width:100%;box-sizing:border-box;padding:9px;border:1px solid #c6d0d9;border-radius:8px;font-size:15px}
+button{margin-top:12px;width:100%;padding:11px;border:0;border-radius:8px;background:#1867c0;color:#fff;font-size:15px;font-weight:600}
+button.ghost{background:#e6ecf2;color:#1d2733}
+.net{display:flex;justify-content:space-between;padding:9px 8px;border-bottom:1px solid #eef2f5;cursor:pointer}
+.net:hover{background:#f2f7fb} .net .r{color:#8aa}
+#st{min-height:20px;font-size:14px;margin-top:10px} .ok{color:#1c7c3c}.err{color:#c22}.dim{color:#7a8a99}
+</style>
+</head>
+<body>
+<h1>Configurare WiFi</h1>
+<div class="card">
+  <label>Rețele disponibile <button class="ghost" style="width:auto;margin:0;padding:4px 10px;float:right" onclick="scan()">Reîmprospătează</button></label>
+  <div id="nets"><span class="dim">se caută…</span></div>
+  <label>Rețea (SSID)</label>
+  <input id="ssid" maxlength="32" placeholder="numele rețelei">
+  <label>Parolă</label>
+  <input id="pass" type="password" maxlength="64" placeholder="parola rețelei">
+  <button onclick="save()">Conectează și salvează</button>
+  <div id="st" class="dim">Alege o rețea din listă sau scrie-o manual.</div>
+</div>
+<script>
+var st=document.getElementById('st'),sel='';
+function msg(t,c){st.textContent=t;st.className=c||'dim'}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+function scan(){
+  document.getElementById('nets').innerHTML='<span class="dim">se caută…</span>';
+  fetch('/scan').then(function(r){return r.json()}).then(function(l){
+    var h='';
+    l.sort(function(a,b){return b.r-a.r});
+    for(var i=0;i<l.length;i++){
+      var d=l[i].s===sel?' style="background:#e7f1fa"':'';
+      h+='<div class="net"'+d+' data-s="'+esc(l[i].s)+'" onclick="pick(this)"><span>'+esc(l[i].s)+'</span><span class="r">'+l[i].r+(l[i].a?' 🔒':'')+'</span></div>';
+    }
+    document.getElementById('nets').innerHTML=h||'<span class="dim">nicio rețea găsită</span>';
+  }).catch(function(){msg('eroare la scanare','err')});
+}
+function pick(el){sel=el.getAttribute('data-s');document.getElementById('ssid').value=sel;scan()}
+function save(){
+  var s=document.getElementById('ssid').value.trim(),p=document.getElementById('pass').value;
+  if(!s){msg('scrie numele rețelei','err');return}
+  msg('se conectează… poate dura ~15 s','dim');
+  fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid:s,pass:p})})
+    .then(function(r){return r.json()}).then(function(r){
+      if(r.state==='ok'){msg('Salvat! Dispozitivul se repornește în câteva secunde.','ok')}
+      else if(r.why==='connect'){msg('Conexiune eșuată — verifică parola și încearcă din nou.','err')}
+      else{msg('Date invalide.','err')}
+    }).catch(function(){msg('eroare de comunicare','err')});
+}
+scan();
+</script>
+</body>
+</html>

@@ -61,6 +61,28 @@ menu "WiFi Config"
     bool "Wifi mixed mode: station and AP(esp8266 only)"
     endchoice
 
+    choice WIFI_PROVISIONING_METHOD
+    bool "WiFi provisioning method"
+    default WIFI_PROVISIONING_SMARTCONFIG
+    help
+        How WiFi credentials are configured when provisioning is
+        requested (smartconfig nvs flag at boot or switch/button
+        long press). Both methods save the same nvs keys and reboot.
+    config WIFI_PROVISIONING_SMARTCONFIG
+    bool "SmartConfig (ESP-Touch phone app)"
+    config WIFI_PROVISIONING_PORTAL
+    bool "Access point + web configuration page"
+
+    config WIFI_PORTAL_PASSWORD
+    string "Password of the provisioning access point"
+    default "wifi-setup"
+    depends on WIFI_PROVISIONING_PORTAL
+    help
+        Fixed password of the <client_id>-setup-<mac suffix> access
+        point. Same value on every board unless overridden here; the
+        portal only runs for 5 minutes after a physical long press.
+    endchoice
+
     config WIFI_SSID
         depends on WIFI_MODE_STATION || WIFI_MODE_MIXED
         string "WiFi SSID"
