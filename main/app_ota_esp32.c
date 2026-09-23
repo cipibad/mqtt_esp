@@ -1,5 +1,5 @@
 #include "esp_system.h"
-#ifdef CONFIG_TARGET_DEVICE_ESP32
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C3)
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
@@ -179,4 +179,4 @@ void handle_ota_update_task(void* pvParameters)
   }
 }
 
-#endif //CONFIG_TARGET_DEVICE_ESP32
+#endif // defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C3)

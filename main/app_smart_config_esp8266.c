@@ -1,4 +1,4 @@
-#include "esp_system.h"
+smartconfigFlag#include "esp_system.h"
 #ifdef CONFIG_TARGET_DEVICE_ESP8266
 
 #include <string.h>
@@ -23,7 +23,7 @@
 static const char *TAG = "MQTTS_SMARTCONFIG";
 
 const char * smartconfigTAG="smartconfigFlag";
-int smartconfigFlag = 0;
+short smartconfigFlag = 0;
 
 const char * wifi_ssid_tag;
 const char * wifi_pass_tag;
@@ -215,7 +215,7 @@ void smartconfig_cmd_task(void* pvParameters)
             } else if ((scm.ticks - pushTick ) >= three_seconds &&
                        (scm.ticks - pushTick ) < seven_seconds) {
               ESP_LOGI(TAG, "received smartconfig request:");
-              ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
+              ESP_ERROR_CHECK(write_nvs_short(smartconfigTAG, ! smartconfigFlag));
               ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
               vTaskDelay(2   / portTICK_PERIOD_MS);
               esp_restart();

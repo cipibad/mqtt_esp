@@ -1,5 +1,6 @@
 #include "esp_system.h"
-#ifdef CONFIG_TARGET_DEVICE_ESP32
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C3)
+
 #include <string.h>
 
 #include "esp_log.h"
@@ -22,13 +23,13 @@
 static const char *TAG = "MQTTS_SMARTCONFIG";
 
 const char * smartconfigTAG="smartconfigFlag";
-int smartconfigFlag = 0;
+short smartconfigFlag = 0;
 
-const char * wifi_ssid_tag;
-const char * wifi_pass_tag;
+static const char * wifi_ssid_tag;
+static const char * wifi_pass_tag;
 
-char wifi_ssid[MAX_WIFI_SSID_LEN];
-char wifi_pass[MAX_WIFI_PASS_LEN];
+static char wifi_ssid[MAX_SSID_LEN];
+static char wifi_pass[64];
 
 
 /* The event group allows multiple bits for each event,
@@ -73,8 +74,8 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
     smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
 
-    memset(wifi_ssid, 0, MAX_WIFI_SSID_LEN);
-    memset(wifi_pass, 0, MAX_WIFI_PASS_LEN);
+    memset(wifi_ssid, 0, MAX_SSID_LEN);
+    memset(wifi_pass, 0, 64);
 
     memcpy(wifi_ssid, evt->ssid, sizeof(evt->ssid));
     memcpy(wifi_pass, evt->password, sizeof(evt->password));
@@ -92,7 +93,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
 
     ESP_ERROR_CHECK( esp_wifi_disconnect() );
-    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+    ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK( esp_wifi_connect() );
   } else if (event_base == SC_EVENT && event_id == SC_EVENT_SEND_ACK_DONE) {
     xEventGroupSetBits(s_wifi_event_group, ESPTOUCH_DONE_BIT);
@@ -187,7 +188,7 @@ void smartconfig_cmd_task(void* pvParameters)
             }
             else {
               ESP_LOGI(TAG, "received smartconfig request:");
-              ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
+              ESP_ERROR_CHECK(write_nvs_short(smartconfigTAG, ! smartconfigFlag));
               ESP_LOGI(TAG, "Prepare to restart system in 10 seconds!");
               vTaskDelay(10000 / portTICK_PERIOD_MS);
               esp_restart();
@@ -199,4 +200,5 @@ void smartconfig_cmd_task(void* pvParameters)
     }
   }
 }
-#endif //CONFIG_TARGET_DEVICE_ESP32
+#endif // defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C3)
+

@@ -21,7 +21,7 @@ void publish_ops_heap_data()
   char data[64];
   memset(data,0,64);
 
-  sprintf(data, "{\"free_heap\":%d, \"min_free_heap\":%d}",
+  sprintf(data, "{\"free_heap\":%ld, \"min_free_heap\":%ld}",
           esp_get_free_heap_size(),
           esp_get_minimum_free_heap_size()
           );
@@ -70,7 +70,7 @@ void publish_ops_stack_data()
     format the raw data as human readable ASCII data. */
     for( x = 0; x < uxArraySize; x++ )
     {
-      sprintf( task_data, "\"%s\":%u,",
+      sprintf( task_data, "\"%s\":%lu,",
                 pxTaskStatusArray[ x ].pcTaskName,
                 pxTaskStatusArray[ x ].usStackHighWaterMark );
       if (strlen(task_data) < remaining_data) {

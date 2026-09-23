@@ -19,7 +19,7 @@ static void gpio_isr_handler(void *arg)
 {
   struct SmartConfigMessage scm;
   scm.ticks = xTaskGetTickCountFromISR();
-  scm.relayId = (unsigned char) arg;
+  scm.relayId = (unsigned char)(uintptr_t) arg;
   xQueueSendFromISR(smartconfigQueue
                     ,( void * )&scm
                     ,NULL);

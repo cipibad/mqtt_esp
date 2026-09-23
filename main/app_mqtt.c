@@ -746,8 +746,8 @@ void mqtt_publish_data(const char * topic,
 
 void publish_config_msg()
 {
-  char data[64];
-  memset(data,0,64);
+  char data[80];
+  memset(data,0,80);
 
   sprintf(data, "{\"fw_version\":\"" FW_VERSION "\", \"connect_reason\":%d}", connect_reason);
   mqtt_publish_data(config_topic, data, QOS_1, RETAIN);
@@ -759,9 +759,10 @@ void publish_available_msg()
   mqtt_publish_data(available_topic, data, QOS_1, RETAIN);
 }
 
-static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
-  switch (event->event_id) {
+  esp_mqtt_event_handle_t event = event_data;
+  switch ((esp_mqtt_event_id_t)event_id) {
   case MQTT_EVENT_CONNECTED:
     xEventGroupSetBits(mqtt_event_group, MQTT_CONNECTED_BIT);
     void * unused;
@@ -811,13 +812,10 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   case MQTT_EVENT_BEFORE_CONNECT:
     ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
     break;
-#ifdef CONFIG_TARGET_DEVICE_ESP32
-  case MQTT_EVENT_ANY:
-    ESP_LOGI(TAG, "MQTT_EVENT_ANY");
+  default:
+    ESP_LOGW("MQTT", "Unhandled event ID: %d", event->event_id);
     break;
-#endif //CONFIG_TARGET_DEVICE_ESP32
   }
-  return ESP_OK;
 }
 
 #ifndef CONFIG_DEEP_SLEEP_MODE
@@ -854,25 +852,38 @@ void mqtt_init_and_start()
   const esp_mqtt_client_config_t mqtt_cfg = {
     /* credentials go as explicit fields: the uri parser rejects
        passwords containing uri-special chars (e.g. '>' or '^') */
-    .uri = "mqtts://" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
-    .username = CONFIG_MQTT_USERNAME,
-    .password = CONFIG_MQTT_PASSWORD,
-    .event_handle = mqtt_event_handler,
-    .cert_pem = (const char *)cert_bundle_pem_start,
-    .client_id = CONFIG_CLIENT_ID,
+    .broker = {
+        .address = {
+            .uri = "mqtts://" CONFIG_MQTT_SERVER ":" CONFIG_MQTT_PORT,
+        },
+        .verification = {
+            .certificate = (const char *)cert_bundle_pem_start,
+        },
+    },
+    .credentials = {
+        .username = CONFIG_MQTT_USERNAME,
+        .authentication = {
+            .password = CONFIG_MQTT_PASSWORD,
+        },
+        .client_id = CONFIG_CLIENT_ID,
+    },
+    .session = {
+        .keepalive = MQTT_TIMEOUT,
 #ifndef CONFIG_DEEP_SLEEP_MODE
-    .lwt_topic = available_topic,
-    .lwt_msg = lwtmsg,
-    .lwt_qos = 1,
-    .lwt_retain = 1,
-    .lwt_msg_len = strlen(lwtmsg),
+        .last_will = {
+            .topic = available_topic,
+            .msg = lwtmsg,
+            .msg_len = strlen(lwtmsg),
+            .qos = 1,
+            .retain = 1,
+        },
 #endif // CONFIG_DEEP_SLEEP_MODE
-
-    .keepalive = MQTT_TIMEOUT
+    },
   };
 
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   client = esp_mqtt_client_init(&mqtt_cfg);
+  esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, NULL);
   esp_mqtt_client_start(client);
   xEventGroupWaitBits(mqtt_event_group, MQTT_CONNECTED_BIT, false, true, portMAX_DELAY);
 }

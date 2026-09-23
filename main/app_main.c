@@ -1,5 +1,6 @@
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "nvs_flash.h"
 
 #include "freertos/FreeRTOS.h"
@@ -111,7 +112,7 @@ extern EventGroupHandle_t wifi_event_group;
 extern const int WIFI_CONNECTED_BIT;
 
 extern const char * smartconfigTAG;
-extern int smartconfigFlag;
+extern short smartconfigFlag;
 
 static const char *TAG = "MQTT(S?)_MAIN";
 
@@ -127,7 +128,7 @@ void restart_in_3_minutes_task(void *pvParameter)
 #ifdef CONFIG_STATUS_LED
 void blink_task(void *pvParameter)
 {
-  gpio_pad_select_gpio(CONFIG_STATUS_LED_GPIO);
+  gpio_reset_pin(CONFIG_STATUS_LED_GPIO);
   gpio_set_direction(CONFIG_STATUS_LED_GPIO, GPIO_MODE_OUTPUT);
 
   int interval;
@@ -259,14 +260,14 @@ void app_main(void)
 
 
   smartconfigQueue = xQueueCreate(3, sizeof(struct SmartConfigMessage) );
-  err=read_nvs_integer(smartconfigTAG, &smartconfigFlag);
+  err=read_nvs_short(smartconfigTAG, &smartconfigFlag);
   ESP_ERROR_CHECK( err );
 
   xTaskCreate(smartconfig_cmd_task, "smartconfig_cmd_task", 4096, (void *)NULL, 5, NULL);
 
   if (smartconfigFlag) {
     xTaskCreate(restart_in_3_minutes_task, "reboot_in_5_minutes_task", configMINIMAL_STACK_SIZE * 3, NULL, 3, NULL);
-    ESP_ERROR_CHECK(write_nvs_integer(smartconfigTAG, ! smartconfigFlag));
+    ESP_ERROR_CHECK(write_nvs_short(smartconfigTAG, ! smartconfigFlag));
   } else {
 
 #ifdef CONFIG_SENSOR_SUPPORT

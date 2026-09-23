@@ -24,7 +24,7 @@
 
 
 int relayStatus[CONFIG_MQTT_RELAYS_NB];
-int relaySleepTimeout[CONFIG_MQTT_RELAYS_NB];
+int32_t relaySleepTimeout[CONFIG_MQTT_RELAYS_NB];
 TimerHandle_t relaySleepTimer[CONFIG_MQTT_RELAYS_NB];
 
 const char * relaySleepTag[CONFIG_MQTT_RELAYS_NB] = {
@@ -83,7 +83,7 @@ inline bool is_relay_gpio_type(int id)
   }
 }
 
-inline int get_relay_gpio(const char * tag, int id)
+static inline int get_relay_gpio(const char * tag, int id)
 {
   switch(id) {
   #ifdef CONFIG_MQTT_RELAY_0_GPIO
@@ -216,7 +216,7 @@ void relays_init()
     relayStatus[i] = GPIO_LOW;
 #endif
     if (is_relay_gpio_type(i)) {
-      gpio_pad_select_gpio(get_relay_gpio(TAG, i));
+      gpio_reset_pin(get_relay_gpio(TAG, i));
       gpio_set_direction(get_relay_gpio(TAG, i), GPIO_MODE_OUTPUT);
       gpio_set_level(get_relay_gpio(TAG, i), relayStatus[i]);
     }
@@ -266,7 +266,7 @@ void publish_relay_timeout(int id)
   const char * relays_topic = CONFIG_DEVICE_TYPE"/"CONFIG_CLIENT_ID"/evt/sleep/relay";
   char data[16];
   memset(data,0,16);
-  sprintf(data, "%d", relaySleepTimeout[id]);
+  sprintf(data, "%ld", relaySleepTimeout[id]);
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);

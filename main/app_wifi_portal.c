@@ -91,7 +91,7 @@ static httpd_uri_t portal_scan = {.uri = "/scan", .method = HTTP_GET, .handler =
 static bool portal_sta_has_ip(void)
 {
   esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-  tcpip_adapter_ip_info_t info;
+  esp_netif_ip_info_t info;
   memset(&info, 0, sizeof(info));
   if (!sta) return false;
   if (esp_netif_get_ip_info(sta, &info) != ESP_OK) return false;
@@ -134,7 +134,7 @@ static esp_err_t portal_save_post(httpd_req_t *req)
   memset(&wc, 0, sizeof(wc));
   strcpy((char *)wc.sta.ssid, ssid);
   strcpy((char *)wc.sta.password, pass);
-  ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wc));
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
   esp_wifi_disconnect();
   esp_wifi_connect();
 
@@ -184,7 +184,7 @@ void wifi_portal_start(void)
   ESP_ERROR_CHECK(esp_wifi_init(&wic));
 
   uint8_t mac[6];
-  ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_STA, mac));
+  ESP_ERROR_CHECK(esp_wifi_get_mac(WIFI_IF_STA, mac));
   /* ssid carries the mac suffix so multiple boards are distinguishable
      in the phone's wifi list; the password is a fixed kconfig value */
   char ap_pass[65];
@@ -202,7 +202,7 @@ void wifi_portal_start(void)
   ap.ap.max_connection = 2;
   ap.ap.channel = 1;
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-  ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &ap));
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
   ESP_ERROR_CHECK(esp_wifi_start());
 
   httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
