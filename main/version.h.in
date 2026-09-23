@@ -1,0 +1,2 @@
+#define FW_VERSION "@GIT_FW_VERSION@"
+

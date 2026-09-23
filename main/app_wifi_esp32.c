@@ -1,5 +1,6 @@
 #include "esp_system.h"
-#ifdef CONFIG_TARGET_DEVICE_ESP32
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C3)
+
 #include <string.h>
 
 #include "esp_log.h"
@@ -17,11 +18,11 @@ const int WIFI_CONNECTED_BIT = BIT0;
 
 static const char *TAG = "MQTTS_WIFI";
 
-const char * wifi_ssid_tag = "wifi_ssid";
-const char * wifi_pass_tag = "wifi_pass";
+static const char * wifi_ssid_tag = "wifi_ssid";
+static const char * wifi_pass_tag = "wifi_pass";
 
-char wifi_ssid[MAX_WIFI_SSID_LEN];
-char wifi_pass[MAX_WIFI_PASS_LEN];
+static char wifi_ssid[MAX_SSID_LEN];
+static char wifi_pass[64];
 
 
 
@@ -45,8 +46,8 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 void wifi_init(void)
 {
 
-  memset(wifi_ssid, 0, MAX_WIFI_SSID_LEN);
-  memset(wifi_pass, 0, MAX_WIFI_PASS_LEN);
+  memset(wifi_ssid, 0, MAX_SSID_LEN);
+  memset(wifi_pass, 0, 64);
 
   size_t length = sizeof(wifi_ssid);
   esp_err_t err=read_nvs_str(wifi_ssid_tag, wifi_ssid, &length);
@@ -91,7 +92,7 @@ void wifi_init(void)
   }
 
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-  ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
   ESP_LOGI(TAG, "start the WIFI SSID:[%s]", wifi_config.sta.ssid);
   ESP_LOGI(TAG, "connecting with pass:[%s]", wifi_config.sta.password);
   ESP_ERROR_CHECK(esp_wifi_start());
@@ -100,4 +101,5 @@ void wifi_init(void)
   xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT, false, true, portMAX_DELAY);
 
 }
-#endif //CONFIG_TARGET_DEVICE_ESP32
+#endif // defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C3)
+
