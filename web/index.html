@@ -106,24 +106,28 @@ input.bad,select.bad{border-color:var(--err);background:#fff6f5}
 .stat .lbl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
 .stat .val{display:block;font-size:14px;font-weight:600;margin-top:2px;overflow-wrap:anywhere}
 /* tipuri de sunet */
-.pat{border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin:0 0 8px}
+.pat{border:1px solid var(--line);border-radius:9px;padding:6px 8px;margin:0 0 6px}
 .pat.bad{border-color:var(--err);background:#fffafa}
 .pat-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pat-top strong{font-size:14px}
 .tot{font-size:12.5px;font-weight:700;color:var(--mut)}
 .tot.bad{color:var(--err)}
-.pat-f{display:flex;gap:8px;margin-top:7px;flex-wrap:wrap}
-.pat-f label{flex:1;min-width:88px;font-size:11px;color:var(--mut)}
-.pat-f label.chk{flex:0 0 auto;display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink);padding-top:16px}
+.pat-f{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.pat-f label{flex:1 1 72px;min-width:0;font-size:11px;color:var(--mut)}
+/* doar câmpul „Nume" (label.grow) absoarbe spațiul liber; numericele rămân compacte */
+.pat-f label:not(.grow):not(.chk){flex:0 1 4.8rem;min-width:4.2rem}
+.pat-f input:not([type=checkbox]){height:34px}
+.pat-f label.chk{flex:0 0 auto;display:flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink);padding-top:13px}
 .pat-f input[type=number]{margin-top:2px}
 .cnt{font-size:11px;color:var(--mut);font-weight:600}
 .switch-row{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin:2px 0 2px}
 .switch-row input{width:18px;height:18px;accent-color:var(--acc)}
 /* orar saptamanal */
-.day{border:1px solid var(--line);border-radius:9px;padding:7px 9px;margin:0 0 8px}
+.day{border:1px solid var(--line);border-radius:9px;padding:6px 8px;margin:0 0 6px}
 .day-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .day-h strong{font-size:13.5px}
-.ev{display:grid;grid-template-columns:6.6rem 1fr 2.2rem;gap:6px;align-items:center;margin-top:6px}
+.ev{display:grid;grid-template-columns:7.6rem 1fr 2.2rem;gap:6px;align-items:center;margin-top:5px}
+.ev input[type=time]{padding:0 6px}
 /* calendar */
 .ynav{display:flex;align-items:center;gap:8px}
 .ynav strong{font-size:15px;min-width:48px;text-align:center}
@@ -151,6 +155,8 @@ input.bad,select.bad{border-color:var(--err);background:#fff6f5}
 .xrow{display:flex;align-items:center;gap:8px;border-bottom:1px solid #e9edf1;padding:6px 2px;font-size:13.5px}
 .saverow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
 .saverow .hint{flex:1;min-width:160px;margin:0}
+.docbytes{font-variant-numeric:tabular-nums;color:var(--mut);white-space:nowrap}
+.docbytes.over{color:#e5484d;font-weight:600}
 /* jurnal */
 .feed{list-style:none;margin:4px 0 0;padding:0;max-height:220px;overflow-y:auto;font-size:12.5px;color:var(--mut)}
 .feed li{padding:3px 0;border-bottom:1px solid #eef1f4}
@@ -351,6 +357,7 @@ input.bad,select.bad{border-color:var(--err);background:#fff6f5}
         </p>
         <div class="saverow">
           <span class="hint">Salvarea nu declanșează niciun sunet — clopoțelul sună doar la butoanele „Test”.</span>
+          <span class="docbytes" :class="{ over: progDocBytes > BELL_MAX_PAYLOAD }">document {{ progDocBytes }}/{{ BELL_MAX_PAYLOAD }} B</span>
           <button class="btn" :disabled="!canSaveProg" @click="saveProgram">
             {{ pendProg ? 'Se salvează…' : 'Doar acest dispozitiv (v' + nextProgV + ')' }}
           </button>
@@ -419,6 +426,7 @@ input.bad,select.bad{border-color:var(--err);background:#fff6f5}
         </div>
         <div class="saverow">
           <span class="hint">Salvarea nu declanșează niciun sunet.</span>
+          <span class="docbytes" :class="{ over: excDocBytes > BELL_MAX_PAYLOAD }">document {{ excDocBytes }}/{{ BELL_MAX_PAYLOAD }} B</span>
           <button class="btn" :disabled="!canSaveExc" @click="saveExc">
             {{ pendExc ? 'Se salvează…' : 'Doar acest dispozitiv (xv' + nextExcV + ')' }}
           </button>
@@ -486,7 +494,7 @@ var VAC_SY = {
 var WD = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
 var REASONS = {
   json: 'JSON invalid',
-  caps: 'limită numerică depășită',
+  caps: 'limită depășită (document > 1024 B, >32 ore/zi sau >8 tipuri)',
   time: 'oră invalidă',
   dup_time: 'oră duplicată în aceeași zi',
   pattern_ref: 'sunetul programat indică un tip inexistent sau dezactivat',
@@ -508,6 +516,13 @@ function parseYmd(s) {
   return (d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3]) ? d : null;
 }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function hhmmToMin(t) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(String(t));
+  return m ? ((+m[1]) * 60 + (+m[2])) : 0;
+}
+function minToHHMM(m) { return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
+/* limita hard a documentului pe fir — ține sincron cu BELL_MAX_PAYLOAD din main/app_bell_engine.h */
+var BELL_MAX_PAYLOAD = 1024;
 function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
 /* Pasti ortodox: algoritm Meeus pe calendarul iulian, apoi corecție +13 zile (gregorian). */
 function orthodoxEaster(y) {
@@ -556,7 +571,7 @@ var app = Vue.createApp({
       todayYmd: dToYmd(new Date()),
       calSelA: null, calSelB: null, calPrev: null,
       dragging: false, suppressClick: false,
-      DAYS: DAYS, DAY_RO: DAY_RO, WD: WD
+      DAYS: DAYS, DAY_RO: DAY_RO, WD: WD, BELL_MAX_PAYLOAD: BELL_MAX_PAYLOAD
     };
   },
 
@@ -640,6 +655,8 @@ var app = Vue.createApp({
       if (!this.prog) return [];
       var errs = [];
       if (this.prog.patterns.length > 8) errs.push('maxim 8 tipuri de sunet');
+      if (this.progDocBytes > BELL_MAX_PAYLOAD)
+        errs.push('documentul depășește limita dispozitivului (' + this.progDocBytes + '/' + BELL_MAX_PAYLOAD + ' bytes) — șterge ore din orar');
       var self = this;
       this.prog.patterns.forEach(function (_, i) {
         self.patErrors(i).forEach(function (m) { errs.push('tip ' + (i + 1) + ': ' + m); });
@@ -648,6 +665,11 @@ var app = Vue.createApp({
       return Array.from(new Set(errs));
     },
     progValid: function () { return this.progErrors.length === 0; },
+    progDocBytes: function () {
+      if (!this.prog) return 0;
+      var v = this.progV === null ? 1 : this.progV + 1;
+      return JSON.stringify(this.wireProgram(v, this.canonProgram(this.prog))).length;
+    },
     canSaveProg: function () {
       return this.online && !!this.prog && this.progValid && this.progV !== null && !this.pendProg;
     },
@@ -657,6 +679,8 @@ var app = Vue.createApp({
       var errs = [];
       var xs = this.exc.exceptions;
       if (xs.length > 32) errs.push('maxim 32 de excepții');
+      if (this.excDocBytes > BELL_MAX_PAYLOAD)
+        errs.push('documentul depășește limita dispozitivului (' + this.excDocBytes + '/' + BELL_MAX_PAYLOAD + ' bytes)');
       xs.forEach(function (x, i) {
         if (!parseYmd(x.from) || !parseYmd(x.to)) errs.push('excepția ' + (i + 1) + ': dată inexistentă în calendar');
         else if (x.from > x.to) errs.push('excepția ' + (i + 1) + ': începutul după sfârșit');
@@ -664,6 +688,11 @@ var app = Vue.createApp({
       return errs;
     },
     excValid: function () { return this.excErrors.length === 0; },
+    excDocBytes: function () {
+      if (!this.exc) return 0;
+      var v = this.excV === null ? 1 : this.excV + 1;
+      return JSON.stringify(this.wireExc(v, this.canonExc(this.exc))).length;
+    },
     canSaveExc: function () {
       return this.online && !!this.exc && this.excValid && this.excV !== null && !this.pendExc;
     },
@@ -1041,26 +1070,52 @@ var app = Vue.createApp({
         }).sort(function (a, b) { return a.from < b.from ? -1 : (a.from > b.from ? 1 : 0); })
       };
     },
+    /* format compact pe fir (identic cu serializorul din firmware):
+     * program: {"v":n,"e":0|1,"p":[[count,dur_s,gap_s,enabled]...],"w":{"mon":[[min,pattern]...]}}
+     * calendar: {"v":n,"x":[["from","to"]...]} */
+    wireProgram: function (v, canon) {
+      return {
+        v: v,
+        e: canon.enabled ? 1 : 0,
+        p: canon.patterns.map(function (pp) {
+          return [Math.round(+pp.count || 0), Math.round(+pp.dur_s || 0),
+                  Math.round(+pp.gap_s || 0), pp.enabled ? 1 : 0];
+        }),
+        w: (function () {
+          var w = {};
+          DAYS.forEach(function (d) {
+            w[d] = canon.weekly[d].map(function (e) {
+              return [hhmmToMin(e.t), Math.round(+e.p || 0)];
+            });
+          });
+          return w;
+        })()
+      };
+    },
+    wireExc: function (v, canon) {
+      return { v: v, x: canon.exceptions.map(function (x) { return [x.from, x.to]; }) };
+    },
     recvProgram: function (d, txt) {
       var doc;
       try { doc = JSON.parse(txt); } catch (e) { this.pushFeed('program primit cu JSON invalid', d.prefix); return; }
-      if (!doc || typeof doc.v !== 'number' || !Array.isArray(doc.patterns) || !doc.weekly) {
+      if (!doc || typeof doc.v !== 'number' || typeof doc.e !== 'number' ||
+          !Array.isArray(doc.p) || !doc.w) {
         this.pushFeed('program primit în formă necunoscută', d.prefix); return;
       }
-      while ((d.names || []).length < doc.patterns.length) d.names.push('');
-      d.names.length = doc.patterns.length;
+      while ((d.names || []).length < doc.p.length) d.names.push('');
+      d.names.length = doc.p.length;
       var wasDirty = !!(d.prog && d.progGood &&
         JSON.stringify(this.canonProgram(d.prog)) !== JSON.stringify(this.canonProgram(d.progGood)));
       var pend = d.pendProg;
       d.progGood = {
-        v: doc.v, enabled: !!doc.enabled,
-        patterns: doc.patterns.map(function (p) {
-          return { count: +p.count, dur_s: +p.dur_s, gap_s: +p.gap_s, enabled: !!p.enabled };
+        v: doc.v, enabled: !!doc.e,
+        patterns: doc.p.map(function (p) {
+          return { count: +p[0], dur_s: +p[1], gap_s: +p[2], enabled: !!p[3] };
         }),
         weekly: (function () {
           var w = {};
           DAYS.forEach(function (dd) {
-            w[dd] = (doc.weekly[dd] || []).map(function (e) { return { t: String(e.t), p: +e.p }; });
+            w[dd] = (doc.w[dd] || []).map(function (e) { return { t: minToHHMM(+e[0]), p: +e[1] }; });
           });
           return w;
         })()
@@ -1081,7 +1136,7 @@ var app = Vue.createApp({
     recvExc: function (d, txt) {
       var doc;
       try { doc = JSON.parse(txt); } catch (e) { this.pushFeed('calendar primit cu JSON invalid', d.prefix); return; }
-      if (!doc || typeof doc.v !== 'number' || !Array.isArray(doc.exceptions)) {
+      if (!doc || typeof doc.v !== 'number' || !Array.isArray(doc.x)) {
         this.pushFeed('calendar primit în formă necunoscută', d.prefix); return;
       }
       var wasDirty = !!(d.exc && d.excGood &&
@@ -1089,9 +1144,9 @@ var app = Vue.createApp({
       var pend = d.pendExc;
       d.excGood = {
         v: doc.v,
-        exceptions: doc.exceptions
-          .filter(function (x) { return x && typeof x.from === 'string' && typeof x.to === 'string'; })
-          .map(function (x) { return { from: x.from, to: x.to }; })
+        exceptions: doc.x
+          .filter(function (x) { return x && typeof x[0] === 'string' && typeof x[1] === 'string'; })
+          .map(function (x) { return { from: x[0], to: x[1] }; })
       };
       if (pend && doc.v >= pend.v) {
         clearTimeout(pend.timer);
@@ -1163,7 +1218,7 @@ var app = Vue.createApp({
       var d = this.dev, self = this;
       var v = this.progV + 1;
       var c = this.canonProgram(d.prog);
-      var doc = { v: v, enabled: c.enabled, patterns: c.patterns, weekly: c.weekly };
+      var doc = this.wireProgram(v, c);
       d.pendProg = {
         v: v,
         timer: setTimeout(function () {
@@ -1182,7 +1237,7 @@ var app = Vue.createApp({
       var d = this.dev, self = this;
       var v = this.excV + 1;
       var c = this.canonExc(d.exc);
-      var doc = { v: v, exceptions: c.exceptions };
+      var doc = this.wireExc(v, c);
       d.pendExc = {
         v: v,
         timer: setTimeout(function () {
@@ -1204,7 +1259,7 @@ var app = Vue.createApp({
       if (!targets.length) { this.toast('err', 'Niciun dispozitiv online'); return; }
       var v = this.maxProgV + 1;
       var c = this.canonProgram(this.dev.prog);
-      var doc = { v: v, enabled: c.enabled, patterns: c.patterns, weekly: c.weekly };
+      var doc = this.wireProgram(v, c);
       var self = this;
       var skipped = Object.keys(this.devices).length - targets.length;
       targets.forEach(function (k) {
@@ -1232,7 +1287,7 @@ var app = Vue.createApp({
       if (!targets.length) { this.toast('err', 'Niciun dispozitiv online'); return; }
       var v = this.maxExcV + 1;
       var c = this.canonExc(this.dev.exc);
-      var doc = { v: v, exceptions: c.exceptions };
+      var doc = this.wireExc(v, c);
       var self = this;
       var skipped = Object.keys(this.devices).length - targets.length;
       targets.forEach(function (k) {
