@@ -654,22 +654,21 @@ size_t bell_program_to_json(const struct BellProgram *p, char *buf, size_t buf_l
 {
   size_t pos = 0;
 
-  pos = json_append(buf, buf_len, pos, "{\"v\":%d,\"enabled\":%s,\"patterns\":[",
-                    (int)p->v, p->enabled ? "true" : "false");
+  pos = json_append(buf, buf_len, pos, "{\"v\":%d,\"e\":%d,\"p\":[",
+                    (int)p->v, p->enabled ? 1 : 0);
   if (!pos)
     return 0;
 
   for (int i = 0; i < p->pattern_count; i++) {
     const struct BellPattern *pat = &p->patterns[i];
-    pos = json_append(buf, buf_len, pos,
-                      "%s{\"count\":%d,\"dur_s\":%d,\"gap_s\":%d,\"enabled\":%s}",
+    pos = json_append(buf, buf_len, pos, "%s[%d,%d,%d,%d]",
                       i ? "," : "", (int)pat->count, (int)pat->dur_s,
-                      (int)pat->gap_s, pat->enabled ? "true" : "false");
+                      (int)pat->gap_s, pat->enabled ? 1 : 0);
     if (!pos)
       return 0;
   }
 
-  pos = json_append(buf, buf_len, pos, "],\"weekly\":{");
+  pos = json_append(buf, buf_len, pos, "],\"w\":{");
   if (!pos)
     return 0;
 
@@ -679,9 +678,8 @@ size_t bell_program_to_json(const struct BellProgram *p, char *buf, size_t buf_l
       return 0;
     for (int i = 0; i < p->event_count[d]; i++) {
       const struct BellEvent *ev = &p->weekly[d][i];
-      pos = json_append(buf, buf_len, pos, "%s{\"t\":\"%02d:%02d\",\"p\":%d}",
-                        i ? "," : "", (int)ev->min_of_day / 60,
-                        (int)ev->min_of_day % 60, (int)ev->pattern);
+      pos = json_append(buf, buf_len, pos, "%s[%d,%d]",
+                        i ? "," : "", (int)ev->min_of_day, (int)ev->pattern);
       if (!pos)
         return 0;
     }
@@ -695,19 +693,19 @@ size_t bell_program_to_json(const struct BellProgram *p, char *buf, size_t buf_l
     return 0;
   return pos;
 }
-
 size_t bell_calendar_to_json(const struct BellCalendar *c, char *buf, size_t buf_len)
 {
-  size_t pos = json_append(buf, buf_len, 0, "{\"v\":%d,\"exceptions\":[", (int)c->v);
+  size_t pos = json_append(buf, buf_len, 0, "{\"v\":%d,\"x\":[", (int)c->v);
   if (!pos)
     return 0;
 
   for (int i = 0; i < c->exception_count; i++) {
     const struct BellException *e = &c->exceptions[i];
     pos = json_append(buf, buf_len, pos,
-                      "%s{\"from\":\"%04d-%02d-%02d\",\"to\":\"%04d-%02d-%02d\"}",
+                      "%s[\"%04d-%02d-%02d\",\"%04d-%02d-%02d\"]",
                       i ? "," : "", (int)e->from.year, (int)e->from.month,
-                      (int)e->from.day, (int)e->to.year, (int)e->to.month, (int)e->to.day);
+                      (int)e->from.day, (int)e->to.year, (int)e->to.month,
+                      (int)e->to.day);
     if (!pos)
       return 0;
   }
