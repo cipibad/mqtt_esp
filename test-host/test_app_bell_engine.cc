@@ -289,10 +289,8 @@ TEST_CASE("bell_json_serializers_canonical", "[bell]")
   size_t n = bell_program_to_json(&pb.prog, buf, sizeof(buf));
   REQUIRE(n > 0);
   REQUIRE(strcmp(buf,
-                 "{\"v\":3,\"enabled\":true,\"patterns\":["
-                 "{\"count\":1,\"dur_s\":3,\"gap_s\":2,\"enabled\":true},"
-                 "{\"count\":2,\"dur_s\":5,\"gap_s\":1,\"enabled\":false}],"
-                 "\"weekly\":{\"mon\":[{\"t\":\"08:00\",\"p\":0},{\"t\":\"14:30\",\"p\":0}],"
+                 "{\"v\":3,\"e\":1,\"p\":[[1,3,2,1],[2,5,1,0]],"
+                 "\"w\":{\"mon\":[[480,0],[870,0]],"
                  "\"tue\":[],\"wed\":[],\"thu\":[],\"fri\":[],\"sat\":[],\"sun\":[]}}") == 0);
 
   struct BellCalendarBuilder cb;
@@ -302,8 +300,7 @@ TEST_CASE("bell_json_serializers_canonical", "[bell]")
   n = bell_calendar_to_json(&cb.cal, buf, sizeof(buf));
   REQUIRE(n > 0);
   REQUIRE(strcmp(buf,
-                 "{\"v\":5,\"exceptions\":["
-                 "{\"from\":\"2026-12-21\",\"to\":\"2027-01-07\"}]}") == 0);
+                 "{\"v\":5,\"x\":[[\"2026-12-21\",\"2027-01-07\"]]}") == 0);
 
   n = bell_calendar_to_json(&cb.cal, buf, sizeof(buf));
   REQUIRE(n == strlen(buf));

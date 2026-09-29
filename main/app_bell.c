@@ -31,7 +31,7 @@ static const char *TAG = "MQTTS_BELL";
 #define BELL_TASK_PRIORITY 5
 #define BELL_QUEUE_LEN 4
 #define BELL_RING_COOLDOWN_S 10
-#define BELL_SCRATCH_LEN 2048
+#define BELL_SCRATCH_LEN 4096
 #define BELL_TOPIC_MAX 96
 #define BELL_MUTE_DEBOUNCE_MS 250
 
@@ -237,15 +237,6 @@ static void ring_execute(unsigned char pattern, bool manual)
   publish_bell_status();
 }
 
-static bool parse_hhmm(const char *s, int *min_of_day)
-{
-  int h = -1, m = -1;
-  if (sscanf(s, "%d:%d", &h, &m) != 2)
-    return false;
-  *min_of_day = h * 60 + m;
-  return true;
-}
-
 static bool parse_ymd(const char *s, int *y, int *mo, int *d)
 {
   if (sscanf(s, "%d-%d-%d", y, mo, d) != 3)
@@ -260,15 +251,15 @@ static int parse_program_json(const char *json)
     return BELL_ERR_JSON;
 
   cJSON *v = cJSON_GetObjectItem(root, "v");
-  cJSON *enabled = cJSON_GetObjectItem(root, "enabled");
-  if (!cJSON_IsNumber(v) || !cJSON_IsBool(enabled)) {
+  cJSON *enabled = cJSON_GetObjectItem(root, "e");
+  if (!cJSON_IsNumber(v) || !cJSON_IsNumber(enabled)) {
     cJSON_Delete(root);
     return BELL_ERR_JSON;
   }
   bell_program_builder_init(&prog_builder, (int)v->valueint,
-                            cJSON_IsTrue(enabled));
+                            enabled->valueint != 0);
 
-  cJSON *patterns = cJSON_GetObjectItem(root, "patterns");
+  cJSON *patterns = cJSON_GetObjectItem(root, "p");
   if (!cJSON_IsArray(patterns)) {
     cJSON_Delete(root);
     return BELL_ERR_JSON;
@@ -276,25 +267,28 @@ static int parse_program_json(const char *json)
   int nb = cJSON_GetArraySize(patterns);
   for (int i = 0; i < nb; i++) {
     cJSON *pat = cJSON_GetArrayItem(patterns, i);
-    cJSON *count = cJSON_GetObjectItem(pat, "count");
-    cJSON *dur = cJSON_GetObjectItem(pat, "dur_s");
-    cJSON *gap = cJSON_GetObjectItem(pat, "gap_s");
-    cJSON *pen = cJSON_GetObjectItem(pat, "enabled");
-    if (!cJSON_IsNumber(count) || !cJSON_IsNumber(dur) || !cJSON_IsNumber(gap) ||
-        !cJSON_IsBool(pen)) {
+    if (!cJSON_IsArray(pat) || cJSON_GetArraySize(pat) != 4) {
       cJSON_Delete(root);
       return BELL_ERR_JSON;
     }
-    int err = bell_builder_add_pattern(&prog_builder, (int)count->valueint,
-                                       (int)dur->valueint, (int)gap->valueint,
-                                       cJSON_IsTrue(pen));
+    cJSON *f[4];
+    for (int k = 0; k < 4; k++) {
+      f[k] = cJSON_GetArrayItem(pat, k);
+      if (!cJSON_IsNumber(f[k])) {
+        cJSON_Delete(root);
+        return BELL_ERR_JSON;
+      }
+    }
+    int err = bell_builder_add_pattern(&prog_builder, (int)f[0]->valueint,
+                                       (int)f[1]->valueint, (int)f[2]->valueint,
+                                       f[3]->valueint != 0);
     if (err != BELL_OK) {
       cJSON_Delete(root);
       return err;
     }
   }
 
-  cJSON *weekly = cJSON_GetObjectItem(root, "weekly");
+  cJSON *weekly = cJSON_GetObjectItem(root, "w");
   if (!cJSON_IsObject(weekly)) {
     cJSON_Delete(root);
     return BELL_ERR_JSON;
@@ -310,14 +304,18 @@ static int parse_program_json(const char *json)
     int n = cJSON_GetArraySize(day);
     for (int i = 0; i < n; i++) {
       cJSON *ev = cJSON_GetArrayItem(day, i);
-      cJSON *t = cJSON_GetObjectItem(ev, "t");
-      cJSON *p = cJSON_GetObjectItem(ev, "p");
-      int minute = -1;
-      if (!cJSON_IsString(t) || !cJSON_IsNumber(p) || !parse_hhmm(t->valuestring, &minute)) {
+      if (!cJSON_IsArray(ev) || cJSON_GetArraySize(ev) != 2) {
         cJSON_Delete(root);
         return BELL_ERR_JSON;
       }
-      int err = bell_builder_add_event(&prog_builder, d, minute, (int)p->valueint);
+      cJSON *m = cJSON_GetArrayItem(ev, 0);
+      cJSON *p = cJSON_GetArrayItem(ev, 1);
+      if (!cJSON_IsNumber(m) || !cJSON_IsNumber(p)) {
+        cJSON_Delete(root);
+        return BELL_ERR_JSON;
+      }
+      int err = bell_builder_add_event(&prog_builder, d, (int)m->valueint,
+                                       (int)p->valueint);
       if (err != BELL_OK) {
         cJSON_Delete(root);
         return err;
@@ -386,7 +384,7 @@ static int parse_calendar_json(const char *json)
   }
   bell_calendar_builder_init(&cal_builder, (int)v->valueint);
 
-  cJSON *exceptions = cJSON_GetObjectItem(root, "exceptions");
+  cJSON *exceptions = cJSON_GetObjectItem(root, "x");
   if (!cJSON_IsArray(exceptions)) {
     cJSON_Delete(root);
     return BELL_ERR_JSON;
@@ -394,8 +392,12 @@ static int parse_calendar_json(const char *json)
   int nb = cJSON_GetArraySize(exceptions);
   for (int i = 0; i < nb; i++) {
     cJSON *exc = cJSON_GetArrayItem(exceptions, i);
-    cJSON *from = cJSON_GetObjectItem(exc, "from");
-    cJSON *to = cJSON_GetObjectItem(exc, "to");
+    if (!cJSON_IsArray(exc) || cJSON_GetArraySize(exc) != 2) {
+      cJSON_Delete(root);
+      return BELL_ERR_JSON;
+    }
+    cJSON *from = cJSON_GetArrayItem(exc, 0);
+    cJSON *to = cJSON_GetArrayItem(exc, 1);
     int fy, fmo, fd, ty, tmo, td;
     if (!cJSON_IsString(from) || !cJSON_IsString(to) ||
         !parse_ymd(from->valuestring, &fy, &fmo, &fd) ||
@@ -403,17 +405,7 @@ static int parse_calendar_json(const char *json)
       cJSON_Delete(root);
       return BELL_ERR_JSON;
     }
-    int type = 0;
-    cJSON *type_item = cJSON_GetObjectItem(exc, "type");
-    if (type_item) {
-      if (cJSON_IsString(type_item) && strcmp(type_item->valuestring, "off") == 0) {
-        type = 0;
-      } else {
-        cJSON_Delete(root);
-        return BELL_ERR_TYPE;
-      }
-    }
-    int err = bell_builder_add_exception(&cal_builder, fy, fmo, fd, ty, tmo, td, type);
+    int err = bell_builder_add_exception(&cal_builder, fy, fmo, fd, ty, tmo, td, 0);
     if (err != BELL_OK) {
       cJSON_Delete(root);
       return err;
