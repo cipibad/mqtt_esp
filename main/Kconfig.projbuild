@@ -1064,6 +1064,18 @@ menu "Waterpump configuration"
         default n
         help
             There is partial implementation for user friendly notifications
+
+    config WATERPUMP_STUCK_VALVE_TIMEOUT_MIN
+        int "Waterpump stuck-valve watchdog timeout (minutes)"
+        default 10
+        help
+            Timeout in minutes for waterpump stuck-valve watchdog detection.
+            If the heating circuit reaches "too hot" temperature faster than
+            this value while the waterpump valve is supposed to be open,
+            the valve may be physically stuck closed: the pump is disabled
+            through its normal state machine (relay off, valve-close pulse)
+            and the valve is re-exercised on the next heating cycle.
+            Set to 0 to disable the watchdog.
 endmenu # "Waterpump"
 
 #######################

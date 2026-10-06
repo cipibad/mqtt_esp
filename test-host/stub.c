@@ -97,3 +97,14 @@ void system_restart()
 void * schedulerCfgQueue;
 void publish_schedulers_data()
 {}
+
+#ifdef CONFIG_WATERPUMP_SUPPORT
+#include "app_waterpump.h"
+int waterPumpStatus = WATERPUMP_STATUS_INIT;
+void updateWaterPumpState(int new_state) {
+    if (new_state == WATERPUMP_STATUS_OFF && waterPumpStatus == WATERPUMP_STATUS_ON) {
+        waterPumpStatus = WATERPUMP_STATUS_ON_OFF_TRANSITION;
+    }
+}
+void publish_waterpump_status() {}
+#endif

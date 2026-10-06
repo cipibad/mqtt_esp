@@ -5,6 +5,7 @@
 
 #include "esp_system.h"
 #include "app_thermostat.h"
+#include "app_waterpump.h"
 
 using HippoMocks::CString;
 
@@ -23,6 +24,7 @@ extern "C" {
   void publish_circuit_thermostat_notification(unsigned int duration);
   bool tooHot(char* reason);
   bool tooCold(char* reason);
+  void update_thermostat();
 }
 
 extern short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
@@ -33,6 +35,9 @@ extern enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB];
 extern enum ThermostatType thermostatType[CONFIG_MQTT_THERMOSTATS_NB];
 extern enum ThermostatState thermostatState;
 extern enum HeatingState heatingState;
+extern int waterPumpOnTicks;
+extern int waterPumpStatus;
+extern bool waterPumpOn[];
 
 TEST_CASE("publish_thermostat_current_temperature_evt_valid", "[tag]" ) {
   MockRepository mocks;
@@ -418,4 +423,109 @@ TEST_CASE("tooCold_returns_false_when_online_sensor_above_target", "[thermostat]
 
     char reason[256] = "";
     REQUIRE(tooCold(reason) == false);
+}
+
+// ============================================================
+// Waterpump stuck-valve watchdog tests
+// Test env: WATERPUMP_STUCK_THRESHOLD = 10 * 60 / 60 = 10 ticks
+// (device sdkconfig: 10 * 60 / 30 = 20 ticks — same 10 minutes)
+// ============================================================
+
+static void reset_watchdog_test_globals() {
+    for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+        thermostatType[id] = THERMOSTAT_TYPE_NORMAL;
+        thermostatMode[id] = THERMOSTAT_MODE_UNSET;
+        currentTemperatureFlag[id] = 0;
+        currentTemperature[id] = 0;
+        targetTemperature[id] = 0;
+        temperatureTolerance[id] = 0;
+        waterPumpOn[id] = false;
+    }
+    thermostatState = THERMOSTAT_STATE_HEATING;
+    heatingState = HEATING_STATE_ENABLED;
+    circuitThermostatId = 0;
+    waterPumpOnTicks = 0;
+    waterPumpStatus = WATERPUMP_STATUS_OFF;
+}
+
+static void overheated_circuit_at_ticks(int ticks) {
+    circuitThermostatId = 0;
+    waterPumpOnTicks = ticks;
+    waterPumpStatus = WATERPUMP_STATUS_ON;
+    thermostatType[0] = THERMOSTAT_TYPE_CIRCUIT;
+    thermostatMode[0] = THERMOSTAT_MODE_HEAT;
+    currentTemperatureFlag[0] = SENSOR_LIFETIME;
+    currentTemperature[0] = 500;
+    temperatureTolerance[0] = 400;
+}
+
+TEST_CASE("watchdog_does_not_fire_when_pump_off", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    overheated_circuit_at_ticks(0);
+    waterPumpStatus = WATERPUMP_STATUS_OFF;
+
+    update_thermostat();
+
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_OFF);
+}
+
+TEST_CASE("watchdog_does_not_fire_when_ticks_above_threshold", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    overheated_circuit_at_ticks(15);
+
+    update_thermostat();
+
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON);
+}
+
+TEST_CASE("watchdog_fires_when_ticks_below_threshold", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    overheated_circuit_at_ticks(5);
+
+    update_thermostat();
+
+    // ON_OFF_TRANSITION proves the watchdog routed through
+    // updateWaterPumpState(); the final OFF is set by closeValveTimerCallback
+    // after the 15s valve timer, which host tests cannot run.
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON_OFF_TRANSITION);
+}
+
+TEST_CASE("watchdog_does_not_fire_at_threshold_boundary", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    overheated_circuit_at_ticks(10);
+
+    update_thermostat();
+
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON);
+}
+
+TEST_CASE("watchdog_does_not_fire_when_circuit_mode_not_heat", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    overheated_circuit_at_ticks(5);
+    thermostatMode[0] = THERMOSTAT_MODE_OFF;
+
+    update_thermostat();
+
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON);
+}
+
+TEST_CASE("watchdog_does_not_fire_when_no_circuit_thermostat", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    waterPumpOnTicks = 5;
+    waterPumpStatus = WATERPUMP_STATUS_ON;
+    circuitThermostatId = -1;
+
+    update_thermostat();
+
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON);
+}
+
+TEST_CASE("watchdog_does_not_fire_when_sensor_obsolete", "[waterpump-watchdog]" ) {
+    reset_watchdog_test_globals();
+    overheated_circuit_at_ticks(5);
+    currentTemperatureFlag[0] = 0;
+
+    update_thermostat();
+
+    REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON);
 }
