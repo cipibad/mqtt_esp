@@ -32,6 +32,11 @@ int circuitThermostatId = -1;
 bool thermostat_bump = false;
 bool thermostat_was_bumped = false;
 
+#ifdef CONFIG_WATERPUMP_SUPPORT
+int waterPumpOnTicks = 0;
+#define WATERPUMP_STUCK_THRESHOLD (CONFIG_WATERPUMP_STUCK_VALVE_TIMEOUT_MIN * 60 / CONFIG_MQTT_THERMOSTATS_TICK_PERIOD)
+#endif // CONFIG_WATERPUMP_SUPPORT
+
 enum ThermostatMode thermostatMode[CONFIG_MQTT_THERMOSTATS_NB];
 
 const char * thermostatModeTAG[CONFIG_MQTT_THERMOSTATS_NB] = {
@@ -755,7 +760,8 @@ void update_thermostat()
   bool heatingToggledOff = update_heating(reason);
 
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
-    if ((!normal_sensors_are_reporting(reason)) || circuitTooHot(reason) || heatingToggledOff) {
+    bool circuitOverheated = circuitTooHot(reason);
+    if ((!normal_sensors_are_reporting(reason)) || circuitOverheated || heatingToggledOff) {
       disableThermostat(reason);
       if (thermostat_was_bumped) {
         thermostat_was_bumped = false;
@@ -780,6 +786,18 @@ void update_thermostat()
   }
 
   #ifdef CONFIG_WATERPUMP_SUPPORT
+  if (waterPumpStatus == WATERPUMP_STATUS_ON && circuitThermostatId != -1 &&
+      thermostatMode[circuitThermostatId] == THERMOSTAT_MODE_HEAT &&
+      waterPumpOnTicks > 0 && waterPumpOnTicks < WATERPUMP_STUCK_THRESHOLD &&
+      temperatureSensorState(circuitThermostatId) != TEMPERATURE_SENSOR_OBSOLETE &&
+      currentTemperature[circuitThermostatId] >= temperatureTolerance[circuitThermostatId]) {
+    ESP_LOGE(TAG, "Waterpump stuck valve detected: circuit too hot in %d ticks (threshold %d)",
+             waterPumpOnTicks, WATERPUMP_STUCK_THRESHOLD);
+    updateWaterPumpState(WATERPUMP_STATUS_OFF);
+    #if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+    publish_waterpump_notification_evt("Waterpump valve may be stuck - pump stopped, valve will be re-exercised on next heating cycle");
+    #endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+  }
   if (thermostatState == THERMOSTAT_STATE_HEATING) {
     update_water_pump_state();
   }
@@ -837,6 +855,13 @@ void handle_thermostat_cmd_task(void* pvParameters)
           }
 
         }
+#ifdef CONFIG_WATERPUMP_SUPPORT
+        if (waterPumpStatus == WATERPUMP_STATUS_ON && thermostatState == THERMOSTAT_STATE_HEATING) {
+          waterPumpOnTicks++;
+        } else if (waterPumpStatus != WATERPUMP_STATUS_ON) {
+          waterPumpOnTicks = 0;
+        }
+#endif // CONFIG_WATERPUMP_SUPPORT
         update_thermostat();
       }
 
