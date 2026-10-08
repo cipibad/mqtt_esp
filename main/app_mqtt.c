@@ -47,6 +47,11 @@ extern QueueHandle_t otaQueue;
 #define OTA_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/cmd/ota"
 #endif // CONFIG_MQTT_OTA
 
+#ifdef CONFIG_MQTT_REMOTE_LOG
+#include "app_remote_log.h"
+#define REMOTE_LOG_CONFIG_TOPIC CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/config/log"
+#endif // CONFIG_MQTT_REMOTE_LOG
+
 #ifdef CONFIG_CONTACT_SENSOR_SUPPORT
 #include "app_contact.h"
 #endif // CONFIG_CONTACT_SENSOR_SUPPORT
@@ -230,6 +235,50 @@ signed char getServiceId(const char* topic, int topic_len)
     serviceId = atoi(s);
   }
   return serviceId;
+}
+
+//handle <type>/<client>/cmd/tags/log with a comma separated TAG allow list
+//payload(empty payload clears the list) and <type>/<client>/cmd/level/log
+//with a TAG=LEVEL payload, these payloads can be longer than the generic
+//cmd payload limit so this runs before that check in dispatch_mqtt_event
+bool handle_remote_log_mqtt_event(esp_mqtt_event_handle_t event)
+{
+#ifdef CONFIG_MQTT_REMOTE_LOG
+  char actionType[16];
+  if (getActionType(actionType, event->topic, event->topic_len)
+      && strcmp(actionType, "cmd") == 0) {
+    char service[16];
+    if (getService(service, event->topic, event->topic_len)
+        && strcmp(service, "log") == 0) {
+      char action[16];
+      getAction(action, event->topic, event->topic_len);
+
+      if (strcmp(action, "tags") != 0 && strcmp(action, "level") != 0) {
+        return false;
+      }
+      //including '\0'
+      if (event->data_len > REMOTE_LOG_CMD_MAX_LEN - 1) {
+        ESP_LOGE(TAG, "remote log payload to big");
+        return true;
+      }
+
+      char payload[REMOTE_LOG_CMD_MAX_LEN];
+      memcpy(payload, event->data, event->data_len);
+      payload[event->data_len] = 0;
+
+      if (strcmp(action, "tags") == 0) {
+        remote_log_set_tags(payload);
+        char tags[REMOTE_LOG_CMD_MAX_LEN];
+        remote_log_get_tags(tags, sizeof(tags));
+        publish_persistent_data(REMOTE_LOG_CONFIG_TOPIC, tags);
+      } else {
+        remote_log_set_level(payload);
+      }
+      return true;
+    }
+  }
+#endif // CONFIG_MQTT_REMOTE_LOG
+  return false;
 }
 
 
@@ -643,6 +692,9 @@ bool handleThermostatMqttSensor(esp_mqtt_event_handle_t event)
 
 void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
 {
+  if (handle_remote_log_mqtt_event(event))
+    return;
+
   //FIXME this check should be generic and 16 should get a define
   if (event->data_len > 16 - 1) { //including '\0'
     ESP_LOGE(TAG, "payload to big");

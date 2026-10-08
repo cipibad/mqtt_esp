@@ -610,6 +610,22 @@ config MQTT_OTA
     help
         Enable OTA support
 
+config MQTT_REMOTE_LOG
+    boolean "enable remote logging support"
+    depends on NORTH_INTERFACE_MQTT
+    default n
+    help
+        Enable remote logging over MQTT. Only log TAGs from the allow
+        list are forwarded to <device_type>/<client_id>/evt/log/<tag>
+        topics as non persistent data. The allow list is set at runtime
+        by publishing a comma separated TAG list to
+        <device_type>/<client_id>/cmd/tags/log, an empty payload clears
+        it, current list is acknowledged on
+        <device_type>/<client_id>/evt/config/log. The log level of a TAG
+        is changed at runtime by publishing TAG=LEVEL(E,W,I,D,V)
+        payloads to <device_type>/<client_id>/cmd/level/log. The list is
+        persisted in NVS.
+
 config MQTT_OPS
     boolean "enable OPS support"
     depends on !DEEP_SLEEP_MODE

@@ -77,6 +77,10 @@ QueueHandle_t otaQueue;
 #include "app_ops.h"
 #endif // CONFIG_MQTT_OPS
 
+#ifdef CONFIG_MQTT_REMOTE_LOG
+#include "app_remote_log.h"
+#endif // CONFIG_MQTT_REMOTE_LOG
+
 #ifdef CONFIG_COAP_SERVER_SUPPORT
 #include "app_coap_server.h"
 #endif // CONFIG_COAP_SERVER_SUPPORT
@@ -208,6 +212,10 @@ void app_main(void)
 
   ESP_LOGI(TAG, "nvs_flash_init done");
 
+#ifdef CONFIG_MQTT_REMOTE_LOG
+  remote_log_init();
+#endif // CONFIG_MQTT_REMOTE_LOG
+
 #if CONFIG_MQTT_RELAYS_NB
   relays_init();
 #endif // CONFIG_MQTT_RELAYS_NB
@@ -281,7 +289,7 @@ xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, N
 #endif // CONFIG_AT_SERVER
 
 #if CONFIG_MQTT_RELAYS_NB
-    xTaskCreate(handle_relay_task, "handle_relay_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    xTaskCreate(handle_relay_task, "handle_relay_task", configMINIMAL_STACK_SIZE * 4, NULL, 5, NULL);
 #endif //CONFIG_MQTT_RELAYS_NB
 
 #ifdef CONFIG_MQTT_OTA
@@ -312,7 +320,7 @@ xTaskCreate(app_at_task, "app_at_task", configMINIMAL_STACK_SIZE * 3, NULL, 5, N
 #endif //CONFIG_MQTT_SWITCHES_NB
 
 #ifdef CONFIG_MQTT_SCHEDULERS
-    xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    xTaskCreate(handle_scheduler, "handle_scheduler", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
 #endif // CONFIG_MQTT_SCHEDULERS
 
 #ifdef CONFIG_PRESENCE_AUTOMATION_SUPPORT
@@ -342,16 +350,19 @@ wifi_init();
 #endif // CONFIG_NORTH_INTERFACE_COAP
 
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
-    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    //remote logging hook adds stack cost to every ESP_LOG in the
+    //publish path, this task publishes state bursts and logs, *3
+    //overflowed with the hook active
+    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
     mqtt_init_and_start();
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
 #ifdef CONFIG_MQTT_OPS
   #ifdef CONFIG_TARGET_DEVICE_ESP32
-    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 4)
+    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 5)
   #endif //CONFIG_TARGET_DEVICE_ESP32
   #ifdef CONFIG_TARGET_DEVICE_ESP8266
-    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 4)
+    #define OPS_PUB_TASK_SIZE (configMINIMAL_STACK_SIZE * 5)
   #endif //CONFIG_TARGET_DEVICE_ESP8266
 
     xTaskCreate(ops_pub_task, "ops_pub_task", OPS_PUB_TASK_SIZE, NULL, 5, NULL);
