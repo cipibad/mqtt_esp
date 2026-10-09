@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 
 SemaphoreHandle_t xSemaphore;
@@ -11,6 +12,14 @@ void update_relay_status(int id, char value)
 {}
 
 int xQueueSend( QueueHandle_t xQueue, const void * const pvItemToQueue, TickType_t xTicksToWait)
+{}
+
+QueueHandle_t xQueueCreate( const UBaseType_t uxQueueLength, const UBaseType_t uxItemSize )
+{}
+
+void xTaskCreate( TaskFunction_t pvTaskCode, const char * const pcName,
+                  unsigned int usStackDepth, void * const pvParameters,
+                  unsigned int uxPriority, TaskHandle_t * const pxCreatedTask )
 {}
 
 TimerHandle_t xTimerCreate(	const char * const pcTimerName,
@@ -40,6 +49,11 @@ esp_err_t read_nvs_integer(const char * tag, int * value)
 esp_err_t write_nvs_short(const char * tag, short value)
 {}
 esp_err_t read_nvs_short(const char * tag, short * value)
+{}
+
+esp_err_t write_nvs_str(const char * tag, char * value)
+{}
+esp_err_t read_nvs_str(const char * tag, char * value, size_t * length)
 {}
 
 

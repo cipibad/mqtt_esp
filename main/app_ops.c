@@ -34,7 +34,7 @@ void publish_ops_heap_data()
 void publish_ops_stack_data()
 {
   const char * topic = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/ops/stack";
-  const int DATA_SIZE = 320;
+  const int DATA_SIZE = 512;
   int remaining_data;
   char data[DATA_SIZE];
   memset(data,0,64);
@@ -49,7 +49,7 @@ void publish_ops_stack_data()
   /* Take a snapshot of the number of tasks in case it changes while this
   function is executing. */
   uxArraySize = uxTaskGetNumberOfTasks();
-  ESP_LOGI(TAG, "Publishing tasks data for %lu tasks", uxArraySize);
+  ESP_LOGI(TAG, "Publishing tasks data for %u tasks", uxArraySize);
 
   /* Allocate a TaskStatus_t structure for each task.  An array could be
   allocated statically at compile time. */
@@ -63,7 +63,7 @@ void publish_ops_stack_data()
                                         uxArraySize,
                                         &ulTotalRunTime );
 
-  ESP_LOGI(TAG, "Got informations for %lu tasks, total runtime: %d",
+  ESP_LOGI(TAG, "Got informations for %u tasks, total runtime: %u",
           uxArraySize, ulTotalRunTime);
 
     /* For each populated position in the pxTaskStatusArray array,
