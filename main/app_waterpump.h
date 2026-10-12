@@ -13,9 +13,13 @@
 extern int waterPumpStatus;
 
 void initWaterPump();
-int inline getWaterPumpStatus(){
+static inline int getWaterPumpStatus(){
       return waterPumpStatus;
 }
 void updateWaterPumpState(int);
+void publish_waterpump_status();
+#if CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
+void publish_waterpump_notification_evt(const char* msg);
+#endif // CONFIG_WATERPUMP_ENABLE_NOTIFICATIONS
 
 #endif // AP_WATERPUMP_H
