@@ -7,6 +7,7 @@
 
 
 SemaphoreHandle_t xSemaphore;
+QueueHandle_t publishQueue;
 
 void update_relay_status(int id, char value)
 {}
@@ -82,6 +83,12 @@ esp_mqtt_client_handle_t esp_mqtt_client_init(const esp_mqtt_client_config_t *co
 {}
 esp_err_t esp_mqtt_client_start(esp_mqtt_client_handle_t client)
 {}
+esp_err_t esp_mqtt_client_register_event(esp_mqtt_client_handle_t client, esp_mqtt_event_id_t event, esp_event_handler_t event_handler, void *event_handler_arg)
+{}
+esp_mqtt_client_connection_state_t esp_mqtt_client_get_state(esp_mqtt_client_handle_t client)
+{
+  return MQTT_CLIENT_STATE_CONNECTED;
+}
 
 void esp_wifi_stop()
 {}
