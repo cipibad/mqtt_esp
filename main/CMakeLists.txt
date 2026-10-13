@@ -60,6 +60,7 @@ set(src_files
 	"app_presence.c"
 	"app_publish_data.c"
 	"app_relay.c"
+	"app_remote_log.c"
 	"app_scheduler.c"
 	"app_sensors.c"
 	"app_switch.c"
@@ -93,7 +94,7 @@ message(STATUS "--------------------------------------------------------")
 
 idf_component_register(
     SRCS "${src_files}"
-    PRIV_REQUIRES esp-tls esp_wifi esp_event nvs_flash esp_driver_gpio app_update esp_driver_uart esp_http_client esp_http_server
+    PRIV_REQUIRES esp-tls esp_wifi esp_event nvs_flash esp_driver_gpio app_update esp_driver_uart esp_http_client esp_http_server dht onewire ds18x20 bme280
     INCLUDE_DIRS "."
     EMBED_TXTFILES "${embed_files}"
 )

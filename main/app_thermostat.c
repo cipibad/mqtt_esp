@@ -648,16 +648,16 @@ static void read_nvs_thermal_rates()
   for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
     memset(tag,0,16);
     sprintf(tag, "htr%d", id);
-    read_nvs_integer(tag, &heatRateTenthsPerHour[id]);
+    read_nvs_integer(tag, (int32_t*)&heatRateTenthsPerHour[id]);
     memset(tag,0,16);
     sprintf(tag, "hsn%d", id);
-    read_nvs_integer(tag, &heatRateSamples[id]);
+    read_nvs_integer(tag, (int32_t*)&heatRateSamples[id]);
     memset(tag,0,16);
     sprintf(tag, "ctr%d", id);
-    read_nvs_integer(tag, &coolRateTenthsPerHour[id]);
+    read_nvs_integer(tag, (int32_t*)&coolRateTenthsPerHour[id]);
     memset(tag,0,16);
     sprintf(tag, "csn%d", id);
-    read_nvs_integer(tag, &coolRateSamples[id]);
+    read_nvs_integer(tag, (int32_t*)&coolRateSamples[id]);
   }
 }
 

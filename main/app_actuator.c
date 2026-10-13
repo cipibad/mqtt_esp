@@ -6,10 +6,10 @@
 #include "app_main.h"
 #include "app_publish_data.h"
 #include "driver/gpio.h"
+#include "rom/gpio.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
-#include "rom/gpio.h"
 
 static const char* TAG = "APP_ACTUATOR";
 
@@ -25,7 +25,7 @@ int actuatorClosePinStatus;
 
 void initControlPin(int pin, int* status) {
   *status = GPIO_LOW;
-  gpio_pad_select_gpio(pin);
+  rom_gpio_pad_select_gpio(pin);
   gpio_set_direction(pin, GPIO_MODE_OUTPUT);
   gpio_set_level(pin, *status);
 }

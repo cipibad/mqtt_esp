@@ -170,9 +170,9 @@ void publish_ds18x20_temperature(int sensor_id)
 
   char topic[MAX_TOPIC_LEN];
   memset(topic,0,MAX_TOPIC_LEN);
-  sprintf(topic, "%s/%08x%08x", temperature_topic,
-          (uint32_t)(addrs[sensor_id] >> 32),
-          (uint32_t)addrs[sensor_id]);
+  sprintf(topic, "%s/%08lx%08lx", temperature_topic,
+          (unsigned long)((uint32_t)(addrs[sensor_id] >> 32)),
+          (unsigned long)((uint32_t)addrs[sensor_id]));
 
   publish_sensor_data(topic, temps[sensor_id] * 10);
 }
@@ -318,7 +318,7 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
 #endif // CONFIG_I2C_SENSOR_SUPPORT
 
 #ifdef CONFIG_DHT22_SENSOR_SUPPORT
-  gpio_pad_select_gpio(CONFIG_DHT22_SENSOR_GPIO);
+  rom_gpio_pad_select_gpio(CONFIG_DHT22_SENSOR_GPIO);
   gpio_set_direction(CONFIG_DHT22_SENSOR_GPIO, GPIO_MODE_OUTPUT_OD);
   gpio_set_level(CONFIG_DHT22_SENSOR_GPIO, 1);
 #endif //CONFIG_DHT22_SENSOR_SUPPORT
@@ -397,8 +397,8 @@ ESP_ERROR_CHECK(i2c_master_init(CONFIG_I2C_SENSOR_SDA_GPIO, CONFIG_I2C_SENSOR_SC
             // split it up into two 32-bit integers and print them
             // back-to-back to make it look like one big hex number.
             char addr[8+8+1];
-            sprintf(addr, "%08x", (uint32_t)(addrs[j] >> 32));
-            sprintf(addr + 8, "%08x", (uint32_t)addrs[j]);
+            sprintf(addr, "%08lx", (unsigned long)((uint32_t)(addrs[j] >> 32)));
+            sprintf(addr + 8, "%08lx", (unsigned long)((uint32_t)addrs[j]));
             short temp_c = (short)(temps[j] * 10);
             ESP_LOGI(TAG,"Sensor %s reports %d.%dC", addr, temp_c/10, abs(temp_c%10));
           }

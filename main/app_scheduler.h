@@ -1,6 +1,8 @@
 #ifndef APP_SCHEDULER_H
 #define APP_SCHEDULER_H
 
+#include <time.h>
+
 void start_scheduler_timer(void);
 void handle_scheduler(void* pvParameters);
 

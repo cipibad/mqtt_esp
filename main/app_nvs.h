@@ -1,6 +1,8 @@
 #ifndef APP_NVS_H
 #define APP_NVS_H
 
+#include <stdint.h>
+#include <stddef.h>
 
 esp_err_t write_nvs_short(const char * tag, short value);
 esp_err_t read_nvs_short(const char * tag, short * value);

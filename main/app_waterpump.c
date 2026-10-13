@@ -9,6 +9,7 @@
 #include "esp_log.h"
 
 #include "driver/gpio.h"
+#include "rom/gpio.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -29,7 +30,7 @@ int valveOffPinStatus;
 void initMotorControlPin(int pin, int* status)
 {
     *status = GPIO_LOW;
-    gpio_pad_select_gpio(pin);
+    rom_gpio_pad_select_gpio(pin);
     gpio_set_direction(pin, GPIO_MODE_OUTPUT);
     gpio_set_level(pin, *status);
 }
@@ -93,9 +94,7 @@ void publish_waterpump_notification_evt(const char* msg)
 
 void openValveTimerCallback( TimerHandle_t xTimer )
 {
-  const char *pcTimerName = pcTimerGetTimerName( xTimer );
-  ESP_LOGI(TAG, "timer %s expired", pcTimerName);
-  updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_OPEN_GPIO, &valveOnPinStatus, GPIO_STATUS_OFF);
+  const char *pcTimerName = pcTimerGetName( xTimer );
   update_relay_status(CONFIG_WATERPUMP_RELAY_ID, RELAY_STATUS_ON);
   waterPumpStatus = WATERPUMP_STATUS_ON;
   publish_waterpump_status();
@@ -108,7 +107,7 @@ void openValveTimerCallback( TimerHandle_t xTimer )
 
 void closeValveTimerCallback( TimerHandle_t xTimer )
 {
-  const char *pcTimerName = pcTimerGetTimerName( xTimer );
+  const char *pcTimerName = pcTimerGetName( xTimer );
   ESP_LOGI(TAG, "timer %s expired", pcTimerName);
   updateMotorControlPinStatus(CONFIG_WATERPUMP_VALVE_CLOSE_GPIO, &valveOffPinStatus, GPIO_STATUS_OFF);
 

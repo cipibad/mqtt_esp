@@ -1,5 +1,2 @@
-set(COMPONENT_ADD_INCLUDEDIRS .)
-
-set(COMPONENT_REQUIRES log freertos)
-
-register_component()
+idf_component_register(INCLUDE_DIRS "."
+                       REQUIRES log freertos)
