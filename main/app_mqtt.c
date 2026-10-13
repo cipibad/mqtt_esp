@@ -361,6 +361,21 @@ void handle_thermostat_mqtt_tolerance_cmd(signed char thermostatId, const char *
   }
 }
 
+void handle_thermostat_mqtt_water_limit_cmd(signed char thermostatId, const char* payload, bool is_low)
+{
+  struct ThermostatMessage tm;
+  memset(&tm, 0, sizeof(struct ThermostatMessage));
+  tm.msgType = is_low ? THERMOSTAT_CMD_CIRCUIT_WATER_LOW : THERMOSTAT_CMD_CIRCUIT_WATER_HIGH;
+  tm.thermostatId = thermostatId;
+  tm.data.targetTemperature = atof(payload) * 10;
+
+  if (xQueueSend( thermostatQueue
+                  ,( void * )&tm
+                  ,MQTT_QUEUE_TIMEOUT) != pdPASS) {
+    ESP_LOGE(TAG, "Cannot send to thermostatQueue");
+  }
+}
+
 void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* payload)
 {
   char action[16];
@@ -381,6 +396,14 @@ void handle_thermostat_mqtt_cmd(const char* topic, int topic_len, const char* pa
       }
       if (strcmp(action, "tolerance") == 0) {
         handle_thermostat_mqtt_tolerance_cmd(thermostatId, payload);
+        return;
+      }
+      if (strcmp(action, "waterlow") == 0) {
+        handle_thermostat_mqtt_water_limit_cmd(thermostatId, payload, true);
+        return;
+      }
+      if (strcmp(action, "waterhigh") == 0) {
+        handle_thermostat_mqtt_water_limit_cmd(thermostatId, payload, false);
         return;
       }
     }

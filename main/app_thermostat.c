@@ -506,9 +506,199 @@ void update_water_pump_state()
 }
 #endif // CONFIG_WATERPUMP_SUPPORT
 
+#ifdef CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+
+// Rates are learned per room: each room zone keeps its own start temperature
+// when a heating (or idle) episode begins and its own slope when it ends.
+// The burner runs at constant power, so burn time is proportional to gas and
+// the per-room slopes are pure room characteristics.
+int heatRateTenthsPerHour[CONFIG_MQTT_THERMOSTATS_NB];
+int heatRateSamples[CONFIG_MQTT_THERMOSTATS_NB];
+int coolRateTenthsPerHour[CONFIG_MQTT_THERMOSTATS_NB];
+int coolRateSamples[CONFIG_MQTT_THERMOSTATS_NB];
+
+int heatStartTemp[CONFIG_MQTT_THERMOSTATS_NB];
+static int coolStartTemp[CONFIG_MQTT_THERMOSTATS_NB];
+static int coolStartTick[CONFIG_MQTT_THERMOSTATS_NB];
+static unsigned int lifeTickCounter = 0;
+
+#define THERMAL_RATE_MIN_HEAT_TICKS 20  //10 min with a 30s tick
+#define THERMAL_RATE_MIN_COOL_TICKS 60  //30 min, lets the residual heat dissipate first
+#define THERMAL_RATE_MAX_TENTHS_PER_HOUR 2000 //20.0 C/h sanity cap
+
+static bool is_room_zone(int id)
+{
+  return thermostatType[id] == THERMOSTAT_TYPE_NORMAL && waterPumpOn[id];
+}
+
+int compute_rate_tenths_per_hour(int delta_tenths, int ticks)
+{
+  if (ticks <= 0) {
+    return 0;
+  }
+  return (int)(((long)delta_tenths * 3600L) / ((long)ticks * CONFIG_MQTT_THERMOSTATS_TICK_PERIOD));
+}
+
+int thermal_ema_update(int current, int sample)
+{
+  if (current == 0) {
+    return sample;
+  }
+  return (current * 8 + sample * 2) / 10;
+}
+
+static void publish_thermal_rate_evt(int id)
+{
+  const char * topic_str = CONFIG_DEVICE_TYPE "/" CONFIG_CLIENT_ID "/evt/rate/thermostat";
+  char topic[MAX_TOPIC_LEN];
+  char data[48];
+  memset(topic,0,MAX_TOPIC_LEN);
+  sprintf(topic, "%s/%d", topic_str, id);
+  memset(data,0,48);
+  sprintf(data, "h=%d;c=%d;n=%d;m=%d", heatRateTenthsPerHour[id], coolRateTenthsPerHour[id],
+          heatRateSamples[id], coolRateSamples[id]);
+  publish_non_persistent_data(topic, data);
+}
+
+static void persist_thermal_rates(int id)
+{
+  char tag[16];
+  memset(tag,0,16);
+  sprintf(tag, "htr%d", id);
+  write_nvs_integer(tag, heatRateTenthsPerHour[id]);
+  memset(tag,0,16);
+  sprintf(tag, "hsn%d", id);
+  write_nvs_integer(tag, heatRateSamples[id]);
+  memset(tag,0,16);
+  sprintf(tag, "ctr%d", id);
+  write_nvs_integer(tag, coolRateTenthsPerHour[id]);
+  memset(tag,0,16);
+  sprintf(tag, "csn%d", id);
+  write_nvs_integer(tag, coolRateSamples[id]);
+}
+
+static void close_heat_episodes(unsigned int elapsed_ticks)
+{
+  for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (is_room_zone(id) && heatStartTemp[id] != INT_MIN &&
+        temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE &&
+        elapsed_ticks >= THERMAL_RATE_MIN_HEAT_TICKS) {
+      int rate = compute_rate_tenths_per_hour(currentTemperature[id] - heatStartTemp[id], elapsed_ticks);
+      if (rate >= 1 && rate <= THERMAL_RATE_MAX_TENTHS_PER_HOUR) {
+        heatRateTenthsPerHour[id] = thermal_ema_update(heatRateTenthsPerHour[id], rate);
+        heatRateSamples[id] += 1;
+        persist_thermal_rates(id);
+        publish_thermal_rate_evt(id);
+        ESP_LOGI(TAG, "thermal rate thermostat[%d]: heat %d.%d C/h after %u min (%d samples)",
+                 id, rate / 10, abs(rate % 10), elapsed_ticks * CONFIG_MQTT_THERMOSTATS_TICK_PERIOD / 60, heatRateSamples[id]);
+      }
+    }
+    heatStartTemp[id] = INT_MIN;
+  }
+}
+
+static void start_heat_episodes()
+{
+  for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (is_room_zone(id) && temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE) {
+      heatStartTemp[id] = currentTemperature[id];
+    } else {
+      heatStartTemp[id] = INT_MIN;
+    }
+  }
+}
+
+static void close_cool_episodes()
+{
+  for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (is_room_zone(id) && coolStartTick[id] != -1 &&
+        temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE) {
+      unsigned int elapsed_ticks = lifeTickCounter - coolStartTick[id];
+      if (elapsed_ticks >= THERMAL_RATE_MIN_COOL_TICKS) {
+        int rate = compute_rate_tenths_per_hour(coolStartTemp[id] - currentTemperature[id], elapsed_ticks);
+        if (rate >= 1 && rate <= THERMAL_RATE_MAX_TENTHS_PER_HOUR) {
+          coolRateTenthsPerHour[id] = thermal_ema_update(coolRateTenthsPerHour[id], rate);
+          coolRateSamples[id] += 1;
+          persist_thermal_rates(id);
+          publish_thermal_rate_evt(id);
+          ESP_LOGI(TAG, "thermal rate thermostat[%d]: loss %d.%d C/h after %u min (%d samples)",
+                   id, rate / 10, abs(rate % 10), elapsed_ticks * CONFIG_MQTT_THERMOSTATS_TICK_PERIOD / 60, coolRateSamples[id]);
+        }
+      }
+    }
+    coolStartTick[id] = -1;
+  }
+}
+
+static void start_cool_episodes()
+{
+  for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    if (is_room_zone(id) && temperatureSensorState(id) != TEMPERATURE_SENSOR_OBSOLETE) {
+      coolStartTemp[id] = currentTemperature[id];
+      coolStartTick[id] = lifeTickCounter;
+    } else {
+      coolStartTick[id] = -1;
+    }
+  }
+}
+
+static void read_nvs_thermal_rates()
+{
+  char tag[16];
+  for (int id = 0; id < CONFIG_MQTT_THERMOSTATS_NB; id++) {
+    memset(tag,0,16);
+    sprintf(tag, "htr%d", id);
+    read_nvs_integer(tag, &heatRateTenthsPerHour[id]);
+    memset(tag,0,16);
+    sprintf(tag, "hsn%d", id);
+    read_nvs_integer(tag, &heatRateSamples[id]);
+    memset(tag,0,16);
+    sprintf(tag, "ctr%d", id);
+    read_nvs_integer(tag, &coolRateTenthsPerHour[id]);
+    memset(tag,0,16);
+    sprintf(tag, "csn%d", id);
+    read_nvs_integer(tag, &coolRateSamples[id]);
+  }
+}
+
+#endif // CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+
+#define CIRCUIT_WATER_LIMIT_MIN 200 //20.0 C
+#define CIRCUIT_WATER_LIMIT_MAX 900 //90.0 C
+
+bool apply_circuit_water_limit(unsigned char id, int limit, bool is_low_limit)
+{
+  if (thermostatType[id] != THERMOSTAT_TYPE_CIRCUIT) {
+    ESP_LOGE(TAG, "water limit rejected: thermostat[%d] is not the circuit thermostat", id);
+    return false;
+  }
+  if (limit < CIRCUIT_WATER_LIMIT_MIN || limit > CIRCUIT_WATER_LIMIT_MAX) {
+    ESP_LOGE(TAG, "water limit %d.%d out of range", limit / 10, abs(limit % 10));
+    return false;
+  }
+  if (is_low_limit) {
+    if (targetTemperature[id] != limit) {
+      targetTemperature[id] = limit;
+      ESP_ERROR_CHECK( write_nvs_short(targetTemperatureTAG[id], limit) );
+    }
+    publish_thermostat_target_temperature_evt(id);
+  } else {
+    if (temperatureTolerance[id] != limit) {
+      temperatureTolerance[id] = limit;
+      ESP_ERROR_CHECK( write_nvs_short(temperatureToleranceTAG[id], limit) );
+    }
+    publish_thermostat_temperature_tolerance_evt(id);
+  }
+  return true;
+}
+
 void disableThermostat(const char * reason)
 {
   ESP_LOGI(TAG, "Turning thermostat off, reason: %s", reason);
+#ifdef CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+  close_heat_episodes(thermostatDuration);
+  start_cool_episodes();
+#endif // CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
   thermostatState=THERMOSTAT_STATE_IDLE;
 
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_OFF);
@@ -525,6 +715,10 @@ void disableThermostat(const char * reason)
 void enableThermostat(const char * reason)
 {
   ESP_LOGI(TAG, "Turning thermostat on, reason: %s", reason);
+#ifdef CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+  close_cool_episodes();
+  start_heat_episodes();
+#endif // CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
   thermostatState=THERMOSTAT_STATE_HEATING;
   update_relay_status(CONFIG_MQTT_THERMOSTAT_RELAY_ID, RELAY_STATUS_ON);
 
@@ -862,6 +1056,9 @@ void handle_thermostat_cmd_task(void* pvParameters)
           waterPumpOnTicks = 0;
         }
 #endif // CONFIG_WATERPUMP_SUPPORT
+#ifdef CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+        lifeTickCounter++;
+#endif // CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
         update_thermostat();
       }
 
@@ -912,7 +1109,7 @@ void handle_thermostat_cmd_task(void* pvParameters)
 
       else if (t.msgType == THERMOSTAT_CMD_TARGET_TEMPERATURE) {
         if (targetTemperature[t.thermostatId] != t.data.targetTemperature) {
-          targetTemperature[t.thermostatId] = t.data.thermostatMode;
+          targetTemperature[t.thermostatId] = t.data.targetTemperature;
           esp_err_t err = write_nvs_short(targetTemperatureTAG[t.thermostatId],
                                           targetTemperature[t.thermostatId]);
           ESP_ERROR_CHECK( err );
@@ -928,6 +1125,11 @@ void handle_thermostat_cmd_task(void* pvParameters)
           ESP_ERROR_CHECK( err );
         }
         publish_thermostat_temperature_tolerance_evt(t.thermostatId);
+      }
+      else if (t.msgType == THERMOSTAT_CMD_CIRCUIT_WATER_LOW
+               || t.msgType == THERMOSTAT_CMD_CIRCUIT_WATER_HIGH) {
+        apply_circuit_water_limit(t.thermostatId, t.data.targetTemperature,
+                                  t.msgType == THERMOSTAT_CMD_CIRCUIT_WATER_LOW);
       } else if (t.msgType == THERMOSTAT_CMD_WATER_TEMP_LOW) {
         // set water thermostat temperature to low
         // start room thermostats
@@ -1055,5 +1257,9 @@ void read_nvs_thermostat_data()
     err=read_nvs_short(temperatureToleranceTAG[id], (short*) &temperatureTolerance[id]);
     ESP_ERROR_CHECK( err );
   }
+
+#ifdef CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+  read_nvs_thermal_rates();
+#endif // CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
 }
 #endif // CONFIG_MQTT_THERMOSTATS_NB > 0

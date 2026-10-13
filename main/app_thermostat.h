@@ -74,6 +74,10 @@ enum ThermostatMsgType {
   THERMOSTAT_CMD_ROOM_TEMP_MODERATE_INC,
   THERMOSTAT_CMD_ROOM_TEMP_SLIGHT_DEC,
   THERMOSTAT_CMD_ROOM_TEMP_MODERATE_DEC,
+  // circuit water limits: targetTemperature holds the LOW limit,
+  // temperatureTolerance holds the HIGH limit
+  THERMOSTAT_CMD_CIRCUIT_WATER_LOW = 17,
+  THERMOSTAT_CMD_CIRCUIT_WATER_HIGH,
 };
 
 struct ThermostatMessage {
@@ -88,6 +92,28 @@ esp_err_t read_thermostat_nvs(const char * tag, int * value);
 
 void handle_thermostat_cmd_task(void* pvParameters);
 void read_nvs_thermostat_data(void);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+bool apply_circuit_water_limit(unsigned char id, int limit, bool is_low_limit);
+
+#ifdef CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+
+extern int heatRateTenthsPerHour[CONFIG_MQTT_THERMOSTATS_NB];
+extern int heatRateSamples[CONFIG_MQTT_THERMOSTATS_NB];
+extern int coolRateTenthsPerHour[CONFIG_MQTT_THERMOSTATS_NB];
+extern int coolRateSamples[CONFIG_MQTT_THERMOSTATS_NB];
+
+int compute_rate_tenths_per_hour(int delta_tenths, int ticks);
+int thermal_ema_update(int current, int sample);
+
+#endif // CONFIG_MQTT_THERMOSTAT_RATE_LEARNING
+
+#ifdef __cplusplus
+}
+#endif
 
 void thermostat_publish_local_data(int thermostat_id, int value);
 
