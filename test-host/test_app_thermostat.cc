@@ -25,6 +25,9 @@ extern "C" {
   bool tooHot(char* reason);
   bool tooCold(char* reason);
   void update_thermostat();
+  bool apply_circuit_water_limit(unsigned char id, int limit, bool is_low_limit);
+  int compute_rate_tenths_per_hour(int delta_tenths, int ticks);
+  int thermal_ema_update(int current, int sample);
 }
 
 extern short temperatureTolerance[CONFIG_MQTT_THERMOSTATS_NB];
@@ -38,6 +41,12 @@ extern enum HeatingState heatingState;
 extern int waterPumpOnTicks;
 extern int waterPumpStatus;
 extern bool waterPumpOn[];
+extern int heatRateTenthsPerHour[CONFIG_MQTT_THERMOSTATS_NB];
+extern int heatRateSamples[CONFIG_MQTT_THERMOSTATS_NB];
+extern int coolRateTenthsPerHour[CONFIG_MQTT_THERMOSTATS_NB];
+extern int coolRateSamples[CONFIG_MQTT_THERMOSTATS_NB];
+extern int heatStartTemp[CONFIG_MQTT_THERMOSTATS_NB];
+extern unsigned int thermostatDuration;
 
 TEST_CASE("publish_thermostat_current_temperature_evt_valid", "[tag]" ) {
   MockRepository mocks;
@@ -528,4 +537,99 @@ TEST_CASE("watchdog_does_not_fire_when_sensor_obsolete", "[waterpump-watchdog]" 
     update_thermostat();
 
     REQUIRE(waterPumpStatus == WATERPUMP_STATUS_ON);
+}
+
+// ============================================================
+// Per room thermal rate learning tests
+// ============================================================
+
+TEST_CASE("thermal_rate_computation", "[thermal-rate]" ) {
+    REQUIRE(compute_rate_tenths_per_hour(20, 40) == 30);    // 2.0C in 40min at 60s tick
+    REQUIRE(compute_rate_tenths_per_hour(0, 40) == 0);
+    REQUIRE(compute_rate_tenths_per_hour(20, 0) == 0);
+}
+
+TEST_CASE("thermal_rate_ema_update", "[thermal-rate]" ) {
+    REQUIRE(thermal_ema_update(0, 100) == 100);             // first sample seeds
+    REQUIRE(thermal_ema_update(100, 50) == 90);             // (100*8 + 50*2)/10
+    REQUIRE(thermal_ema_update(90, 50) == 82);
+}
+
+TEST_CASE("thermal_rate_episode_close_updates_ema_per_room", "[thermal-rate]" ) {
+    reset_watchdog_test_globals();
+    // room zone 0 heated 1.5C in 25 ticks of 60s -> 3.6 C/h = 36 tenths/h;
+    // room zone 1 heated 0.5C in the same episode -> 1.2 C/h = 12 tenths/h
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    thermostatType[1] = THERMOSTAT_TYPE_NORMAL;
+    waterPumpOn[0] = true;
+    waterPumpOn[1] = true;
+    currentTemperatureFlag[0] = SENSOR_LIFETIME;
+    currentTemperatureFlag[1] = SENSOR_LIFETIME;
+    currentTemperature[0] = 215;
+    currentTemperature[1] = 205;
+    targetTemperature[0] = 200;
+    targetTemperature[1] = 200;
+    temperatureTolerance[0] = 10;
+    temperatureTolerance[1] = 10;
+    heatStartTemp[0] = 200;
+    heatStartTemp[1] = 200;
+    heatRateTenthsPerHour[0] = 0;
+    heatRateTenthsPerHour[1] = 0;
+    heatRateSamples[0] = 0;
+    heatRateSamples[1] = 0;
+    thermostatDuration = 25;
+    thermostatState = THERMOSTAT_STATE_HEATING;
+
+    update_thermostat();  // tooHot path -> disableThermostat -> close_heat_episodes
+
+    REQUIRE(thermostatState == THERMOSTAT_STATE_IDLE);
+    REQUIRE(heatRateTenthsPerHour[0] == 36);
+    REQUIRE(heatRateSamples[0] == 1);
+    REQUIRE(heatRateTenthsPerHour[1] == 12);
+    REQUIRE(heatRateSamples[1] == 1);
+}
+
+// ============================================================
+// Circuit water limit tests (LOW = circuit target, HIGH = circuit tolerance)
+// ============================================================
+
+TEST_CASE("water_limit_rejected_for_non_circuit_thermostat", "[circuit-limits]" ) {
+    thermostatType[0] = THERMOSTAT_TYPE_NORMAL;
+    targetTemperature[0] = 210;
+
+    REQUIRE(apply_circuit_water_limit(0, 450, true) == false);
+    REQUIRE(targetTemperature[0] == 210);
+}
+
+TEST_CASE("water_limit_rejected_out_of_range", "[circuit-limits]" ) {
+    thermostatType[3] = THERMOSTAT_TYPE_CIRCUIT;
+    targetTemperature[3] = 400;
+    temperatureTolerance[3] = 700;
+
+    REQUIRE(apply_circuit_water_limit(3, 100, true) == false);   // 10.0C below 20.0C floor
+    REQUIRE(apply_circuit_water_limit(3, 950, false) == false);  // 95.0C above 90.0C ceiling
+    REQUIRE(targetTemperature[3] == 400);
+    REQUIRE(temperatureTolerance[3] == 700);
+}
+
+TEST_CASE("water_low_limit_sets_circuit_target", "[circuit-limits]" ) {
+    MockRepository mocks;
+    thermostatType[3] = THERMOSTAT_TYPE_CIRCUIT;
+    targetTemperature[3] = 400;
+    mocks.ExpectCallFunc(publish_persistent_data)
+          .With(CString("device_type/client_id/evt/temp/thermostat/3"), CString("45.0"));
+
+    REQUIRE(apply_circuit_water_limit(3, 450, true) == true);
+    REQUIRE(targetTemperature[3] == 450);
+}
+
+TEST_CASE("water_high_limit_sets_circuit_tolerance", "[circuit-limits]" ) {
+    MockRepository mocks;
+    thermostatType[3] = THERMOSTAT_TYPE_CIRCUIT;
+    temperatureTolerance[3] = 700;
+    mocks.ExpectCallFunc(publish_persistent_data)
+          .With(CString("device_type/client_id/evt/tolerance/thermostat/3"), CString("75.0"));
+
+    REQUIRE(apply_circuit_water_limit(3, 750, false) == true);
+    REQUIRE(temperatureTolerance[3] == 750);
 }

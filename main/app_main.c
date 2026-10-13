@@ -2,6 +2,10 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
+#include <time.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -180,6 +184,8 @@ void blink_task(void *pvParameter)
 void app_main(void)
 {
   ESP_LOGI(TAG, "[APP] Startup..");
+  setenv("TZ", CONFIG_MQTT_TIMEZONE, 1);
+  tzset();
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
   ESP_LOGI(TAG, "[APP] Client ID: " CONFIG_CLIENT_ID);
