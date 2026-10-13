@@ -279,7 +279,6 @@ void publish_all_relays_status()
 {
   for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
     publish_relay_status(id);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
 
@@ -287,7 +286,6 @@ void publish_all_relays_availability()
 {
   for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
     publish_relay_availability(id);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
 
@@ -295,7 +293,6 @@ void publish_all_relays_timeout()
 {
   for(int id = 0; id < CONFIG_MQTT_RELAYS_NB; id++) {
     publish_relay_timeout(id);
-    vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
 

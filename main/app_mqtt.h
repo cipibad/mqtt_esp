@@ -1,6 +1,8 @@
 #ifndef APP_MQTT_H
 #define APP_MQTT_H
 
+#include "app_publish_data.h"
+
 /* some useful values for relay Json exchanges */
 #define MAX_MQTT_DATA_LEN_RELAY 32
 #define MAX_MQTT_DATA_THERMOSTAT 64
@@ -9,8 +11,20 @@
 #define JSON_BAD_RELAY_VALUE 255
 #define JSON_BAD_TOPIC_ID 255
 
+/* must fit the largest publisher: ops stack json (DATA_SIZE in app_ops.c) */
+#define MAX_PUBLISH_DATA_LEN 512
+#define PUBLISH_QUEUE_DEPTH 8
+
+struct PublishMessage {
+  char topic[MAX_TOPIC_LEN];
+  char data[MAX_PUBLISH_DATA_LEN];
+  unsigned char qos;
+  unsigned char retain;
+};
+
 void mqtt_init_and_start();
 void handle_mqtt_sub_pub(void* pvParameters);
+void handle_publish_task(void* pvParameters);
 
 
 #define MQTT_TIMEOUT 60

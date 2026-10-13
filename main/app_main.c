@@ -32,7 +32,7 @@ extern EventGroupHandle_t mqtt_event_group;
 extern const int MQTT_CONNECTED_BIT;
 
 QueueHandle_t mqttQueue;
-SemaphoreHandle_t xSemaphore;
+QueueHandle_t publishQueue;
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
 #if CONFIG_MQTT_SWITCHES_NB
@@ -234,7 +234,7 @@ void app_main(void)
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
   mqtt_event_group = xEventGroupCreate();
   mqttQueue = xQueueCreate(1, sizeof(void *) );
-  xSemaphore = xSemaphoreCreateMutex();
+  publishQueue = xQueueCreate(PUBLISH_QUEUE_DEPTH, sizeof(struct PublishMessage) );
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 
   wifi_event_group = xEventGroupCreate();
@@ -366,9 +366,10 @@ wifi_init();
 
 #ifdef CONFIG_NORTH_INTERFACE_MQTT
     //remote logging hook adds stack cost to every ESP_LOG in the
-    //publish path, this task publishes state bursts and logs, *3
-    //overflowed with the hook active
-    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 5, NULL, 5, NULL);
+    //publish path: the publish worker owns that deep path now,
+    //sub_pub only enqueues and subscribes
+    xTaskCreate(handle_mqtt_sub_pub, "handle_mqtt_sub_pub", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL);
+    xTaskCreate(handle_publish_task, "handle_publish_task", configMINIMAL_STACK_SIZE * 4, NULL, 5, NULL);
     mqtt_init_and_start();
 #endif // CONFIG_NORTH_INTERFACE_MQTT
 

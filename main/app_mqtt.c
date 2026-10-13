@@ -75,12 +75,11 @@ EventGroupHandle_t mqtt_event_group;
 const int MQTT_CONNECTED_BIT = BIT0;
 const int MQTT_SUBSCRIBED_BIT = BIT1;
 const int MQTT_PUBLISHED_BIT = BIT2;
-const int MQTT_INIT_FINISHED_BIT = BIT3;
 
 int mqtt_reconnect_counter;
 
 extern QueueHandle_t mqttQueue;
-extern SemaphoreHandle_t xSemaphore;
+extern QueueHandle_t publishQueue;
 
 static const char *TAG = "MQTTS_MQTTS";
 
@@ -789,33 +788,60 @@ void dispatch_mqtt_event(esp_mqtt_event_handle_t event)
   ESP_LOGI(TAG, "Unhandled topic %.*s", event->topic_len, event->topic);
 }
 
+/* runs only from handle_publish_task (or the synchronous fallback below),
+ * so exactly one context waits on MQTT_PUBLISHED_BIT at any time */
+static void mqtt_do_publish(const char * topic, const char * data, int qos, int retain)
+{
+  int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
+  if (qos == QOS_0) {
+    ESP_LOGI(TAG, "published qos0 data, topic: %s", topic);
+  } else if (msg_id > 0) {
+    ESP_LOGI(TAG, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
+    EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
+    if (bits & MQTT_PUBLISHED_BIT) {
+      ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
+    } else {
+      ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
+    }
+  } else {
+    ESP_LOGW(TAG, "failed to publish qos1, msg_id=%d", msg_id);
+  }
+}
+
 void mqtt_publish_data(const char * topic,
                        const char * data,
                        int qos, int retain)
 {
-  if (xEventGroupGetBits(mqtt_event_group) & MQTT_INIT_FINISHED_BIT) {
-    if (( xSemaphore != NULL ) && xSemaphoreTake( xSemaphore, 2 * MQTT_FLAG_TIMEOUT ) == pdTRUE) {
-      xEventGroupClearBits(mqtt_event_group, MQTT_PUBLISHED_BIT);
-      int msg_id = esp_mqtt_client_publish(client, topic, data, strlen(data), qos, retain);
-      if (qos == QOS_0) {
-        ESP_LOGI(TAG, "published qos0 data, topic: %s", topic);
-      } else if (msg_id > 0) {
-        ESP_LOGI(TAG, "published qos1 data, msg_id=%d, topic=%s", msg_id, topic);
-        EventBits_t bits = xEventGroupWaitBits(mqtt_event_group, MQTT_PUBLISHED_BIT, false, true, MQTT_FLAG_TIMEOUT);
-        if (bits & MQTT_PUBLISHED_BIT) {
-          ESP_LOGI(TAG, "publish ack received, msg_id=%d", msg_id);
-        } else {
-          ESP_LOGW(TAG, "publish ack not received, msg_id=%d", msg_id);
-        }
-      } else {
-        ESP_LOGW(TAG, "failed to publish qos1, msg_id=%d", msg_id);
+  if (client == NULL || esp_mqtt_client_get_state(client) != MQTT_CLIENT_STATE_CONNECTED) {
+    ESP_LOGW(TAG, "cannot publish topic %s, mqtt not connected", topic);
+    return;
+  }
+  if (publishQueue == NULL) {
+    mqtt_do_publish(topic, data, qos, retain);
+    return;
+  }
+  struct PublishMessage m;
+  memset(&m, 0, sizeof(m));
+  strncpy(m.topic, topic, sizeof(m.topic) - 1);
+  strncpy(m.data, data, sizeof(m.data) - 1);
+  if (strlen(data) >= sizeof(m.data)) {
+    ESP_LOGW(TAG, "payload truncated for topic %s", topic);
+  }
+  m.qos = qos;
+  m.retain = retain;
+  if (xQueueSend(publishQueue, &m, 0) != pdPASS) {
+    ESP_LOGW(TAG, "publish queue full, dropping topic %s", topic);
+  }
+}
+
+void handle_publish_task(void* pvParameters)
+{
+  struct PublishMessage m;
+  while(1) {
+    if( xQueueReceive( publishQueue, &m , portMAX_DELAY) )
+      {
+        mqtt_do_publish(m.topic, m.data, m.qos, m.retain);
       }
-      xSemaphoreGive( xSemaphore );
-    } else {
-      ESP_LOGW(TAG, "cannot get semaphore");
-    }
-  } else {
-    ESP_LOGW(TAG, "cannot publish topic %s, mqtt init not finished", topic);
   }
 }
 
@@ -852,13 +878,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
   case MQTT_EVENT_DISCONNECTED:
     ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
     connect_reason=mqtt_disconnect;
-    xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_SUBSCRIBED_BIT | MQTT_PUBLISHED_BIT | MQTT_INIT_FINISHED_BIT);
+    xEventGroupClearBits(mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_SUBSCRIBED_BIT | MQTT_PUBLISHED_BIT);
     mqtt_reconnect_counter += 1; //one reconnect each 10 seconds
     ESP_LOGI(TAG, "mqtt_reconnect_counter: %d", mqtt_reconnect_counter);
     if (mqtt_reconnect_counter  > (6 * 5)) //5 mins, force wifi reconnect
       {
+        /* no sleep here: this handler runs in the esp-mqtt client task,
+         * blocking it freezes the whole client (commands, ping, PUBACKs) */
+        ESP_LOGW(TAG, "forcing wifi restart");
         esp_wifi_stop();
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
         esp_wifi_start();
         mqtt_reconnect_counter = 0;
       }
@@ -954,6 +982,10 @@ void mqtt_init_and_start()
         },
 #endif // CONFIG_DEEP_SLEEP_MODE
     },
+    .buffer = {
+        .size = 512,
+        .out_size = 512,
+    },
   };
 
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
@@ -971,16 +1003,11 @@ void handle_mqtt_sub_pub(void* pvParameters)
   while(1) {
     if( xQueueReceive( mqttQueue, &unused , portMAX_DELAY) )
       {
-        xEventGroupClearBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
 #ifndef CONFIG_DEEP_SLEEP_MODE
         mqtt_subscribe(client);
-#endif // CONFIG_DEEP_SLEEP_MODE
-        xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
-#ifndef CONFIG_DEEP_SLEEP_MODE
         publish_available_msg();
         publish_config_msg();
 #endif // CONFIG_DEEP_SLEEP_MODE
-        xEventGroupSetBits(mqtt_event_group, MQTT_INIT_FINISHED_BIT);
 #ifdef CONFIG_MQTT_BELL
         bell_on_mqtt_connected();
 #endif // CONFIG_MQTT_BELL
